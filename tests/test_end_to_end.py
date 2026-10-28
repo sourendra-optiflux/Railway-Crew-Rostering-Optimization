@@ -146,3 +146,16 @@ def test_flow_mip_agrees_with_cp_sat(seed):
     assert mip["covered_units"] == r.solution.objective_values["coverage"]
     rep = validate_solution(inst, ModelConfig(), mip["assignments"])
     assert rep.passed and rep.coverage["covered_units"] == mip["covered_units"]
+
+
+def test_greedy_fallback_when_cp_sat_finds_nothing(monkeypatch):
+    from ortools.sat.python import cp_model
+
+    inst = generate_instance(SyntheticConfig(seed=41, n_crew=40, n_duties=50))
+    monkeypatch.setattr(cp_model.CpSolver, "solve", lambda self, model, *a, **k: cp_model.UNKNOWN)
+    r = solve(inst)
+    assert r.solution.status == "HEURISTIC_ONLY"
+    assert r.validation.passed
+    assert r.validation.coverage["covered_units"] == r.greedy["covered_units"] > 0
+    assert r.solution.best_bounds["coverage"] >= r.greedy["covered_units"]
+    assert any("greedy roster" in n for n in r.solution.stats["notes"])

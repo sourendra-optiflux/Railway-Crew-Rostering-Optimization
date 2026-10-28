@@ -252,7 +252,8 @@ check that it never changes the optimum.
 | `OPTIMAL` | every objective stage was proven optimal |
 | `FEASIBLE` | a solution exists, but at least one stage stopped at the time limit; `best_bounds` gives the proven bound, and `coverage_gap_pct = (bound − found)/bound` |
 | `INFEASIBLE` | the hard rules cannot all hold — with fixed existing assignments this means the input roster itself is illegal (see `candidate_issues`) |
-| `UNKNOWN` | no solution within the time limit |
+| `UNKNOWN` | no solution within the time limit, and no legal greedy roster |
+| `HEURISTIC_ONLY` | CP-SAT found nothing within the time limit; the greedy roster (accepted by the independent validator) is returned, with the LP bound as the only quality guarantee |
 | `INPUT_ERROR` | input validation failed, no model built |
 
 The independent validator (`solution_validation.py`) re-checks every returned

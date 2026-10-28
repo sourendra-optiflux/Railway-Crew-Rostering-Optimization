@@ -21,7 +21,11 @@ Solver status semantics
 ``INFEASIBLE``  the hard constraints cannot all hold (with fixed existing
                 assignments this usually means the input roster itself is
                 inconsistent - see ``candidate_issues``).
-``UNKNOWN``     no solution found within the time limit.
+``UNKNOWN``     no solution found within the time limit (and no legal greedy roster).
+``HEURISTIC_ONLY`` CP-SAT found nothing within the time limit; the greedy roster,
+                which the independent validator accepted, is returned instead.
+                Its quality is not proven (``best_bounds`` may still hold an
+                LP bound).
 ``INPUT_ERROR`` input validation failed; no model was built.
 """
 
@@ -256,6 +260,32 @@ def _expr_value_from_routes(rm: RosteringModel, lvl, routes) -> int:
     return lvl.constant + sum(c for c, v in lvl.terms if v.Index() in on_index)
 
 
+def _routes_to_solution(cands: CandidateSet, routes: dict[str, list[str]]):
+    """Assignments, routes and positioning legs for a roster given as routes."""
+
+    assignments, positioning = [], []
+    for cid, route in sorted(routes.items()):
+        arcs = {(a.tail, a.head): a for a in cands.crews[cid].arcs}
+        seq = [SOURCE] + route + [SINK]
+        for tail, head in zip(seq, seq[1:]):
+            for leg in arcs[(tail, head)].legs:
+                positioning.append(
+                    {
+                        "crew_id": cid,
+                        "after": "" if tail == SOURCE else tail,
+                        "before": "" if head == SINK else head,
+                        "from_location": leg.from_location,
+                        "to_location": leg.to_location,
+                        "travel_minutes": leg.travel_minutes,
+                        "cost": leg.cost,
+                        "base_return_reason": arcs[(tail, head)].base_reason or "",
+                    }
+                )
+        for did in route:
+            assignments.append(Assignment(cid, did, cid in cands.instance.duty(did).assigned_crew))
+    return assignments, {c: list(r) for c, r in routes.items()}, positioning
+
+
 def solve_instance(
     instance: Instance,
     model_config: Optional[ModelConfig] = None,
@@ -308,6 +338,16 @@ def solve_instance(
         assignments, routes, positioning = _extract(rm, last_good)
         for lvl in levels:  # report every level's value, including trivial ones
             objective_values.setdefault(lvl.name, _value(last_good, lvl.expr()))
+    elif g_report.passed and g_routes and overall == "UNKNOWN":
+        # CP-SAT found nothing within the time limit, but the greedy roster is
+        # legal (checked by the independent validator): return it, clearly
+        # labelled, rather than an empty answer.
+        overall = "HEURISTIC_ONLY"
+        assignments, routes, positioning = _routes_to_solution(cands, g_routes)
+        objective_values["coverage"] = g_report.coverage["covered_units"]
+        if "coverage" in staged.lp_bounds:
+            best_bounds["coverage"] = integral_cut_value(staged.lp_bounds["coverage"], True)
+        staged.notes.append("CP-SAT found no solution in the time limit; returning the validated greedy roster")
     else:
         assignments, routes, positioning = [], {}, []
 
@@ -329,8 +369,9 @@ def solve_instance(
         stats=stats,
     )
     t = _time.perf_counter()
-    claimed = objective_values.get("coverage") if last_good is not None else None
-    report = validate_solution(instance, mcfg, assignments, claimed_covered_units=claimed) if last_good else None
+    have_solution = last_good is not None or overall == "HEURISTIC_ONLY"
+    claimed = objective_values.get("coverage") if have_solution else None
+    report = validate_solution(instance, mcfg, assignments, claimed_covered_units=claimed) if have_solution else None
     timings["validation"] = _time.perf_counter() - t
     timings["total"] = _time.perf_counter() - t0
     solution.wall_time_seconds = timings["total"]
