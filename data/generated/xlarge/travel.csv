@@ -1,0 +1,5 @@
+from_location,to_location,travel_minutes,cost
+Howrah,Yajpur,360,1.0
+Yajpur,Howrah,360,1.0
+Howrah,Nellore,900,2.0
+Nellore,Howrah,900,2.0
