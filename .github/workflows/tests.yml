@@ -1,0 +1,30 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check src tests scripts
+      - name: Tests
+        run: pytest
+      - name: CLI smoke test
+        run: |
+          python scripts/run_example.py --output-dir outputs/ci_example --workers 2
+          python scripts/run_example.py --instance-dir data/sample/v1_toy --output-dir outputs/ci_v1 --workers 2

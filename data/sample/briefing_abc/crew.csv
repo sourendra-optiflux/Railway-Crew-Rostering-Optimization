@@ -1,0 +1,2 @@
+crew_id,crew_type,base_location,initial_location,rostered_start_time,current_start_time,swing_start_date,work_days,off_days,prior_duty_end,prior_shift_type,next_commitment_start,next_commitment_location,next_commitment_shift_type,unavailable_dates
+ABC,RELIEF,Howrah,Howrah,17:00,,2026-11-01,14,14,,,,,,

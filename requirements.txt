@@ -1,0 +1,7 @@
+# Core solver dependency
+ortools>=9.10
+# Tests
+pytest>=7
+# Notebooks only (optional)
+pandas>=2.0
+matplotlib>=3.7

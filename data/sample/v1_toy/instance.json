@@ -1,0 +1,8 @@
+{
+  "name": "v1_toy",
+  "horizon_start": "2026-11-01 00:00",
+  "horizon_end": "2026-11-06 00:00",
+  "synthetic": true,
+  "source": "Toy data from rostering_v1_sheets.ipynb (Version-1 legacy CSV format). Not operational data.",
+  "expected": {"covered_units": 5}
+}

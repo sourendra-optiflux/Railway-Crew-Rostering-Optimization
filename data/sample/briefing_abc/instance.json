@@ -1,0 +1,9 @@
+{
+  "name": "briefing_abc",
+  "horizon_start": "2026-11-01 00:00",
+  "horizon_end": "2026-11-08 00:00",
+  "synthetic": true,
+  "source": "Hand-constructed from the ABC example in Optiflux_crew_rostering_problem.md section 10. Not operational data.",
+  "omitted_from_example": "The 2 Nov 'Yajpur CLO (YAJ -> YAJ)' entry is omitted because the briefing gives no time for it.",
+  "expected": {"covered_units": 6, "routes": {"ABC": ["D01", "D02", "D03", "D05", "D06", "D07"]}}
+}

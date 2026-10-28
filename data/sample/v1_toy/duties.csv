@@ -1,0 +1,6 @@
+id,start,start_location,end_location,activity,eligible
+G1,2026-11-01 17:00,Howrah,Yajpur,Howrah Mainline,A;B
+G2,2026-11-02 17:00,Yajpur,Howrah,Yajpur Mainline,A;B
+G3,2026-11-02 17:00,Howrah,Yajpur,Howrah Mainline,A;C
+G4,2026-11-03 17:00,Yajpur,Howrah,Yajpur Mainline,A;C
+G5,2026-11-04 17:00,Howrah,Yajpur,Howrah Mainline,A;B;C

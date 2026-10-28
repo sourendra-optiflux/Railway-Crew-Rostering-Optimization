@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Run outputs (regenerate with the CLI; benchmark summaries are copied into docs/)
+outputs/
+
+# Never commit real operational data
+data/private/
+data/real/
+*.xlsx
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
