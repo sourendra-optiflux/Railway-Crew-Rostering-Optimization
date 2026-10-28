@@ -1,197 +1,132 @@
-# OptiFlux Crew Rostering
+# OptiFlux Railway Crew Recovery and Rostering
 
-A prototype for railway crew recovery and rostering, built to explore
-how uncovered duties can be assigned to available crew members while
-respecting basic operational constraints.
+A working prototype that assigns available **Relief and Excess** railway crew
+to **uncovered duties** over a multi-day horizon (Howrah, Yajpur and Nellore;
+Howrah Mainline, Yajpur Mainline, NP Crew, NP Shed, Yajpur Crew, Nellore
+Driver, YAJ CLO and CO activities). It maximises covered demand while
+respecting crew eligibility, swing work/off patterns, shift-time rules
+(lift-up / layback), 11 h ordinary and 23 h transition rest, location
+continuity and return-to-base rules.
 
-> **Status:** Version 1 --- simplified proof of concept. This is not a
-> production rostering system.
+It is built on Google OR-Tools **CP-SAT**: one `AddCircuit` per crew member
+over a sparse, pre-filtered graph of legal duty sequences. Every solution is
+re-checked by an **independent validator**.
 
-## Objective
+> **Status:** research prototype (v0.2). All data in this repository is
+> **synthetic or hand-constructed**. Several operating rules in the briefing
+> are ambiguous and are implemented as documented, switchable
+> approximations. Do not use the results for live operational decisions.
 
-The initial model aims to maximize the number of uncovered duties
-assigned to eligible crew members.
+The problem specification is
+[`Optiflux_crew_rostering_problem.md`](Optiflux_crew_rostering_problem.md).
 
-It is intentionally small in scope so that the data pipeline and
-optimization model can be tested before adding more detailed railway
-operating rules.
+## Quick start
 
-## Current model scope
-
-The prototype models:
-
--   Crew members and their initial locations.
--   Duties with a start time, start location, end location, activity,
-    and eligible crew list.
--   A fixed duration of 12 hours per duty.
--   At most one assigned duty per crew member per calendar start day.
--   Eligibility restrictions for each duty.
--   At least 11 hours of rest between consecutive duties.
--   Location continuity: a crew member must be at a duty's start
-    location to perform it.
--   Location changes only through an assigned duty; no independent
-    travel or positioning is allowed.
--   Maximization of the total number of covered duties.
-
-For a duty starting at time `start`, its end time is calculated as
-`start + 12 hours`.
-
-## Repository structure
-
-A suggested layout is:
-
-``` text
-OptiFlux-Crew-Rostering/
-├── notebooks/
-│   └── crew_recovery_v1.ipynb
-├── data/
-│   ├── crew_sample.csv
-│   └── duties_sample.csv
-├── README.md
-└── .gitignore
+```bash
+pip install -r requirements.txt
+python scripts/run_example.py                      # briefing ABC example -> outputs/example/
+pytest                                             # 171 tests
 ```
 
-Use synthetic or anonymized sample data in the repository. Keep actual
-operational data out of Git.
-
-## Requirements
-
-The notebook is designed to run in Google Colab and uses:
-
--   Python
--   pandas
--   OR-Tools CP-SAT
-
-Install the solver in a Colab cell:
-
-``` python
-%pip install -q ortools
+```bash
+python scripts/generate_synthetic_instance.py      # regenerate data/generated/*
+python scripts/run_example.py --instance-dir data/generated/large --output-dir outputs/large
+python scripts/run_example.py --crew data/sample/v1_toy/crew.csv --duties data/sample/v1_toy/duties.csv
+python scripts/benchmark.py --presets small medium --time-limit 30
 ```
 
-## Input data
+More commands, including changing rules and time limits:
+[`docs/running_experiments.md`](docs/running_experiments.md).
 
-The prototype expects two CSV files.
+## What is modelled
 
-### `crew.csv`
+| Rule | Status |
+|---|---|
+| Eligibility by activity (table and/or per-duty list) | hard |
+| Demand per duty (multi-crew), uniqueness, coverage accounting | hard |
+| Overlap, 11 h ordinary rest | hard |
+| 23 h rest on DAY↔NIGHT transitions (only on transitions) | hard; day window 03:00–15:00 is an assumption |
+| Duties crossing midnight; prior duty and next commitment at the horizon edges | hard |
+| Location continuity from the initial location; no teleporting | hard |
+| Positioning (travel) | off by default; optional, synthetic travel times |
+| Relief / Excess swing calendars (14/14, 6/6 defaults) | hard (approximation) |
+| Excess lift-up / layback (±1 h); Relief any time; persistence of a change within the swing | hard; persistence policy configurable |
+| Return to base at swing end and on transition days | hard (approximation) |
+| Existing assignments | fixed (default) or reassignable |
+| CO and CO-location rules | **disabled**: semantics not defined in the briefing |
+| Objective | lexicographic: coverage → priority → positioning → time changes → roster changes |
 
-  -----------------------------------------------------------------------
-  Column                              Description
-  ----------------------------------- -----------------------------------
-  `person_id`                         Unique crew identifier
-
-  `initial_location`                  Crew member's location at the start
-                                      of the planning horizon
-  -----------------------------------------------------------------------
-
-Example:
-
-``` csv
-person_id,initial_location
-CREW_001,Howrah
-CREW_002,Yajpur
-```
-
-### `duties.csv`
-
-  Column             Description
-  ------------------ ---------------------------------------------------------
-  `id`               Unique duty identifier
-  `start`            Start date and time in `YYYY-MM-DD HH:MM` format
-  `start_location`   Location where the duty begins
-  `end_location`     Location where the duty ends
-  `activity`         Duty or activity name
-  `eligible`         Semicolon-separated list of eligible `person_id` values
-
-Example:
-
-``` csv
-id,start,start_location,end_location,activity,eligible
-DUTY_001,2026-01-01 05:00,Howrah,Yajpur,Howrah Mainline,CREW_001;CREW_002
-DUTY_002,2026-01-01 17:00,Yajpur,Howrah,Yajpur Mainline,CREW_002
-```
-
-The examples above are illustrative only. Ensure that every crew ID in
-`eligible` exists in `crew.csv`.
-
-## Run in Google Colab
-
-1.  Open `notebooks/crew_recovery_v1.ipynb` in Google Colab.
-
-2.  Put `crew.csv` and `duties.csv` in your Google Drive project folder,
-    for example `MyDrive/Optiflux_Crew_Rostering/`.
-
-3.  Mount Google Drive:
-
-    ``` python
-    from google.colab import drive
-    drive.mount('/content/drive')
-    ```
-
-4.  Set the project directory in the notebook to match your Drive
-    folder.
-
-5.  Run the notebook cells in order: install/import dependencies, load
-    and validate data, build the model, solve, inspect results, and
-    export outputs.
-
-The notebook exports the assignment and uncovered-duty results as CSV
-files when a feasible or optimal solution is found.
+Details, with the source text for each rule:
+[`docs/assumptions_and_open_questions.md`](docs/assumptions_and_open_questions.md).
 
 ## Outputs
 
-The prototype produces:
+`assignments.csv`, `uncovered_duties.csv` (with a reason code per duty),
+`crew_routes.csv`, `summary.json` (status per stage, objective, bound, gap,
+coverage, runtime, model size, rule-status table) and `validation_report.json`.
+See [`docs/codebase_guide.md`](docs/codebase_guide.md) §11.
 
--   **Assignments output:** duties assigned to crew, including start/end
-    times, activity, and locations.
--   **Uncovered output:** duties that were not assigned to any crew
-    member.
+## Results at a glance
 
-A duty is counted as covered only when it is assigned to a crew member
-by the solver.
+Measured in this repository's environment (4 vCPUs). Synthetic data; see
+[`docs/validation_report.md`](docs/validation_report.md) for every run.
 
-## Important limitations
+| Instance | Crew | Duties | Status | Covered / open | Runtime |
+|---|---|---|---|---|---|
+| `briefing_abc` | 1 | 6 | OPTIMAL | 6 / 6 | < 0.1 s |
+| `medium` | 150 | 120 | OPTIMAL | 117 / 124 | ≈ 4 s |
+| `large` (≈ preliminary OptiFlux scale) | 1,000 | 300 | OPTIMAL | 296 / 309 | ≈ 10 s |
 
-This version does **not** yet model:
+The formulation was checked against exhaustive enumeration on 300 random tiny
+instances and against an independent flow MIP (SCIP): every comparison agreed.
 
--   Relief and Excess crew distinctions.
--   Swing schedules or rostered work/off patterns.
--   Existing rostered duties outside the uncovered-duty input.
--   Positioning duties or independent crew movement.
--   Crew-on (CO) rules or CO location requirements.
--   Special 23-hour rest requirements for day/night shift transitions.
--   The requirement to return to base on the last day of a swing or
-    transition day.
--   Activity-specific or priority-weighted objectives.
--   Full operational validation of every railway rule.
+## Documentation
 
-The current "one duty per calendar start day" rule is a simplifying
-assumption and should be reviewed against the actual operating
-requirements. The output should be treated as an experimental solution,
-not as an operational roster.
+| Guide | Content |
+|---|---|
+| [`initial_assessment.md`](docs/initial_assessment.md) | Audit of the V1 notebooks and plan |
+| [`dataset_research.md`](docs/dataset_research.md) | Public datasets investigated, licences, decision |
+| [`dataset_design.md`](docs/dataset_design.md) | Input schema, sample instances, synthetic generator |
+| [`problem_formulation.md`](docs/problem_formulation.md) | Sets, variables, constraints, objective → code |
+| [`assumptions_and_open_questions.md`](docs/assumptions_and_open_questions.md) | Source vs implementation, open questions |
+| [`model_architecture.md`](docs/model_architecture.md) | Design decisions, alternatives, performance |
+| [`codebase_guide.md`](docs/codebase_guide.md) | Top-down tour of the code |
+| [`running_experiments.md`](docs/running_experiments.md) | Commands |
+| [`validation_report.md`](docs/validation_report.md) | Test and benchmark results |
+| [`mentor_presentation_guide.md`](docs/mentor_presentation_guide.md) | How to present the work |
+| [`file_change_log.md`](docs/file_change_log.md) | What changed, file by file |
 
-## Next steps
+## Repository layout
 
-Potential extensions:
+```text
+src/railway_rostering/   package (model, constraints, validator, generator, CLI)
+scripts/                 run_example.py, generate_synthetic_instance.py, benchmark.py
+data/sample/             hand-checkable instances (V1 toy, briefing ABC)
+data/generated/          synthetic presets small / medium / tight / large / xlarge
+notebooks/               exploratory_analysis.ipynb, solution_visualization.ipynb
+tests/                   pytest suite
+docs/                    guides listed above
+railway_crew_v1.ipynb, rostering_v1_sheets.ipynb   original V1 Colab notebooks (kept unchanged)
+Papers/, Progress/       research material
+```
 
-1.  Validate the simplified model against hand-worked toy examples.
-2.  Add explicit test cases for location continuity, eligibility, rest,
-    and uncovered duties.
-3.  Introduce crew types and swing rules.
-4.  Add existing roster duties and positioning duties.
-5.  Implement CO, base-return, and shift-transition rules.
-6.  Add duty priorities and evaluate trade-offs between coverage and
-    operational preferences.
-7.  Test on anonymized data before any operational use.
+## History
+
+Version 1 was a pair of Colab notebooks with fixed 12 h duties, 11 h rest,
+location continuity and a daily cap. Its circuit-per-person idea is kept;
+its dense variables, missing rules and lack of tests were addressed (see
+[`docs/initial_assessment.md`](docs/initial_assessment.md)). The V1 data
+still runs unchanged: `data/sample/v1_toy` gives the same answer as the
+notebook (5 of 5).
 
 ## Data privacy
 
-Do not commit confidential crew identities, schedules, or operational
-railway data to a public repository. Use synthetic data in examples and
-notebooks, and clear notebook outputs before publishing if they contain
-real operational information.
+Do not commit confidential crew identities, schedules or operational railway
+data. `.gitignore` excludes `data/private/`, `data/real/` and `outputs/`.
+Clear notebook outputs before publishing if they contain real information.
 
 ## Disclaimer
 
-This repository is a learning and prototyping project. Its model
-assumptions are deliberately simplified and must be checked against the
-applicable operating rules before any real-world use.
+This is a learning and prototyping project. Its rules are approximations of
+an incompletely specified briefing and must be confirmed by OptiFlux
+operations before any real-world use.
