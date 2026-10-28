@@ -224,6 +224,10 @@ def _run_stages(cands: CandidateSet, scfg: SolverConfig, g_routes, use_lp: bool,
                 lpb = integral_cut_value(out.lp_bounds[name], maximise)
                 bound = min(bound, lpb) if maximise else max(bound, lpb)
             out.bounds[name] = bound
+            if code == cp_model.FEASIBLE and name in out.lp_bounds and round(bound) == val:
+                # Incumbent equals a valid upper (lower) bound: optimality proven.
+                out.status[name] = "OPTIMAL"
+                out.notes.append(f"{name}: optimality proven by the LP bound (CP-SAT stopped at the time limit)")
             out.last_good = solver
             if k + 1 < len(stages):
                 # Fix this level at the value found before optimising the next.
