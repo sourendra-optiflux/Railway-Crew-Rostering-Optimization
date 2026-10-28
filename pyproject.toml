@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "railway-rostering"
+version = "0.2.0"
+description = "OptiFlux railway crew recovery and rostering prototype (OR-Tools CP-SAT)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["ortools>=9.10"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5"]
+notebooks = ["pandas>=2.0", "matplotlib>=3.7", "jupyter", "nbclient", "nbformat"]
+
+[project.scripts]
+railway-rostering = "railway_rostering.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B"]
+ignore = ["E501", "B905"]
