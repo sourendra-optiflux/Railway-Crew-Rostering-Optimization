@@ -328,7 +328,13 @@ def solve_instance(
         staged.notes.append("LP-bound cut made a stage infeasible; re-solved without LP cuts")
     timings["solve"] = _time.perf_counter() - t_solve
     rm, levels, last_good = staged.rm, staged.levels, staged.last_good
-    stage_status, objective_values, best_bounds = staged.status, staged.values, staged.bounds
+    stage_status, best_bounds = staged.status, staged.bounds
+    # Values at the end of each stage. A later stage can still *improve* an
+    # earlier level that was not proven optimal (it is only constrained to stay
+    # >= the value found), so the reported objective values are recomputed from
+    # the final solution below.
+    stage_values = dict(staged.values)
+    objective_values: dict[str, float] = {}
     stages = staged.stages
     overall = staged.overall
 
@@ -336,8 +342,8 @@ def solve_instance(
         statuses = set(stage_status.values())
         overall = "OPTIMAL" if statuses == {"OPTIMAL"} else "FEASIBLE"
         assignments, routes, positioning = _extract(rm, last_good)
-        for lvl in levels:  # report every level's value, including trivial ones
-            objective_values.setdefault(lvl.name, _value(last_good, lvl.expr()))
+        for lvl in levels:  # every level's value in the final solution, trivial ones included
+            objective_values[lvl.name] = _value(last_good, lvl.expr())
     elif g_report.passed and g_routes and overall == "UNKNOWN":
         # CP-SAT found nothing within the time limit, but the greedy roster is
         # legal (checked by the independent validator): return it, clearly
@@ -355,6 +361,7 @@ def solve_instance(
     stats.update(rm.stats)
     stats["stage_seconds"] = staged.times
     stats["lp_bounds"] = staged.lp_bounds
+    stats["stage_objective_values"] = stage_values
     stats["notes"] = staged.notes
     stats["active_objective_levels"] = list(stages)
     stats["skipped_objective_levels"] = [lvl.name for lvl in levels if lvl.trivial]
