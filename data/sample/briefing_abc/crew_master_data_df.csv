@@ -1,0 +1,8 @@
+CM Id,User Id,Email,First Name,Last Name,Mentor Id,Classification,Depot,Role,Is Mentor,Medical,Position
+ABC,U-ABC,abc@example.invalid,ABC,Synthetic,,Relief,Howrah,Driver,No,Fit,FIFO
+P01,U-P01,p01@example.invalid,P01,Synthetic,,Permanent,Howrah,Driver,No,Fit,Line
+P02,U-P02,p02@example.invalid,P02,Synthetic,,Permanent,Howrah,Driver,No,Fit,Line
+P03,U-P03,p03@example.invalid,P03,Synthetic,,Permanent,Yajpur,Driver,No,Fit,Line
+P04,U-P04,p04@example.invalid,P04,Synthetic,,Permanent,Yajpur,Driver,No,Fit,Line
+P05,U-P05,p05@example.invalid,P05,Synthetic,,Permanent,Howrah,Driver,No,Fit,Line
+P06,U-P06,p06@example.invalid,P06,Synthetic,,Permanent,Howrah,Driver,No,Fit,Line

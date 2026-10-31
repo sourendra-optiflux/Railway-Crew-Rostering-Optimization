@@ -7,6 +7,7 @@ import pytest
 
 from railway_rostering import DataError, ModelConfig, load_instance, solve_instance, write_instance
 from railway_rostering.domain import CrewType
+from railway_rostering.synthetic import SyntheticConfig, generate_instance
 from railway_rostering.validation import ERROR, validate_instance
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,14 +24,16 @@ def test_load_canonical_sample():
     assert list(inst.crews) == ["ABC"]
     abc = inst.crews["ABC"]
     assert abc.crew_type == CrewType.RELIEF and abc.base_location == "Howrah" and abc.work_days == 14
-    assert inst.qualifications["ABC"] == {"Howrah Mainline", "Yajpur Mainline", "Howrah Mainline CO"}
-    d1 = inst.duty("D01")
+    assert inst.qualifications is None  # DB schema: per-duty eligibility from competencies
+    assert all(d.eligible_crew == {"ABC"} for d in inst.duties)
+    assert abc.rostered_start.strftime("%H:%M") == "17:00" and abc.initial_location == "Howrah"
+    d1 = inst.duty("DM02-20261101")
     assert d1.end == datetime(2026, 11, 2, 5, 0)  # crosses midnight
     assert inst.horizon_end == datetime(2026, 11, 8)
 
 
 def test_legacy_v1_format_and_default_duration():
-    inst = load_instance(ROOT / "data/sample/v1_toy")
+    inst = load_instance(ROOT / "tests/fixtures/v1_toy")
     assert set(inst.crews) == {"A", "B", "C"}
     assert inst.crews["A"].crew_type == CrewType.UNSPECIFIED
     g1 = inst.duty("G1")
@@ -89,7 +92,8 @@ def test_missing_files(tmp_path):
 
 
 def test_write_then_load_round_trip(tmp_path):
-    inst = load_instance(ROOT / "data/generated/small")
+    # Internal crew.csv / duties.csv format (the DB tables are covered in test_db_schema.py).
+    inst = generate_instance(SyntheticConfig(seed=3, n_crew=20, n_duties=25, existing_assignment_fraction=0.1))
     write_instance(inst, tmp_path / "copy")
     again = load_instance(tmp_path / "copy")
     assert again.crews == inst.crews

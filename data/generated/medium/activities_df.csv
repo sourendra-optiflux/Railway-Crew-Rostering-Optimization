@@ -1,0 +1,20 @@
+Activity ID,CRT Activity ID,Activity Name,Activity Group,Activity Head,Activity Type,TEA Required,Can Be Moved,Start Depot,End Depot,Location,Mentor Required,Roles/Job,Currency Threshold
+A01,CRT-1001,Haskett Mainline,Mainline,Haskett Mainline,Driving,Yes,Yes,Haskett,Yarmouth,Haskett,No,Driver,90
+A02,CRT-1002,Haskett Mainline CO,Mainline,Haskett Mainline,Crew On,No,Yes,Haskett,Haskett,Haskett,No,Driver;Conductor,
+A03,CRT-1003,Yarmouth Mainline,Mainline,Yarmouth Mainline,Driving,Yes,Yes,Yarmouth,Haskett,Yarmouth,No,Driver,90
+A04,CRT-1004,Yarmouth Mainline CO,Mainline,Yarmouth Mainline,Crew On,No,Yes,Yarmouth,Yarmouth,Yarmouth,No,Driver;Conductor,
+A05,CRT-1005,CAM LOT,Yard,CAM LOT,Yard,No,Yes,Yarmouth,Yarmouth,Yarmouth,No,Driver;Shunter,
+A06,CRT-1006,Madison Crew,Local,Madison Crew,Crew,No,Yes,Madison,Madison,Madison,No,Driver;Conductor,
+A07,CRT-1007,Madison Yard,Yard,Madison Yard,Yard,No,Yes,Madison,Madison,Madison,No,Shunter;Driver,
+A08,CRT-1008,Work Train,Infrastructure,Work Train,Driving,No,Yes,Madison,Madison,Madison,Yes,Driver,
+A09,CRT-1009,Fuel Train,Freight,Fuel Train,Driving,Yes,Yes,Madison,Bethway,Madison,No,Driver,60
+A10,CRT-1010,Fuel Return,Freight,Fuel Return,Driving,Yes,Yes,Bethway,Madison,Bethway,No,Driver,60
+A11,CRT-1011,Bethway Join/FI Crew,Local,Bethway Join/FI Crew,Crew,No,Yes,Bethway,Bethway,Bethway,No,Driver;Conductor;Shunter,
+A12,CRT-1012,BY Shed,Shed,BY Shed,Shed,No,No,Bethway,Bethway,Bethway,No,Shunter;Driver,
+A13,CRT-1013,Nelaway Driver,Local,Nelaway Driver,Driving,No,Yes,Nelaway,Nelaway,Nelaway,No,Driver,
+A14,CRT-1014,Nelaway Shuttle Driver,Local,Nelaway Shuttle Driver,Driving,No,Yes,Nelaway,Nelaway,Nelaway,No,Driver,
+A15,CRT-1015,NE Ship,Shed,NE Ship,Shed,No,Yes,Nelaway,Nelaway,Nelaway,No,Shunter;Driver,
+A16,CRT-1016,NE Task,Local,NE Task,Crew,No,Yes,Nelaway,Nelaway,Nelaway,No,Driver;Conductor;Shunter,
+A17,CRT-1017,Route Learning,Training,Haskett Mainline,Training,No,Yes,Haskett,Yarmouth,Haskett,No,Driver,
+A90,CRT-9001,Relief Standby,Reserve,Relief,Standby,No,Yes,,,,No,,
+A91,CRT-9002,Excess Standby,Reserve,Excess,Standby,No,Yes,,,,No,,

@@ -1,0 +1,7 @@
+Demand ID,Shift,Demand,Is Active,Activity ID,Activity Name,Activity Head
+DM01,05:00-17:00,1,Yes,A01,Howrah Mainline,Howrah Mainline
+DM02,17:00-05:00,1,Yes,A01,Howrah Mainline,Howrah Mainline
+DM03,05:00-17:00,1,Yes,A02,Yajpur Mainline,Yajpur Mainline
+DM04,17:00-05:00,1,Yes,A02,Yajpur Mainline,Yajpur Mainline
+DM05,05:00-17:00,1,Yes,A03,Howrah Mainline CO,Howrah Mainline
+DM06,17:00-05:00,1,Yes,A03,Howrah Mainline CO,Howrah Mainline

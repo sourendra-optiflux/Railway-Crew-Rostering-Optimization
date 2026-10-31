@@ -5,10 +5,23 @@
 > `Shrinath`, ...) are placeholders. Travel times are placeholders, not real
 > journey times.
 
-This document describes (1) the CSV schema the solver reads, (2) the
-hand-checkable sample instances, and (3) the synthetic generator: its
-algorithm, parameters, seeds and how it approximates the OptiFlux scenario.
-The decision to use synthetic data is explained in `dataset_research.md`.
+> **Data format update.** All data in `data/` now uses the **OptiFlux database
+> schema** (12 tables such as `roster_df`, `activities_df`,
+> `activity_demand_df`). That schema, its conversion and the synthetic
+> generator that writes it are described in **[`db_schema.md`](db_schema.md)**.
+>
+> This document describes the solver's **internal** format (`crew.csv`,
+> `duties.csv`, ...). The DB tables are converted into it in memory. It is
+> still accepted on input (`--crew/--duties`, or a directory without
+> `roster_df.csv`), is used by the unit tests, and is the format of the legacy
+> V1 fixture `tests/fixtures/v1_toy`. §3 describes `synthetic.py`, which
+> builds random internal-format instances for the tests. The on-disk presets
+> come from `synthetic_db.py` instead.
+
+This document describes (1) the internal CSV schema, (2) the hand-checkable
+sample instances, and (3) the internal-format random instance generator used
+by the tests. The decision to use synthetic data is explained in
+`dataset_research.md`.
 
 ## 1. Input schema
 
@@ -78,8 +91,8 @@ catalogue and summary characteristics.
 
 | Instance | Content | Known answer | Used by |
 |---|---|---|---|
-| `v1_toy/` | The 3-crew / 5-duty data of `rostering_v1_sheets.ipynb`, in the **legacy V1 CSV format** | 5 of 5 covered (A: G1, G4, G5) | `test_known_optimal.py`, `test_data_loader.py`, CI smoke test |
-| `briefing_abc/` | The ABC Relief example from the briefing (§10): 5 PM shifts on 1–3 Nov, a rest/transition day on 4 Nov, 5 AM shifts on 5–7 Nov | All 6 duties covered by ABC in the stated order | `test_known_optimal.py`, `test_end_to_end.py`, default example |
+| `tests/fixtures/v1_toy/` | The 3-crew / 5-duty data of `rostering_v1_sheets.ipynb`, in the **legacy V1 CSV format** (a test fixture, not part of `data/`) | 5 of 5 covered (A: G1, G4, G5) | `test_known_optimal.py`, `test_data_loader.py`, CI smoke test |
+| `data/sample/briefing_abc/` | The ABC Relief example from the briefing (§10), **in the OptiFlux DB schema**: 5 PM shifts on 1–3 Nov, a rest/transition day on 4 Nov, 5 AM shifts on 5–7 Nov. Permanent crew staff every other slot | All 6 duties covered by ABC in the stated order | `test_known_optimal.py`, `test_end_to_end.py`, `test_db_schema.py`, default example |
 
 In `briefing_abc` the 2 Nov "Yajpur CLO (YAJ → YAJ)" entry is **omitted**
 because the briefing gives no time for it. The same instance with
@@ -164,21 +177,12 @@ qualification does *not* imply CO qualification.
 6. **Travel**: four synthetic links (HWH↔YAJ 360 min, cost 1; HWH↔NLR 900 min,
    cost 2). They are used only if positioning is switched on.
 
-### 3.4 Presets (committed under `data/generated/`)
+### 3.4 Presets
 
-| Preset | Seed | Crew (Relief/Excess) | Duties | Open units | Days | Max eligible | Existing | Designed uncoverable | Purpose |
-|---|---|---|---|---|---|---|---|---|---|
-| `small` | 11 | 20 (3/17) | 20 | 21 | 5 | 50 (actual max 15) | 0 | 0 | Quick, readable |
-| `medium` | 22 | 150 (60/90) | 120 | 124 | 7 | 50 | 6 | 0 | Typical run |
-| `tight` | 44 | 60 (28/32) | 200 | 227 | 7 | 50 | 0 | 12 | Crew shortage: many duties must stay uncovered |
-| `large` | 33 | 1000 (387/613) | 300 | 309 | 14 | 50 | 15 | 7 | **Close to the preliminary OptiFlux scale** |
-| `xlarge` | 55 | 1000 (408/592) | 600 | 622 | 14 | 100 | 30 | 0 | Stress test: twice the duties, twice the eligibility |
-
-Exact counts per activity, bases, boundary conditions and the eligible-list
-size distribution are in each preset's `instance.json` under
-`characteristics`. `test_end_to_end.py::test_committed_generated_data_matches_generator`
-checks that the committed `small` and `medium` files match the generator
-exactly.
+The presets committed under `data/generated/` are now produced by
+`synthetic_db.py` in the OptiFlux DB schema (see `db_schema.md` §5).
+`synthetic.py` keeps its own `PRESETS` dict (same names) for building
+internal-format instances in tests and experiments from Python.
 
 ### 3.5 Known design characteristics and limitations
 
@@ -197,12 +201,13 @@ exactly.
 
 ### 3.6 Generating your own instance
 
+For DB-schema instances, see `db_schema.md` §5:
+
 ```bash
 python scripts/generate_synthetic_instance.py --preset medium --seed 123 --name medium_seed123
 ```
 
-Writes `data/generated/medium_seed123/`. Any other field of
-`SyntheticConfig` can be changed from Python:
+An internal-format random instance can be built from Python:
 
 ```python
 from railway_rostering.synthetic import SyntheticConfig, generate_instance

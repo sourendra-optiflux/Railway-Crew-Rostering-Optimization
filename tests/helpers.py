@@ -6,6 +6,7 @@ import itertools
 from datetime import date, datetime, time, timedelta
 
 from railway_rostering import ModelConfig, SolverConfig, solve_instance
+from railway_rostering.config import model_config_from_dict
 from railway_rostering.domain import Crew, CrewType, Duty, Instance, ShiftType, TravelLink
 from railway_rostering.solution_validation import validate_solution
 
@@ -83,7 +84,9 @@ def make_instance(crews, duties, quals=None, days: int = 7, travel=None, start: 
 
 
 def solve(inst: Instance, solver: SolverConfig | None = None, **model_overrides):
-    cfg = ModelConfig(**model_overrides)
+    # Instances built from DB tables carry their own rules (constraints_df).
+    base = dict(inst.metadata.get("model_config") or ModelConfig().to_dict())
+    cfg = model_config_from_dict({**base, **model_overrides})
     scfg = solver or SolverConfig(time_limit_seconds=20, num_workers=1, random_seed=1)
     return solve_instance(inst, cfg, scfg)
 

@@ -1,0 +1,16 @@
+Restriction ID,CM Id,Restriction Type,Activity Head,Effective From,Effective To,Reason
+RS00001,CM00017,No Duty,,2026-11-03,2026-11-05,Sick Leave
+RS00002,CM00051,Activity Restriction,CAM LOT,2026-11-06,2026-11-07,Pending incident review
+RS00003,CM00064,Activity Restriction,Madison Crew,2026-11-03,2026-11-06,Pending incident review
+RS00004,CM00076,Activity Restriction,Madison Yard,2026-11-01,2026-11-02,Pending incident review
+RS00005,CM00083,No Duty,,2026-11-05,2026-11-07,Training Course
+RS00006,CM00087,No Duty,,2026-11-01,2026-11-03,Sick Leave
+RS00007,CM00115,No Duty,,2026-11-02,2026-11-02,Training Course
+RS00008,CM00116,No Duty,,2026-11-04,2026-11-04,Sick Leave
+RS00009,CM00122,Activity Restriction,BY Shed,2026-11-06,2026-11-06,Pending incident review
+RS00010,CM00155,Activity Restriction,NE Task,2026-11-03,2026-11-03,Pending incident review
+RS00011,CM00213,No Night Shift,,2026-11-01,2026-11-07,Fatigue management plan
+RS00012,CM00259,No Duty,,2026-11-05,2026-11-05,Annual Leave
+RS00013,CM00266,No Duty,,2026-11-02,2026-11-02,Annual Leave
+RS00014,CM00287,No Night Shift,,2026-11-01,2026-11-07,Fatigue management plan
+RS00015,CM00311,No Duty,,2026-11-05,2026-11-05,Annual Leave

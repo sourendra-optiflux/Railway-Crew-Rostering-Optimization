@@ -1,4 +1,10 @@
-"""Reproducible synthetic instance generator for the OptiFlux scenario.
+"""Random instances in the solver's *internal* format (used by the tests).
+
+The data committed under ``data/`` uses the OptiFlux database schema and is
+produced by :mod:`railway_rostering.synthetic_db`. This module builds
+:class:`Instance` objects directly (crews, duties, eligibility), which is
+convenient for randomised tests such as the CP-SAT vs. MIP and greedy-legality
+checks.
 
 **All data produced here is synthetic.** It imitates the *structure* described
 in the OptiFlux briefing (locations, activities, Relief/Excess crew, swing

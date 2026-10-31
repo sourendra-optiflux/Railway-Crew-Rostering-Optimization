@@ -100,3 +100,29 @@ document, both V1 notebooks and both PDFs are unchanged.
 | `docs/validation_report.md` | Actual test and benchmark results |
 | `docs/mentor_presentation_guide.md` | How to explain the project |
 | `docs/file_change_log.md` | This file |
+
+## v0.3 — OptiFlux database schema (branch `claude/stoic-cannon-07j4z7`)
+
+All data now uses the 12 OptiFlux DB tables. The optimisation model is
+unchanged.
+
+| File | Change |
+|---|---|
+| `src/railway_rostering/db_schema.py` | **New.** Exact table schemas, CSV reader/writer, `constraints_df` → `ModelConfig`, conversion of the tables into an `Instance` (open demand, disruptions, locked/released assignments, crew state, per-duty eligibility) |
+| `src/railway_rostering/synthetic_db.py` | **New.** Synthetic generator for all 12 tables; presets small / medium / tight / large / xlarge |
+| `src/railway_rostering/data_loader.py` | `load_instance` dispatches directories with `roster_df.csv` to `db_schema` |
+| `src/railway_rostering/solve.py` | Uses the instance's own `ModelConfig` (from `constraints_df`) when none is passed |
+| `src/railway_rostering/cli.py` | `generate` writes DB tables (`--n-crew`, `--demand-scale`); config precedence defaults < constraints_df < `--config` < `--set` |
+| `src/railway_rostering/benchmark.py` | DB presets; variants start from the instance's rules; `positioning` variant removed (no travel table) |
+| `src/railway_rostering/reporting.py` | `roster_disruptions.csv`; `data_preparation` in `summary.json` and the console |
+| `src/railway_rostering/synthetic.py` | Docstring: now the internal-format test generator |
+| `data/generated/*` | **Replaced** by DB-schema tables |
+| `data/sample/briefing_abc` | **Converted** to the DB schema (same known optimum) |
+| `data/sample/v1_toy` | **Moved** to `tests/fixtures/v1_toy` (legacy internal format, test fixture only) |
+| `tests/test_db_schema.py` | **New.** One test per conversion rule |
+| `tests/*` | Updated duty IDs / paths; generator tests use the DB generator; CP-SAT vs MIP on DB instances |
+| `notebooks/exploratory_analysis.ipynb` | Uses the instance's `ModelConfig`; shows `data_preparation` |
+| `.github/workflows/tests.yml` | v1_toy smoke test path |
+| `docs/db_schema.md` | **New.** Table reference, conversion rules, synthetic data, schema assumptions |
+| `docs/validation_report.md` | **New.** Test and benchmark results on the DB-schema data |
+| `README.md`, `docs/running_experiments.md`, `docs/dataset_design.md`, `docs/codebase_guide.md`, `docs/assumptions_and_open_questions.md` | Updated for the DB schema |

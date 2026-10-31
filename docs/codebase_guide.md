@@ -31,7 +31,9 @@ Railway-Crew-Rostering-Optimization/
 │   ├── __main__.py                   `python -m railway_rostering`
 │   ├── domain.py                     dataclasses: Crew, Duty, Instance, ...
 │   ├── config.py                     ModelConfig (rules) + SolverConfig
-│   ├── data_loader.py                CSV -> Instance (+ legacy V1), Instance -> CSV
+│   ├── db_schema.py                  OptiFlux DB tables (12 CSVs) -> Instance + ModelConfig
+│   ├── data_loader.py                internal CSV -> Instance (+ legacy V1); dispatches DB dirs to db_schema
+│   ├── synthetic_db.py               synthetic data in the DB schema (data/ presets)
 │   ├── validation.py                 input consistency checks
 │   ├── constraints/                  operational rules
 │   │   ├── eligibility.py            who may do which activity
@@ -73,8 +75,11 @@ Railway-Crew-Rostering-Optimization/
 ```mermaid
 flowchart TD
     subgraph Input
-      CSV[crew.csv / duties.csv /<br/>eligibility.csv / travel.csv /<br/>instance.json]
+      DB[OptiFlux DB tables:<br/>roster_df, activities_df, activity_demand_df,<br/>crew_master_data_df, competencies, compliance,<br/>restrictions, onsite, currency, constraints_df, ...]
+      CSV[internal format:<br/>crew.csv / duties.csv / ...]
     end
+    DB --> DBS[db_schema.build_instance<br/>demand - regular roster = open duties<br/>per-duty eligibility, ModelConfig]
+    DBS --> L
     CSV --> L[data_loader.load_instance]
     L --> I[(Instance)]
     I --> V[validation.validate_instance]
@@ -94,10 +99,24 @@ flowchart TD
     I --> SV
     SV --> REP[reporting.write_outputs]
     SOL --> REP
-    REP --> OUT[assignments.csv<br/>uncovered_duties.csv<br/>crew_routes.csv<br/>summary.json<br/>validation_report.json]
+    REP --> OUT[assignments.csv<br/>uncovered_duties.csv<br/>crew_routes.csv<br/>roster_disruptions.csv<br/>summary.json<br/>validation_report.json]
 ```
 
-## 4. How data enters the system — `data_loader.py`
+## 4. How data enters the system — `db_schema.py`, `data_loader.py`
+
+All data in `data/` uses the OptiFlux database schema (12 tables, one CSV
+each). `load_instance(dir)` sees `roster_df.csv` and calls
+`db_schema.load_db_instance`. That function turns demand per shift minus
+valid regular-crew roster rows into open duties, computes eligibility per duty
+date (competencies, currency, role, mentor, restrictions, medical, onsite
+status), derives each Relief/Excess crew member's swing, rostered time, prior
+duty, next commitment and location from the roster, and converts
+`constraints_df` + `activity_priority` into the instance's `ModelConfig`
+(`instance.metadata["model_config"]`). `solve_instance` and the CLI use that
+config unless one is passed in. The full specification is in `db_schema.md`.
+
+The rest of this section describes the internal format reader, which the DB
+conversion feeds:
 
 `load_instance(directory)` (or explicit `crew_path=`, `duties_path=`, ...)
 reads the CSVs with Python's `csv` module (no pandas dependency) and builds
@@ -387,14 +406,29 @@ and the row builders `assignment_rows`, `uncovered_rows`, `route_rows`.
 `solve_flow_mip(cands, "SCIP")`: the unit-flow MIP on the same arcs. Used in
 tests and benchmarks to check the circuit encoding.
 
+### `db_schema.py`
+`DB_TABLES` (exact columns), `ASSUMED_COLUMNS`, `read_tables`, `write_tables`,
+`parse_constraints`, `model_config_from_constraints`, `build_instance`,
+`load_db_instance`. `_Rules` holds the per-crew, per-activity, per-date
+legality check shared by regular-crew validity, locked assignments and
+Relief/Excess eligibility. See `db_schema.md`.
+
+### `synthetic_db.py`
+`DBSyntheticConfig`, `DB_PRESETS`, `ACTIVITY_CATALOG` (activity heads from
+`activity_priority`), `generate_tables`, `generate_db_instance`. Writes all 12
+tables. Existing Relief/Excess assignments are accepted only if the
+validator agrees.
+
 ### `synthetic.py`
 `SyntheticConfig`, `PRESETS`, `ACTIVITY_CATALOG`, `QUALIFICATION_PROFILES`,
-`generate_instance`. See `dataset_design.md`.
+`generate_instance`. Random instances in the internal format, used by tests.
+See `dataset_design.md`.
 
 ### `benchmark.py`
 `run_benchmarks(presets, variants, ...)` writes `results.csv`, `.json` and `.md`.
-Variants: `default`, `no_lp_bound`, `no_cliques`, `no_hint`, `positioning`,
-`window_only`, `relaxed`.
+Presets come from `synthetic_db.DB_PRESETS`; every variant starts from the
+instance's own `constraints_df` rules. Variants: `default`, `no_lp_bound`,
+`no_cliques`, `no_hint`, `window_only`, `relaxed`.
 
 ### `cli.py`
 Sub-commands `generate`, `solve`, `validate`, `benchmark`. Exit codes: 0 =

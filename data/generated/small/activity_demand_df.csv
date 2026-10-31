@@ -1,0 +1,28 @@
+Demand ID,Shift,Demand,Is Active,Activity ID,Activity Name,Activity Head
+DM001,05:00-17:00,1,Yes,A01,Haskett Mainline,Haskett Mainline
+DM002,17:00-05:00,1,Yes,A01,Haskett Mainline,Haskett Mainline
+DM003,17:00-05:00,1,Yes,A02,Haskett Mainline CO,Haskett Mainline
+DM004,05:00-17:00,1,Yes,A03,Yarmouth Mainline,Yarmouth Mainline
+DM005,17:00-05:00,1,Yes,A03,Yarmouth Mainline,Yarmouth Mainline
+DM006,05:00-17:00,1,Yes,A04,Yarmouth Mainline CO,Yarmouth Mainline
+DM007,17:00-05:00,1,Yes,A04,Yarmouth Mainline CO,Yarmouth Mainline
+DM008,05:00-17:00,1,Yes,A05,CAM LOT,CAM LOT
+DM009,17:00-05:00,1,Yes,A05,CAM LOT,CAM LOT
+DM010,05:00-17:00,2,Yes,A06,Madison Crew,Madison Crew
+DM011,17:00-05:00,1,Yes,A06,Madison Crew,Madison Crew
+DM012,06:00-18:00,2,Yes,A07,Madison Yard,Madison Yard
+DM013,18:00-06:00,1,Yes,A07,Madison Yard,Madison Yard
+DM014,07:00-19:00,1,Yes,A08,Work Train,Work Train
+DM015,17:00-05:00,1,Yes,A09,Fuel Train,Fuel Train
+DM016,05:00-17:00,1,Yes,A10,Fuel Return,Fuel Return
+DM017,05:00-17:00,1,Yes,A11,Bethway Join/FI Crew,Bethway Join/FI Crew
+DM018,17:00-05:00,1,Yes,A11,Bethway Join/FI Crew,Bethway Join/FI Crew
+DM019,05:00-17:00,1,Yes,A12,BY Shed,BY Shed
+DM020,05:00-17:00,1,Yes,A13,Nelaway Driver,Nelaway Driver
+DM021,17:00-05:00,1,Yes,A13,Nelaway Driver,Nelaway Driver
+DM022,05:00-17:00,1,Yes,A14,Nelaway Shuttle Driver,Nelaway Shuttle Driver
+DM023,05:00-17:00,1,Yes,A15,NE Ship,NE Ship
+DM024,05:00-17:00,1,Yes,A16,NE Task,NE Task
+DM025,17:00-05:00,1,Yes,A16,NE Task,NE Task
+DM026,05:00-17:00,1,Yes,A17,Route Learning,Haskett Mainline
+DM027,17:00-05:00,1,No,A12,BY Shed,BY Shed

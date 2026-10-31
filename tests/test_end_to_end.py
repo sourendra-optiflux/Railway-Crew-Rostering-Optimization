@@ -4,6 +4,7 @@ import csv
 import json
 import subprocess
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -12,11 +13,12 @@ from helpers import solve
 from railway_rostering import ModelConfig
 from railway_rostering.candidate_generation import generate_candidates
 from railway_rostering.cli import main
-from railway_rostering.data_loader import write_instance
+from railway_rostering.db_schema import DB_TABLES, write_tables
 from railway_rostering.heuristics import greedy_routes
 from railway_rostering.mip_crosscheck import solve_flow_mip
 from railway_rostering.solution_validation import validate_solution
-from railway_rostering.synthetic import PRESETS, SyntheticConfig, generate_instance
+from railway_rostering.synthetic import SyntheticConfig, generate_instance
+from railway_rostering.synthetic_db import DB_PRESETS, DBSyntheticConfig, generate_db_instance, generate_tables
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,7 +42,7 @@ def test_cli_solve_writes_all_outputs(tmp_path):
     ]:
         assert (out / name).exists(), name
     rows = read_csv(out / "assignments.csv")
-    assert [r["duty_id"] for r in rows] == ["D01", "D02", "D03", "D05", "D06", "D07"]
+    assert [r["duty_id"] for r in rows] == ["DM02-20261101", "DM04-20261102", "DM06-20261103", "DM01-20261105", "DM03-20261106", "DM05-20261107"]
     assert [r["shift_type"] for r in rows] == ["NIGHT"] * 3 + ["DAY"] * 3
     assert read_csv(out / "uncovered_duties.csv") == []
     summary = json.loads((out / "summary.json").read_text())
@@ -55,14 +57,15 @@ def test_cli_validate_accepts_and_rejects(tmp_path):
     main(["solve", "--instance-dir", inst_dir, "--output-dir", str(out), "--workers", "1"])
     assert main(["validate", "--instance-dir", inst_dir, "--assignments", str(out / "assignments.csv")]) == 0
     bad = tmp_path / "bad.csv"
-    bad.write_text("crew_id,duty_id\nABC,D01\nABC,D05\nABC,D03\n")  # D05 needs ABC in Howrah after D01
+    bad.write_text("crew_id,duty_id\nABC,DM02-20261101\nABC,DM01-20261105\nABC,DM06-20261103\n")
+    # DM01-20261105 (Howrah Mainline) would need ABC in Howrah after DM02-20261101 ends in Yajpur
     assert main(["validate", "--instance-dir", inst_dir, "--assignments", str(bad)]) == 3
 
 
 def test_cli_with_explicit_legacy_files_and_overrides(tmp_path):
     out = tmp_path / "toy"
     code = main([
-        "solve", "--crew", str(ROOT / "data/sample/v1_toy/crew.csv"), "--duties", str(ROOT / "data/sample/v1_toy/duties.csv"),
+        "solve", "--crew", str(ROOT / "tests/fixtures/v1_toy/crew.csv"), "--duties", str(ROOT / "tests/fixtures/v1_toy/duties.csv"),
         "--output-dir", str(out), "--set", "max_duties_per_day=null", "--workers", "1",
     ])  # fmt: skip
     assert code == 0
@@ -95,23 +98,52 @@ def test_run_example_script_from_fresh_checkout(tmp_path):
     assert (tmp_path / "ex" / "summary.json").exists()
 
 
-def test_generator_is_deterministic(tmp_path):
-    cfg = SyntheticConfig(name="det", seed=5, n_crew=30, n_duties=40, existing_assignment_fraction=0.1)
-    a = write_instance(generate_instance(cfg), tmp_path / "a")
-    b = write_instance(generate_instance(cfg), tmp_path / "b")
-    for name in ["crew.csv", "duties.csv", "eligibility.csv", "travel.csv", "instance.json"]:
-        assert (a / name).read_text() == (b / name).read_text(), name
-    other = write_instance(
-        generate_instance(SyntheticConfig(name="det", seed=6, n_crew=30, n_duties=40)), tmp_path / "c"
-    )
-    assert (other / "duties.csv").read_text() != (a / "duties.csv").read_text()
+def test_db_generator_is_deterministic(tmp_path):
+    cfg = DBSyntheticConfig(name="det", seed=5, n_relief_excess=30, existing_fraction=0.1)
+    a = write_tables(generate_tables(cfg)[0], tmp_path / "a")
+    b = write_tables(generate_tables(cfg)[0], tmp_path / "b")
+    for name in DB_TABLES:
+        assert (a / f"{name}.csv").read_text() == (b / f"{name}.csv").read_text(), name
+    other = write_tables(generate_tables(replace(cfg, seed=6))[0], tmp_path / "c")
+    assert (other / "roster_df.csv").read_text() != (a / "roster_df.csv").read_text()
 
 
 def test_committed_generated_data_matches_generator(tmp_path):
     for name in ["small", "medium"]:
-        fresh = write_instance(generate_instance(PRESETS[name]), tmp_path / name)
-        for f in ["crew.csv", "duties.csv", "eligibility.csv"]:
+        tables, _ = generate_tables(DB_PRESETS[name])
+        fresh = write_tables(tables, tmp_path / name)
+        for table in DB_TABLES:
+            f = f"{table}.csv"
             assert (fresh / f).read_text() == (ROOT / "data/generated" / name / f).read_text(), f"{name}/{f}"
+
+
+def test_committed_data_uses_only_db_schema_tables():
+    allowed = {f"{t}.csv" for t in DB_TABLES} | {"instance.json"}
+    for d in [*(ROOT / "data/generated").iterdir(), *(ROOT / "data/sample").iterdir()]:
+        assert {p.name for p in d.iterdir()} == allowed, d
+
+
+def test_generator_marks_data_as_synthetic():
+    inst = generate_db_instance(DB_PRESETS["small"])
+    assert inst.metadata["synthetic"] is True and "not OptiFlux operational data" in inst.metadata["disclaimer"]
+
+
+def test_db_generated_existing_assignments_are_legal():
+    inst = generate_db_instance(DBSyntheticConfig(seed=9, n_relief_excess=60, existing_fraction=0.2))
+    existing = [(c, d.duty_id) for d in inst.duties for c in d.assigned_crew]
+    assert existing
+    rep = validate_solution(inst, replace(ModelConfig(), existing_assignment_mode="reassignable"), existing)
+    assert rep.passed, rep.to_dict()["violations"][:5]
+
+
+@pytest.mark.parametrize("seed", [61, 62])
+def test_flow_mip_agrees_with_cp_sat_on_db_instances(seed):
+    inst = generate_db_instance(DBSyntheticConfig(seed=seed, n_relief_excess=40, demand_scale=2, vacancy_fraction=0.15))
+    r = solve(inst)
+    mip = solve_flow_mip(r.candidates, "SCIP", 60)
+    assert r.solution.stage_statuses["coverage"] == "OPTIMAL" and mip["status"] == "OPTIMAL"
+    assert mip["covered_units"] == r.solution.objective_values["coverage"]
+    assert r.validation.passed
 
 
 def test_generated_existing_assignments_are_legal():
@@ -121,11 +153,6 @@ def test_generated_existing_assignments_are_legal():
     # Reassignable mode re-checks node-level rules (eligibility, off days, times) too.
     rep = validate_solution(inst, ModelConfig(existing_assignment_mode="reassignable"), existing)
     assert rep.passed, rep.to_dict()["violations"][:5]
-
-
-def test_generator_marks_data_as_synthetic():
-    inst = generate_instance(PRESETS["small"])
-    assert inst.metadata["synthetic"] is True and "not OptiFlux operational data" in inst.metadata["disclaimer"]
 
 
 @pytest.mark.parametrize("seed", [21, 22, 23, 24])

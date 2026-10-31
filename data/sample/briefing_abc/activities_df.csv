@@ -1,0 +1,5 @@
+Activity ID,CRT Activity ID,Activity Name,Activity Group,Activity Head,Activity Type,TEA Required,Can Be Moved,Start Depot,End Depot,Location,Mentor Required,Roles/Job,Currency Threshold
+A01,CRT-0001,Howrah Mainline,Mainline,Howrah Mainline,Driving,No,Yes,Howrah,Yajpur,Howrah,No,Driver,
+A02,CRT-0002,Yajpur Mainline,Mainline,Yajpur Mainline,Driving,No,Yes,Yajpur,Howrah,Yajpur,No,Driver,
+A03,CRT-0003,Howrah Mainline CO,Mainline,Howrah Mainline,Driving,No,Yes,Howrah,Howrah,Howrah,No,Driver,
+A90,CRT-9001,Relief Standby,Reserve,Relief,Standby,No,Yes,,,,No,,

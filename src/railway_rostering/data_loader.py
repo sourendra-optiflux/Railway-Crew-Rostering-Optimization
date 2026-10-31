@@ -312,10 +312,19 @@ def load_instance(
 ) -> Instance:
     """Load an instance from a directory or from explicit file paths.
 
-    Explicit paths override files found in ``directory``.
+    A directory holding the OptiFlux database tables (``roster_df.csv`` and
+    friends, see :mod:`railway_rostering.db_schema`) is converted with
+    :func:`~railway_rostering.db_schema.load_db_instance`. Otherwise the
+    internal ``crew.csv`` / ``duties.csv`` format is read. Explicit paths
+    override files found in ``directory``.
     """
 
     base = Path(directory) if directory is not None else None
+    if base is not None and crew_path is None and duties_path is None:
+        from .db_schema import is_db_dir, load_db_instance
+
+        if is_db_dir(base):
+            return load_db_instance(base)
 
     def pick(explicit, name: str) -> Optional[Path]:
         if explicit is not None:
