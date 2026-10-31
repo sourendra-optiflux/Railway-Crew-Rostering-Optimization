@@ -89,10 +89,19 @@ Relief/Excess crew, 54 regular crew, 21 duties, 21 open units, seed 11)`.
 The same preset and seed always give byte-identical files. The files' design
 is in `db_schema.md` §5.
 
+### Real data from Excel
+
+`real_data/optiflux_db_template.xlsx` is a blank workbook with one sheet per
+DB table. Fill it in (see `real_data/README.md`) and run:
+
+```bash
+python scripts/run_example.py --instance-dir real_data/my_data.xlsx --output-dir outputs/my_data
+```
+
 ## 4. Run the tests
 
 ```bash
-pytest                       # whole suite (~15 s), expected: 199 passed
+pytest                       # whole suite (~15 s), expected: 203 passed
 pytest tests/test_time_rest.py -v
 pytest -k brute_force        # CP-SAT vs exhaustive enumeration on 40 random tiny instances
 ruff check src tests scripts # lint (as in CI)

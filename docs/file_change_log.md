@@ -126,3 +126,6 @@ unchanged.
 | `docs/db_schema.md` | **New.** Table reference, conversion rules, synthetic data, schema assumptions |
 | `docs/validation_report.md` | **New.** Test and benchmark results on the DB-schema data |
 | `README.md`, `docs/running_experiments.md`, `docs/dataset_design.md`, `docs/codebase_guide.md`, `docs/assumptions_and_open_questions.md` | Updated for the DB schema |
+| `real_data/optiflux_db_template.xlsx`, `real_data/README.md` | **New.** Blank Excel template, one sheet per DB table with the exact headers (assumed columns highlighted, header comments), for loading real data |
+| `scripts/make_excel_template.py` | **New.** Writes the blank template, or a filled workbook from a CSV instance |
+| `db_schema.py` | Also reads an Excel workbook (`read_excel_tables`, `write_excel_template`); `load_instance` accepts a `.xlsx` path |

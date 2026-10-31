@@ -1,5 +1,7 @@
 # Core solver dependency
 ortools>=9.10
+# Excel template / loading real data from a workbook
+openpyxl>=3.1
 # Tests
 pytest>=7
 # Notebooks only (optional)

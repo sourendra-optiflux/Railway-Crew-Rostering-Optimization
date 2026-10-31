@@ -282,3 +282,59 @@ def test_load_instance_detects_db_directory():
     inst = load_instance(ABC_DIR)
     assert inst.metadata["data_preparation"]["source_format"] == "optiflux_db_schema"
     assert inst.metadata["expected"]["routes"]["ABC"] == GAPS
+
+
+# ---------------------------------------------------------------------------
+# Excel workbook (real_data/optiflux_db_template.xlsx layout)
+# ---------------------------------------------------------------------------
+
+
+def test_blank_excel_template_has_one_sheet_per_table_with_exact_headers():
+    from openpyxl import load_workbook
+
+    wb = load_workbook(ROOT / "real_data/optiflux_db_template.xlsx", read_only=True)
+    assert wb.sheetnames == list(DB_TABLES)
+    for name, cols in DB_TABLES.items():
+        rows = [r for r in wb[name].iter_rows(values_only=True) if any(v is not None for v in r)]
+        assert list(rows[0][: len(cols)]) == cols and len(rows) == 1, name  # header only
+
+
+def test_blank_excel_template_is_rejected_until_filled():
+    with pytest.raises(DBDataError, match="is empty"):
+        load_instance(ROOT / "real_data/optiflux_db_template.xlsx")
+
+
+def test_filled_excel_gives_the_same_solution_as_csv(tmp_path):
+    from railway_rostering.db_schema import write_excel_template
+
+    xlsx = write_excel_template(tmp_path / "abc.xlsx", tables())
+    inst = load_instance(xlsx)
+    assert [d.duty_id for d in inst.duties] == GAPS
+    r = solve(inst)
+    assert r.solution.status == "OPTIMAL" and r.solution.routes == {"ABC": GAPS}
+
+
+def test_excel_typed_dates_and_times_are_understood(tmp_path):
+    from openpyxl import Workbook
+
+    t = tables()
+    wb = Workbook()
+    wb.remove(wb.active)
+    for name, cols in DB_TABLES.items():
+        ws = wb.create_sheet(name)
+        ws.append(cols)
+        for row in t[name]:
+            values = []
+            for c in cols:
+                v = row.get(c, "")
+                if c in ("Start Date", "End Date", "Expiry Date", "Date") and v:
+                    v = datetime.strptime(v, "%Y-%m-%d")  # a real Excel date cell
+                elif c in ("Shift Start Time", "Shift End Time") and v:
+                    v = datetime.strptime(v, "%H:%M").time()  # a real Excel time cell
+                elif c in ("Demand", "Priority") and v:
+                    v = int(v)
+                values.append(v)
+            ws.append(values)
+    wb.save(tmp_path / "typed.xlsx")
+    inst = load_instance(tmp_path / "typed.xlsx")
+    assert [d.duty_id for d in inst.duties] == GAPS

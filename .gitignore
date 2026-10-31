@@ -20,6 +20,10 @@ outputs/
 data/private/
 data/real/
 *.xlsx
+# real_data/: only the blank template and its README are tracked; filled workbooks stay local.
+real_data/*
+!real_data/optiflux_db_template.xlsx
+!real_data/README.md
 
 # OS / editors
 .DS_Store
