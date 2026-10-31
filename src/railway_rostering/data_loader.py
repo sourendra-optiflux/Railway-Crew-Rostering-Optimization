@@ -314,7 +314,9 @@ def load_instance(
 
     A directory holding the OptiFlux database tables (``roster_df.csv`` and
     friends, see :mod:`railway_rostering.db_schema`) is converted with
-    :func:`~railway_rostering.db_schema.load_db_instance`. Otherwise the
+    :func:`~railway_rostering.db_schema.load_db_instance`, and so is an Excel
+    workbook with one sheet per table (``real_data/optiflux_db_template.xlsx``
+    layout). Otherwise the
     internal ``crew.csv`` / ``duties.csv`` format is read. Explicit paths
     override files found in ``directory``.
     """

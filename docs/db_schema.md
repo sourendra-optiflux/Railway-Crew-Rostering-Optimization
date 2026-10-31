@@ -28,6 +28,13 @@ data/generated/medium/
 `load_instance(dir)` and every command-line `--instance-dir` recognise this
 layout (by `roster_df.csv`) and convert it automatically.
 
+**Excel alternative.** A workbook with one sheet per table can be loaded the
+same way: the sheet names are the table names and the headers are the same
+columns. `real_data/optiflux_db_template.xlsx` is the blank template (see
+`real_data/README.md`). Pass the `.xlsx` path to `load_instance` or
+`--instance-dir`. `python scripts/make_excel_template.py --from-dir DIR`
+writes any CSV instance as a filled workbook.
+
 * **Required tables:** `roster_df`, `activities_df`, `activity_demand_df`,
   `crew_master_data_df` and `constraints_df`.
 * **Optional tables:** the other seven. A missing optional table is treated as

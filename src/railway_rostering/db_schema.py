@@ -144,7 +144,153 @@ Tables = dict[str, list[dict[str, str]]]
 
 
 def is_db_dir(directory: str | Path) -> bool:
-    return (Path(directory) / "roster_df.csv").exists()
+    p = Path(directory)
+    return is_excel(p) or (p / "roster_df.csv").exists()
+
+
+def is_excel(path: str | Path) -> bool:
+    p = Path(path)
+    return p.is_file() and p.suffix.lower() in (".xlsx", ".xlsm")
+
+
+# ---------------------------------------------------------------------------
+# Excel workbook: one sheet per table (same names and headers as the CSVs)
+# ---------------------------------------------------------------------------
+
+
+def _cell_text(value) -> str:
+    """Excel turns typed dates/times into Python objects; convert them back to the CSV formats."""
+
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        if value.time() == time(0, 0):
+            return value.strftime(DATE_FMT)
+        return value.strftime(f"{DATE_FMT} {TIME_FMT}")
+    if isinstance(value, date):
+        return value.strftime(DATE_FMT)
+    if isinstance(value, time):
+        return value.strftime(TIME_FMT)
+    if isinstance(value, timedelta):  # a time typed as a duration
+        minutes = int(value.total_seconds() // 60)
+        return f"{minutes // 60:02d}:{minutes % 60:02d}"
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
+def read_excel_tables(path: str | Path) -> Tables:
+    """Read a workbook with one sheet per table (see :func:`write_excel_template`)."""
+
+    try:
+        from openpyxl import load_workbook
+    except ImportError as exc:  # pragma: no cover
+        raise DBDataError(["reading Excel needs openpyxl: pip install openpyxl"]) from exc
+    wb = load_workbook(path, read_only=True, data_only=True)
+    tables: Tables = {}
+    errors: list[str] = []
+    for name, columns in DB_TABLES.items():
+        if name not in wb.sheetnames:
+            if name in REQUIRED_TABLES:
+                errors.append(f"{Path(path).name}: missing required sheet {name!r}")
+            tables[name] = []
+            continue
+        rows = wb[name].iter_rows(values_only=True)
+        header = [_cell_text(h) for h in next(rows, ())]
+        while header and not header[-1]:
+            header.pop()
+        missing = [c for c in columns if c not in header]
+        if missing:
+            errors.append(f"sheet {name}: missing columns {missing}")
+        out = []
+        for values in rows:
+            texts = [_cell_text(v) for v in values]
+            if not any(texts):
+                continue  # skip blank rows
+            out.append({h: (texts[i] if i < len(texts) else "") for i, h in enumerate(header) if h})
+        tables[name] = out
+    wb.close()
+    if errors:
+        raise DBDataError(errors)
+    return tables
+
+
+def write_excel_template(path: str | Path, tables: Optional[Tables] = None) -> Path:
+    """Write a workbook with one sheet per table and the exact schema headers.
+
+    With ``tables=None`` the sheets are blank (headers only) for loading real
+    data. Columns in :data:`ASSUMED_COLUMNS` are highlighted, and every header
+    carries a comment saying how it is used.
+    """
+
+    from openpyxl import Workbook
+    from openpyxl.comments import Comment
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    known = PatternFill("solid", fgColor="1F4E78")
+    assumed = PatternFill("solid", fgColor="C65911")
+    wb = Workbook()
+    wb.remove(wb.active)
+    for name, columns in DB_TABLES.items():
+        ws = wb.create_sheet(name)
+        ws.append(columns)
+        whole_table_assumed = (name, "*") in ASSUMED_COLUMNS
+        for i, col in enumerate(columns, start=1):
+            cell = ws.cell(row=1, column=i)
+            is_assumed = whole_table_assumed or (name, col) in ASSUMED_COLUMNS
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = assumed if is_assumed else known
+            note = COLUMN_NOTES.get((name, col), "")
+            if is_assumed:
+                note = (note + "\n" if note else "") + "ASSUMED column name (not visible in the schema screenshots)."
+            if note:
+                cell.comment = Comment(note, "railway_rostering")
+            ws.column_dimensions[get_column_letter(i)].width = max(14, len(col) + 4)
+            # Text format so Excel keeps IDs, dates and times exactly as typed.
+            for r in range(2, 1001):
+                ws.cell(row=r, column=i).number_format = "@"
+        ws.freeze_panes = "A2"
+        for row in (tables or {}).get(name, []):
+            ws.append([row.get(c, "") for c in columns])
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(out)
+    return out
+
+
+# How each column is read (shown as header comments in the Excel template).
+COLUMN_NOTES: dict[tuple[str, str], str] = {
+    ("roster_df", "Start Date"): "YYYY-MM-DD, date the shift starts",
+    ("roster_df", "End Date"): "YYYY-MM-DD, next day for a night shift",
+    ("roster_df", "Shift Start Time"): "HH:MM",
+    ("roster_df", "Shift End Time"): "HH:MM",
+    ("roster_df", "Is Locked"): "Yes/No. Relief/Excess rows: Yes = keep, No = may be re-planned",
+    ("roster_df", "Activity Type"): "'Standby' = availability day of a Relief/Excess crew member",
+    ("activities_df", "Can Be Moved"): "Yes/No. No = Relief/Excess assignments on it are always kept",
+    ("activities_df", "Start Depot"): "Duty start location",
+    ("activities_df", "End Depot"): "Duty end location",
+    ("activities_df", "Mentor Required"): "Yes/No. Yes = crew with a Mentor Id may not work it",
+    ("activities_df", "Roles/Job"): "Allowed crew roles separated by ';' (blank = any)",
+    ("activities_df", "Currency Threshold"): "Days; blank = no currency rule",
+    ("activities_df", "Activity Type"): "Use 'Standby' for the Relief/Excess availability activities",
+    ("activity_demand_df", "Shift"): "HH:MM-HH:MM, e.g. 05:00-17:00 (end <= start crosses midnight)",
+    ("activity_demand_df", "Demand"): "Crew required on that shift, every day of the horizon",
+    ("activity_demand_df", "Is Active"): "Yes/No",
+    ("crew_restrictions", "Restriction Type"): "No Duty | Activity Restriction | No Night Shift",
+    ("crew_restrictions", "Effective From"): "YYYY-MM-DD (blank = open)",
+    ("crew_restrictions", "Effective To"): "YYYY-MM-DD (blank = open)",
+    ("crew_competencies_df", "Expiry Date"): "YYYY-MM-DD (blank = no expiry)",
+    ("crew_competencies_df", "status"): "Valid / Active / Current count as held",
+    ("crew_master_data_df", "Classification"): "Relief / Excess are optimised; anything else is regular crew",
+    ("crew_master_data_df", "Depot"): "Base location (return-to-base rules)",
+    ("crew_master_data_df", "Medical"): "Unfit / Expired / Suspended = may not work",
+    ("Crew_Onsite_App", "Status"): "Absent / Sick = unavailable that day",
+    ("crew_currency_df", "Last Performed Date"): "YYYY-MM-DD",
+    ("constraints_df", "Constraint"): "See docs/db_schema.md section 2.10 for recognised names",
+    ("constraints_df", "Status"): "Active / Inactive",
+    ("activity_priority", "Priority"): "1 = highest",
+}
 
 
 def read_tables(directory: str | Path) -> Tables:
@@ -920,7 +1066,11 @@ def build_instance(tables: Tables, name: str = "db_instance", metadata: Optional
 
 
 def load_db_instance(directory: str | Path) -> Instance:
+    """Load from a directory of table CSVs or from an Excel workbook (one sheet per table)."""
+
     base = Path(directory)
+    if is_excel(base):
+        return build_instance(read_excel_tables(base), name=base.stem, metadata={"name": base.stem})
     meta: dict = {}
     if (base / "instance.json").exists():
         meta = json.loads((base / "instance.json").read_text())

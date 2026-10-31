@@ -7,7 +7,7 @@ All data is synthetic (`data/generated`, `data/sample`).
 ## 1. Test suite
 
 ```bash
-pytest          # 199 passed in ~15 s
+pytest          # 203 passed in ~15 s
 ruff check src tests scripts
 ```
 

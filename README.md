@@ -19,7 +19,9 @@ Input data uses the **OptiFlux database schema**: 12 tables (`roster_df`,
 `excluded_activities`, `activity_priority`), one CSV each. Open demand,
 eligibility (competencies, currency, roles, restrictions, medical) and the
 rule settings are derived from these tables. See
-[`docs/db_schema.md`](docs/db_schema.md).
+[`docs/db_schema.md`](docs/db_schema.md). To load real data, fill in the blank
+workbook [`real_data/optiflux_db_template.xlsx`](real_data/README.md) (one
+sheet per table) and pass it to `--instance-dir`.
 
 > **Status:** research prototype (v0.3). All data in this repository is
 > **synthetic or hand-constructed**. Several operating rules in the briefing
@@ -34,7 +36,7 @@ The problem specification is
 ```bash
 pip install -r requirements.txt
 python scripts/run_example.py                      # briefing ABC example -> outputs/example/
-pytest                                             # 199 tests
+pytest                                             # 203 tests
 ```
 
 ```bash
@@ -121,6 +123,7 @@ src/railway_rostering/   package (DB-schema loader, model, constraints, validato
 scripts/                 run_example.py, generate_synthetic_instance.py, benchmark.py
 data/sample/             briefing ABC example (DB schema)
 data/generated/          synthetic presets small / medium / tight / large / xlarge (DB schema)
+real_data/               blank Excel template (one sheet per DB table) for loading real data
 tests/fixtures/          V1 toy data in the legacy internal format
 notebooks/               exploratory_analysis.ipynb, solution_visualization.ipynb
 tests/                   pytest suite
