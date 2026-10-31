@@ -19,14 +19,19 @@ from pathlib import Path
 
 import ortools
 
-from .config import ModelConfig, SolverConfig
+from .config import ModelConfig, SolverConfig, model_config_from_dict
 from .mip_crosscheck import solve_flow_mip
 from .solve import solve_instance
-from .synthetic import PRESETS, generate_instance
+from .synthetic_db import DB_PRESETS, generate_db_instance
 
 
-def variant_configs(name: str, base_solver: SolverConfig) -> tuple[ModelConfig, SolverConfig]:
-    m, s = ModelConfig(), replace(base_solver)
+def variant_configs(
+    name: str, base_solver: SolverConfig, base_model: ModelConfig | None = None
+) -> tuple[ModelConfig, SolverConfig]:
+    """Variant of the instance's own rules (``base_model``, from constraints_df) and the solver settings."""
+
+    m = replace(base_model) if base_model is not None else ModelConfig()
+    s = replace(base_solver)
     if name == "default":
         pass
     elif name == "no_cliques":
@@ -35,8 +40,6 @@ def variant_configs(name: str, base_solver: SolverConfig) -> tuple[ModelConfig, 
         s.use_greedy_hint = False
     elif name == "no_lp_bound":
         s.use_lp_bound = False
-    elif name == "positioning":
-        m.positioning_enabled = True
     elif name == "window_only":
         m.time_change_policy = {"RELIEF": "window_only", "EXCESS": "window_only"}
     elif name == "relaxed":
@@ -72,10 +75,11 @@ def run_benchmarks(
     rows: list[dict] = []
     base_solver = SolverConfig(time_limit_seconds=time_limit, num_workers=workers)
     for preset in presets:
-        gcfg = PRESETS[preset]
-        inst = generate_instance(gcfg)
+        gcfg = DB_PRESETS[preset]
+        inst = generate_db_instance(gcfg)
+        base_model = model_config_from_dict(dict(inst.metadata["model_config"]))
         for variant in variants:
-            mcfg, scfg = variant_configs(variant, base_solver)
+            mcfg, scfg = variant_configs(variant, base_solver, base_model)
             res = solve_instance(inst, mcfg, scfg)
             sol = res.solution
             cov = res.validation.coverage if res.validation else {}
@@ -85,8 +89,8 @@ def run_benchmarks(
                 "preset": preset,
                 "variant": variant,
                 "seed": gcfg.seed,
-                "n_crew": gcfg.n_crew,
-                "n_duties": gcfg.n_duties,
+                "n_crew": len(inst.crews),
+                "n_duties": len(inst.duties),
                 "horizon_days": gcfg.horizon_days,
                 "open_units": inst.total_open_demand,
                 "n_candidate_pairs": sol.stats.get("n_candidate_pairs"),
@@ -108,7 +112,7 @@ def run_benchmarks(
                 "mip_runtime_s": "",
                 "mip_agrees": "",
             }
-            if gcfg.n_duties <= mip_check_max_duties and res.candidates is not None:
+            if len(inst.duties) <= mip_check_max_duties and res.candidates is not None:
                 t = time.perf_counter()
                 mip = solve_flow_mip(res.candidates, "SCIP", time_limit_s=max(time_limit, 60))
                 row["mip_runtime_s"] = round(time.perf_counter() - t, 3)

@@ -110,8 +110,15 @@ be trusted on real data. The ids are referenced in the table above.
 
 ## 3. How to change an assumption
 
+For data in the OptiFlux DB schema, change the rule in the instance's
+`constraints_df.csv` (recognised names: `db_schema.md` §2.10). The
+assumptions about the schema itself (columns not visible in the supplied
+screenshots, the meaning of `Shift`, `Is Locked`, `Mentor Required`, Standby
+rows, currency renewal, `TEA Required`) are listed in `db_schema.md` §6.
+
 All switches are fields of `ModelConfig` (`src/railway_rostering/config.py`).
-Override them in a JSON file (`--config my.json`) or on the command line:
+Override them in a JSON file (`--config my.json`) or on the command line
+(these override `constraints_df`):
 
 ```bash
 python scripts/run_example.py --instance-dir data/generated/medium \

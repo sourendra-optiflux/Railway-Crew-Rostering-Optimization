@@ -5,7 +5,7 @@ Examples::
 
     python scripts/run_example.py                                  # briefing ABC sample
     python scripts/run_example.py --instance-dir data/generated/medium --output-dir outputs/medium
-    python scripts/run_example.py --crew data/sample/v1_toy/crew.csv --duties data/sample/v1_toy/duties.csv
+    python scripts/run_example.py --crew tests/fixtures/v1_toy/crew.csv --duties tests/fixtures/v1_toy/duties.csv
 """
 
 import sys

@@ -1,0 +1,20 @@
+Constraint,Value,Status
+Planning Horizon Start,2026-11-01,Active
+Planning Horizon Days,5,Active
+Ordinary Rest Hours,11,Active
+Transition Rest Hours,23,Active
+Day Shift Window,03:00-15:00,Active
+Max Duties Per Day,1,Active
+Relief Work/Off Days,14/14,Active
+Excess Work/Off Days,6/6,Active
+Relief Allowed Start Offsets,ANY,Active
+Excess Allowed Start Offsets,-60;0;60,Active
+Relief Time Change Policy,persist_after_change,Active
+Excess Time Change Policy,persist_after_change,Active
+Enforce Swing Work Days,,Active
+Base Return At Swing End,,Active
+Base Return On Transition,,Active
+Base Return At Horizon End,,Inactive
+Demand Mode,partial,Active
+Objective Order,coverage;priority;time_changes,Active
+Positioning,,Inactive

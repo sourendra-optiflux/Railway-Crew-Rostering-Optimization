@@ -27,4 +27,4 @@ jobs:
       - name: CLI smoke test
         run: |
           python scripts/run_example.py --output-dir outputs/ci_example --workers 2
-          python scripts/run_example.py --instance-dir data/sample/v1_toy --output-dir outputs/ci_v1 --workers 2
+          python scripts/run_example.py --instance-dir tests/fixtures/v1_toy --output-dir outputs/ci_v1 --workers 2

@@ -1,0 +1,866 @@
+CM Id,Competency,Competency LMS Code,Expiry Date,status
+CM00001,Haskett Mainline Sign-off,AC-A01,2028-09-05,Valid
+CM00001,Route Knowledge Haskett-Yarmouth,RK-HY,2029-02-16,Valid
+CM00001,Safeworking Rules,SAFE-01,2027-06-28,Valid
+CM00001,Mainline Traction,TR-ML,2027-08-28,Valid
+CM00002,Haskett Mainline Sign-off,AC-A01,2027-03-30,Valid
+CM00002,Route Knowledge Haskett-Yarmouth,RK-HY,2027-10-17,Valid
+CM00002,Safeworking Rules,SAFE-01,2027-06-28,Valid
+CM00002,Mainline Traction,TR-ML,2028-10-03,Valid
+CM00003,Haskett Mainline Sign-off,AC-A01,2027-12-02,Valid
+CM00003,Route Knowledge Haskett-Yarmouth,RK-HY,2028-01-17,Valid
+CM00003,Safeworking Rules,SAFE-01,2027-06-19,Valid
+CM00003,Mainline Traction,TR-ML,2028-11-30,Valid
+CM00004,Haskett Mainline Sign-off,AC-A01,2028-03-30,Valid
+CM00004,Route Knowledge Haskett-Yarmouth,RK-HY,2027-06-07,Valid
+CM00004,Safeworking Rules,SAFE-01,2028-07-01,Valid
+CM00004,Mainline Traction,TR-ML,2028-06-30,Valid
+CM00005,Haskett Mainline Sign-off,AC-A01,2028-12-05,Valid
+CM00005,Route Knowledge Haskett-Yarmouth,RK-HY,2028-06-07,Valid
+CM00005,Safeworking Rules,SAFE-01,2028-10-25,Valid
+CM00005,Mainline Traction,TR-ML,2028-09-04,Valid
+CM00006,Haskett Mainline Sign-off,AC-A01,2028-06-09,Valid
+CM00006,Route Knowledge Haskett-Yarmouth,RK-HY,2029-03-24,Valid
+CM00006,Safeworking Rules,SAFE-01,2029-01-29,Valid
+CM00006,Mainline Traction,TR-ML,2028-02-18,Valid
+CM00007,Haskett Mainline Sign-off,AC-A01,2028-02-12,Valid
+CM00007,Route Knowledge Haskett-Yarmouth,RK-HY,2027-06-24,Valid
+CM00007,Safeworking Rules,SAFE-01,2027-10-16,Valid
+CM00007,Mainline Traction,TR-ML,2028-11-11,Valid
+CM00008,Haskett Mainline Sign-off,AC-A01,2029-04-17,Valid
+CM00008,Route Knowledge Haskett-Yarmouth,RK-HY,2027-04-19,Valid
+CM00008,Safeworking Rules,SAFE-01,2029-01-21,Valid
+CM00008,Mainline Traction,TR-ML,2028-11-28,Valid
+CM00009,Haskett Mainline Sign-off,AC-A01,2027-05-02,Valid
+CM00009,Route Knowledge Haskett-Yarmouth,RK-HY,2027-12-12,Valid
+CM00009,Safeworking Rules,SAFE-01,2028-07-07,Valid
+CM00009,Mainline Traction,TR-ML,2027-11-24,Valid
+CM00010,Haskett Mainline Sign-off,AC-A01,2029-04-08,Valid
+CM00010,Route Knowledge Haskett-Yarmouth,RK-HY,2028-11-04,Valid
+CM00010,Safeworking Rules,SAFE-01,2028-02-01,Valid
+CM00010,Mainline Traction,TR-ML,2028-09-10,Valid
+CM00011,Haskett Mainline Sign-off,AC-A01,2028-02-17,Valid
+CM00011,Route Knowledge Haskett-Yarmouth,RK-HY,2028-05-28,Valid
+CM00011,Safeworking Rules,SAFE-01,2027-05-26,Valid
+CM00011,Mainline Traction,TR-ML,2027-12-06,Valid
+CM00012,Haskett Mainline Sign-off,AC-A01,2027-12-11,Valid
+CM00012,Route Knowledge Haskett-Yarmouth,RK-HY,2029-04-02,Valid
+CM00012,Safeworking Rules,SAFE-01,2028-08-28,Valid
+CM00012,Mainline Traction,TR-ML,2028-07-28,Valid
+CM00013,Haskett Mainline CO Sign-off,AC-A02,2028-01-28,Valid
+CM00013,Route Knowledge Haskett-Yarmouth,RK-HY,2028-07-21,Valid
+CM00013,Safeworking Rules,SAFE-01,2027-07-27,Valid
+CM00014,Haskett Mainline CO Sign-off,AC-A02,2027-05-20,Valid
+CM00014,Route Knowledge Haskett-Yarmouth,RK-HY,2028-04-19,Valid
+CM00014,Safeworking Rules,SAFE-01,2028-12-10,Valid
+CM00015,Haskett Mainline CO Sign-off,AC-A02,2027-09-09,Valid
+CM00015,Route Knowledge Haskett-Yarmouth,RK-HY,2028-09-07,Valid
+CM00015,Safeworking Rules,SAFE-01,2027-03-17,Valid
+CM00016,Haskett Mainline CO Sign-off,AC-A02,2027-06-06,Valid
+CM00016,Route Knowledge Haskett-Yarmouth,RK-HY,2028-04-04,Valid
+CM00016,Safeworking Rules,SAFE-01,2028-08-28,Valid
+CM00017,Haskett Mainline CO Sign-off,AC-A02,2027-09-27,Valid
+CM00017,Route Knowledge Haskett-Yarmouth,RK-HY,2027-06-28,Valid
+CM00017,Safeworking Rules,SAFE-01,2027-09-16,Valid
+CM00018,Haskett Mainline CO Sign-off,AC-A02,2027-05-17,Valid
+CM00018,Route Knowledge Haskett-Yarmouth,RK-HY,2027-08-25,Valid
+CM00018,Safeworking Rules,SAFE-01,2028-09-26,Valid
+CM00019,Yarmouth Mainline Sign-off,AC-A03,2027-08-24,Valid
+CM00019,Route Knowledge Haskett-Yarmouth,RK-HY,2028-07-04,Valid
+CM00019,Safeworking Rules,SAFE-01,2027-08-31,Valid
+CM00019,Mainline Traction,TR-ML,2027-12-17,Valid
+CM00020,Yarmouth Mainline Sign-off,AC-A03,2028-07-12,Valid
+CM00020,Route Knowledge Haskett-Yarmouth,RK-HY,2028-06-26,Valid
+CM00020,Safeworking Rules,SAFE-01,2027-12-15,Valid
+CM00020,Mainline Traction,TR-ML,2027-12-30,Valid
+CM00021,Yarmouth Mainline Sign-off,AC-A03,2027-12-05,Valid
+CM00021,Route Knowledge Haskett-Yarmouth,RK-HY,2028-09-02,Valid
+CM00021,Safeworking Rules,SAFE-01,2029-02-16,Valid
+CM00021,Mainline Traction,TR-ML,2028-05-21,Valid
+CM00022,Yarmouth Mainline Sign-off,AC-A03,2028-09-01,Valid
+CM00022,Route Knowledge Haskett-Yarmouth,RK-HY,2028-01-03,Valid
+CM00022,Safeworking Rules,SAFE-01,2027-03-20,Valid
+CM00022,Mainline Traction,TR-ML,2027-08-24,Valid
+CM00023,Yarmouth Mainline Sign-off,AC-A03,2028-02-20,Valid
+CM00023,Route Knowledge Haskett-Yarmouth,RK-HY,2027-08-21,Valid
+CM00023,Safeworking Rules,SAFE-01,2027-05-01,Valid
+CM00023,Mainline Traction,TR-ML,2029-01-15,Valid
+CM00024,Yarmouth Mainline Sign-off,AC-A03,2029-02-07,Valid
+CM00024,Route Knowledge Haskett-Yarmouth,RK-HY,2027-05-14,Valid
+CM00024,Safeworking Rules,SAFE-01,2028-01-12,Valid
+CM00024,Mainline Traction,TR-ML,2028-03-27,Valid
+CM00025,Yarmouth Mainline Sign-off,AC-A03,2028-02-03,Valid
+CM00025,Route Knowledge Haskett-Yarmouth,RK-HY,2028-06-02,Valid
+CM00025,Safeworking Rules,SAFE-01,2027-10-21,Valid
+CM00025,Mainline Traction,TR-ML,2029-02-18,Valid
+CM00026,Yarmouth Mainline Sign-off,AC-A03,2027-04-15,Valid
+CM00026,Route Knowledge Haskett-Yarmouth,RK-HY,2027-03-11,Valid
+CM00026,Safeworking Rules,SAFE-01,2028-04-04,Valid
+CM00026,Mainline Traction,TR-ML,2027-03-17,Valid
+CM00027,Yarmouth Mainline Sign-off,AC-A03,2027-07-15,Valid
+CM00027,Route Knowledge Haskett-Yarmouth,RK-HY,2027-09-29,Valid
+CM00027,Safeworking Rules,SAFE-01,2027-06-06,Valid
+CM00027,Mainline Traction,TR-ML,2027-11-17,Valid
+CM00028,Yarmouth Mainline Sign-off,AC-A03,2028-08-30,Valid
+CM00028,Route Knowledge Haskett-Yarmouth,RK-HY,2028-02-15,Valid
+CM00028,Safeworking Rules,SAFE-01,2027-05-27,Valid
+CM00028,Mainline Traction,TR-ML,2028-11-23,Valid
+CM00029,Yarmouth Mainline Sign-off,AC-A03,2028-09-17,Valid
+CM00029,Route Knowledge Haskett-Yarmouth,RK-HY,2028-09-01,Valid
+CM00029,Safeworking Rules,SAFE-01,2027-11-22,Valid
+CM00029,Mainline Traction,TR-ML,2028-10-23,Valid
+CM00030,Yarmouth Mainline Sign-off,AC-A03,2027-04-13,Valid
+CM00030,Route Knowledge Haskett-Yarmouth,RK-HY,2028-07-07,Valid
+CM00030,Safeworking Rules,SAFE-01,2029-04-19,Valid
+CM00030,Mainline Traction,TR-ML,2028-07-13,Valid
+CM00031,Yarmouth Mainline CO Sign-off,AC-A04,2027-12-07,Valid
+CM00031,Route Knowledge Haskett-Yarmouth,RK-HY,2027-03-08,Valid
+CM00031,Safeworking Rules,SAFE-01,2027-03-23,Valid
+CM00032,Yarmouth Mainline CO Sign-off,AC-A04,2028-04-28,Valid
+CM00032,Route Knowledge Haskett-Yarmouth,RK-HY,2028-06-26,Valid
+CM00032,Safeworking Rules,SAFE-01,2028-09-23,Valid
+CM00033,Yarmouth Mainline CO Sign-off,AC-A04,2027-12-05,Valid
+CM00033,Route Knowledge Haskett-Yarmouth,RK-HY,2027-05-19,Valid
+CM00033,Safeworking Rules,SAFE-01,2027-04-16,Valid
+CM00034,Yarmouth Mainline CO Sign-off,AC-A04,2028-09-13,Valid
+CM00034,Route Knowledge Haskett-Yarmouth,RK-HY,2028-02-20,Valid
+CM00034,Safeworking Rules,SAFE-01,2028-08-15,Valid
+CM00035,Yarmouth Mainline CO Sign-off,AC-A04,2027-03-01,Valid
+CM00035,Route Knowledge Haskett-Yarmouth,RK-HY,2028-01-15,Valid
+CM00035,Safeworking Rules,SAFE-01,2028-04-03,Valid
+CM00036,Yarmouth Mainline CO Sign-off,AC-A04,2029-02-16,Valid
+CM00036,Route Knowledge Haskett-Yarmouth,RK-HY,2027-11-20,Valid
+CM00036,Safeworking Rules,SAFE-01,2027-03-12,Valid
+CM00037,Yarmouth Mainline CO Sign-off,AC-A04,2028-04-24,Valid
+CM00037,Route Knowledge Haskett-Yarmouth,RK-HY,2029-04-11,Valid
+CM00037,Safeworking Rules,SAFE-01,2027-09-20,Valid
+CM00038,Yarmouth Mainline CO Sign-off,AC-A04,2028-12-09,Valid
+CM00038,Route Knowledge Haskett-Yarmouth,RK-HY,2028-06-22,Valid
+CM00038,Safeworking Rules,SAFE-01,2028-03-23,Valid
+CM00039,Yarmouth Mainline CO Sign-off,AC-A04,2027-03-18,Valid
+CM00039,Route Knowledge Haskett-Yarmouth,RK-HY,2029-02-05,Valid
+CM00039,Safeworking Rules,SAFE-01,2028-08-07,Valid
+CM00040,Yarmouth Mainline CO Sign-off,AC-A04,2027-06-10,Valid
+CM00040,Route Knowledge Haskett-Yarmouth,RK-HY,2028-02-13,Valid
+CM00040,Safeworking Rules,SAFE-01,2027-08-27,Valid
+CM00041,Yarmouth Mainline CO Sign-off,AC-A04,2027-04-28,Valid
+CM00041,Route Knowledge Haskett-Yarmouth,RK-HY,2029-02-28,Valid
+CM00041,Safeworking Rules,SAFE-01,2027-09-19,Valid
+CM00042,Yarmouth Mainline CO Sign-off,AC-A04,2027-04-01,Valid
+CM00042,Route Knowledge Haskett-Yarmouth,RK-HY,2029-04-05,Valid
+CM00042,Safeworking Rules,SAFE-01,2028-09-17,Valid
+CM00043,CAM LOT Sign-off,AC-A05,2027-04-09,Valid
+CM00043,Safeworking Rules,SAFE-01,2027-04-19,Valid
+CM00043,Yard Operations,YD-01,2028-04-15,Valid
+CM00044,CAM LOT Sign-off,AC-A05,2027-12-02,Valid
+CM00044,Safeworking Rules,SAFE-01,2029-02-02,Valid
+CM00044,Yard Operations,YD-01,2028-03-10,Valid
+CM00045,CAM LOT Sign-off,AC-A05,2029-01-03,Valid
+CM00045,Safeworking Rules,SAFE-01,2028-05-16,Valid
+CM00045,Yard Operations,YD-01,2027-12-25,Valid
+CM00046,CAM LOT Sign-off,AC-A05,2028-05-18,Valid
+CM00046,Safeworking Rules,SAFE-01,2027-04-09,Valid
+CM00046,Yard Operations,YD-01,2028-04-04,Valid
+CM00047,CAM LOT Sign-off,AC-A05,2027-03-18,Valid
+CM00047,Safeworking Rules,SAFE-01,2027-11-26,Valid
+CM00047,Yard Operations,YD-01,2027-04-17,Valid
+CM00048,CAM LOT Sign-off,AC-A05,2028-12-28,Valid
+CM00048,Safeworking Rules,SAFE-01,2027-07-05,Valid
+CM00048,Yard Operations,YD-01,2028-11-07,Valid
+CM00049,CAM LOT Sign-off,AC-A05,2027-05-27,Valid
+CM00049,Safeworking Rules,SAFE-01,2027-10-22,Valid
+CM00049,Yard Operations,YD-01,2027-07-20,Valid
+CM00050,CAM LOT Sign-off,AC-A05,2028-08-18,Valid
+CM00050,Safeworking Rules,SAFE-01,2028-04-30,Valid
+CM00050,Yard Operations,YD-01,2027-04-03,Valid
+CM00051,CAM LOT Sign-off,AC-A05,2029-03-04,Valid
+CM00051,Safeworking Rules,SAFE-01,2028-06-26,Valid
+CM00051,Yard Operations,YD-01,2027-04-24,Valid
+CM00052,CAM LOT Sign-off,AC-A05,2027-07-27,Valid
+CM00052,Safeworking Rules,SAFE-01,2027-05-27,Valid
+CM00052,Yard Operations,YD-01,2027-11-05,Valid
+CM00053,CAM LOT Sign-off,AC-A05,2028-04-23,Valid
+CM00053,Safeworking Rules,SAFE-01,2027-04-05,Valid
+CM00053,Yard Operations,YD-01,2028-05-11,Valid
+CM00054,CAM LOT Sign-off,AC-A05,2028-04-14,Valid
+CM00054,Safeworking Rules,SAFE-01,2028-06-05,Valid
+CM00054,Yard Operations,YD-01,2028-12-08,Valid
+CM00055,Madison Crew Sign-off,AC-A06,2028-08-09,Valid
+CM00055,Safeworking Rules,SAFE-01,2028-06-05,Valid
+CM00055,Yard Operations,YD-01,2029-04-08,Valid
+CM00056,Madison Crew Sign-off,AC-A06,2027-05-13,Valid
+CM00056,Safeworking Rules,SAFE-01,2028-07-19,Valid
+CM00056,Yard Operations,YD-01,2027-04-12,Valid
+CM00057,Madison Crew Sign-off,AC-A06,2027-08-27,Valid
+CM00057,Safeworking Rules,SAFE-01,2028-02-15,Valid
+CM00057,Yard Operations,YD-01,2027-09-03,Valid
+CM00058,Madison Crew Sign-off,AC-A06,2027-06-02,Valid
+CM00058,Safeworking Rules,SAFE-01,2027-03-24,Valid
+CM00058,Yard Operations,YD-01,2029-02-02,Valid
+CM00059,Madison Crew Sign-off,AC-A06,2028-06-14,Valid
+CM00059,Safeworking Rules,SAFE-01,2028-06-27,Valid
+CM00059,Yard Operations,YD-01,2028-11-03,Valid
+CM00060,Madison Crew Sign-off,AC-A06,2028-06-14,Valid
+CM00060,Safeworking Rules,SAFE-01,2028-07-31,Valid
+CM00060,Yard Operations,YD-01,2027-08-13,Valid
+CM00061,Madison Crew Sign-off,AC-A06,2028-06-21,Valid
+CM00061,Safeworking Rules,SAFE-01,2028-11-06,Valid
+CM00061,Yard Operations,YD-01,2028-01-16,Valid
+CM00062,Madison Crew Sign-off,AC-A06,2029-01-27,Valid
+CM00062,Safeworking Rules,SAFE-01,2027-10-04,Valid
+CM00062,Yard Operations,YD-01,2028-04-22,Valid
+CM00063,Madison Crew Sign-off,AC-A06,2027-03-06,Valid
+CM00063,Safeworking Rules,SAFE-01,2027-08-25,Valid
+CM00063,Yard Operations,YD-01,2027-10-31,Valid
+CM00064,Madison Crew Sign-off,AC-A06,2027-10-28,Valid
+CM00064,Safeworking Rules,SAFE-01,2027-08-26,Valid
+CM00064,Yard Operations,YD-01,2027-05-17,Valid
+CM00065,Madison Crew Sign-off,AC-A06,2028-12-07,Valid
+CM00065,Safeworking Rules,SAFE-01,2028-03-07,Valid
+CM00065,Yard Operations,YD-01,2028-11-11,Valid
+CM00066,Madison Crew Sign-off,AC-A06,2027-09-15,Valid
+CM00066,Safeworking Rules,SAFE-01,2027-03-28,Valid
+CM00066,Yard Operations,YD-01,2028-12-31,Valid
+CM00067,Madison Crew Sign-off,AC-A06,2028-07-09,Valid
+CM00067,Safeworking Rules,SAFE-01,2028-07-08,Valid
+CM00067,Yard Operations,YD-01,2028-08-12,Valid
+CM00068,Madison Crew Sign-off,AC-A06,2028-01-25,Valid
+CM00068,Safeworking Rules,SAFE-01,2027-09-23,Valid
+CM00068,Yard Operations,YD-01,2028-06-09,Valid
+CM00069,Madison Crew Sign-off,AC-A06,2029-02-04,Valid
+CM00069,Safeworking Rules,SAFE-01,2028-10-16,Valid
+CM00069,Yard Operations,YD-01,2027-08-10,Valid
+CM00070,Madison Crew Sign-off,AC-A06,2028-07-28,Valid
+CM00070,Safeworking Rules,SAFE-01,2028-04-15,Valid
+CM00070,Yard Operations,YD-01,2027-12-27,Valid
+CM00071,Madison Crew Sign-off,AC-A06,2028-09-25,Valid
+CM00071,Safeworking Rules,SAFE-01,2028-10-09,Valid
+CM00071,Yard Operations,YD-01,2028-06-23,Valid
+CM00072,Madison Crew Sign-off,AC-A06,2027-05-04,Valid
+CM00072,Safeworking Rules,SAFE-01,2027-06-02,Valid
+CM00072,Yard Operations,YD-01,2027-08-21,Valid
+CM00073,Madison Yard Sign-off,AC-A07,2028-02-24,Valid
+CM00073,Safeworking Rules,SAFE-01,2028-03-30,Valid
+CM00073,Yard Operations,YD-01,2028-11-11,Valid
+CM00074,Madison Yard Sign-off,AC-A07,2028-03-08,Valid
+CM00074,Safeworking Rules,SAFE-01,2027-03-09,Valid
+CM00074,Yard Operations,YD-01,2027-06-18,Valid
+CM00075,Madison Yard Sign-off,AC-A07,2028-06-18,Valid
+CM00075,Safeworking Rules,SAFE-01,2029-02-19,Valid
+CM00075,Yard Operations,YD-01,2028-04-29,Valid
+CM00076,Madison Yard Sign-off,AC-A07,2027-12-05,Valid
+CM00076,Safeworking Rules,SAFE-01,2027-05-10,Valid
+CM00076,Yard Operations,YD-01,2027-04-09,Valid
+CM00077,Madison Yard Sign-off,AC-A07,2027-04-25,Valid
+CM00077,Safeworking Rules,SAFE-01,2027-12-03,Valid
+CM00077,Yard Operations,YD-01,2027-04-28,Valid
+CM00078,Madison Yard Sign-off,AC-A07,2027-12-18,Valid
+CM00078,Safeworking Rules,SAFE-01,2028-02-08,Valid
+CM00078,Yard Operations,YD-01,2029-03-28,Valid
+CM00079,Madison Yard Sign-off,AC-A07,2027-05-17,Valid
+CM00079,Safeworking Rules,SAFE-01,2027-12-24,Valid
+CM00079,Yard Operations,YD-01,2027-08-24,Valid
+CM00080,Madison Yard Sign-off,AC-A07,2029-03-19,Valid
+CM00080,Safeworking Rules,SAFE-01,2028-11-19,Valid
+CM00080,Yard Operations,YD-01,2028-06-12,Valid
+CM00081,Madison Yard Sign-off,AC-A07,2027-10-26,Valid
+CM00081,Safeworking Rules,SAFE-01,2028-02-22,Valid
+CM00081,Yard Operations,YD-01,2028-12-03,Valid
+CM00082,Madison Yard Sign-off,AC-A07,2027-11-01,Valid
+CM00082,Safeworking Rules,SAFE-01,2027-05-13,Valid
+CM00082,Yard Operations,YD-01,2028-06-20,Valid
+CM00083,Madison Yard Sign-off,AC-A07,2028-10-07,Valid
+CM00083,Safeworking Rules,SAFE-01,2029-02-05,Valid
+CM00083,Yard Operations,YD-01,2028-08-10,Valid
+CM00084,Madison Yard Sign-off,AC-A07,2027-03-23,Valid
+CM00084,Safeworking Rules,SAFE-01,2028-12-06,Valid
+CM00084,Yard Operations,YD-01,2028-06-30,Valid
+CM00085,Madison Yard Sign-off,AC-A07,2027-04-06,Valid
+CM00085,Safeworking Rules,SAFE-01,2027-09-06,Valid
+CM00085,Yard Operations,YD-01,2028-07-20,Valid
+CM00086,Madison Yard Sign-off,AC-A07,2029-01-24,Valid
+CM00086,Safeworking Rules,SAFE-01,2028-02-27,Valid
+CM00086,Yard Operations,YD-01,2028-01-30,Valid
+CM00087,Madison Yard Sign-off,AC-A07,2027-11-09,Valid
+CM00087,Safeworking Rules,SAFE-01,2027-08-18,Valid
+CM00087,Yard Operations,YD-01,2028-06-03,Valid
+CM00088,Madison Yard Sign-off,AC-A07,2028-01-15,Valid
+CM00088,Safeworking Rules,SAFE-01,2027-10-16,Valid
+CM00088,Yard Operations,YD-01,2027-12-04,Valid
+CM00089,Madison Yard Sign-off,AC-A07,2028-09-02,Valid
+CM00089,Safeworking Rules,SAFE-01,2027-08-29,Valid
+CM00089,Yard Operations,YD-01,2029-01-07,Valid
+CM00090,Madison Yard Sign-off,AC-A07,2028-02-24,Valid
+CM00090,Safeworking Rules,SAFE-01,2029-01-16,Valid
+CM00090,Yard Operations,YD-01,2028-02-04,Valid
+CM00091,Work Train Sign-off,AC-A08,2028-02-27,Valid
+CM00091,Safeworking Rules,SAFE-01,2027-10-10,Valid
+CM00091,Mainline Traction,TR-ML,2027-09-12,Valid
+CM00091,Track Work Protection,WT-01,2027-06-08,Valid
+CM00092,Work Train Sign-off,AC-A08,2028-09-01,Valid
+CM00092,Safeworking Rules,SAFE-01,2029-02-10,Valid
+CM00092,Mainline Traction,TR-ML,2028-05-30,Valid
+CM00092,Track Work Protection,WT-01,2028-11-03,Valid
+CM00093,Work Train Sign-off,AC-A08,2027-12-06,Valid
+CM00093,Safeworking Rules,SAFE-01,2027-05-11,Valid
+CM00093,Mainline Traction,TR-ML,2027-08-30,Valid
+CM00093,Track Work Protection,WT-01,2029-03-15,Valid
+CM00094,Work Train Sign-off,AC-A08,2027-12-25,Valid
+CM00094,Safeworking Rules,SAFE-01,2028-05-11,Valid
+CM00094,Mainline Traction,TR-ML,2028-06-25,Valid
+CM00094,Track Work Protection,WT-01,2028-05-19,Valid
+CM00095,Work Train Sign-off,AC-A08,2027-08-27,Valid
+CM00095,Safeworking Rules,SAFE-01,2029-04-05,Valid
+CM00095,Mainline Traction,TR-ML,2027-04-12,Valid
+CM00095,Track Work Protection,WT-01,2028-02-23,Valid
+CM00096,Work Train Sign-off,AC-A08,2028-03-07,Valid
+CM00096,Safeworking Rules,SAFE-01,2027-08-06,Valid
+CM00096,Mainline Traction,TR-ML,2028-03-29,Valid
+CM00096,Track Work Protection,WT-01,2028-10-23,Valid
+CM00097,Fuel Train Sign-off,AC-A09,2028-04-08,Valid
+CM00097,Dangerous Goods Handling,DG-01,2027-04-19,Valid
+CM00097,Route Knowledge Madison-Bethway,RK-MB,2028-05-05,Valid
+CM00097,Safeworking Rules,SAFE-01,2028-12-12,Valid
+CM00097,Mainline Traction,TR-ML,2028-02-25,Valid
+CM00098,Fuel Train Sign-off,AC-A09,2028-01-31,Valid
+CM00098,Dangerous Goods Handling,DG-01,2029-03-29,Valid
+CM00098,Route Knowledge Madison-Bethway,RK-MB,2028-12-20,Valid
+CM00098,Safeworking Rules,SAFE-01,2027-12-18,Valid
+CM00098,Mainline Traction,TR-ML,2027-04-06,Valid
+CM00099,Fuel Train Sign-off,AC-A09,2028-04-29,Valid
+CM00099,Dangerous Goods Handling,DG-01,2029-04-05,Valid
+CM00099,Route Knowledge Madison-Bethway,RK-MB,2027-11-10,Valid
+CM00099,Safeworking Rules,SAFE-01,2027-12-01,Valid
+CM00099,Mainline Traction,TR-ML,2028-10-17,Valid
+CM00100,Fuel Train Sign-off,AC-A09,2027-08-30,Valid
+CM00100,Dangerous Goods Handling,DG-01,2027-08-13,Valid
+CM00100,Route Knowledge Madison-Bethway,RK-MB,2027-08-21,Valid
+CM00100,Safeworking Rules,SAFE-01,2028-07-01,Valid
+CM00100,Mainline Traction,TR-ML,2027-10-13,Valid
+CM00101,Fuel Train Sign-off,AC-A09,2028-04-08,Valid
+CM00101,Dangerous Goods Handling,DG-01,2027-10-29,Valid
+CM00101,Route Knowledge Madison-Bethway,RK-MB,2028-08-28,Valid
+CM00101,Safeworking Rules,SAFE-01,2028-01-30,Valid
+CM00101,Mainline Traction,TR-ML,2029-01-13,Valid
+CM00102,Fuel Train Sign-off,AC-A09,2027-09-07,Valid
+CM00102,Dangerous Goods Handling,DG-01,2029-01-13,Valid
+CM00102,Route Knowledge Madison-Bethway,RK-MB,2027-06-27,Valid
+CM00102,Safeworking Rules,SAFE-01,2028-01-23,Valid
+CM00102,Mainline Traction,TR-ML,2027-10-09,Valid
+CM00103,Fuel Return Sign-off,AC-A10,2028-03-03,Valid
+CM00103,Dangerous Goods Handling,DG-01,2028-03-06,Valid
+CM00103,Route Knowledge Madison-Bethway,RK-MB,2028-10-30,Valid
+CM00103,Safeworking Rules,SAFE-01,2028-04-14,Valid
+CM00103,Mainline Traction,TR-ML,2029-04-14,Valid
+CM00104,Fuel Return Sign-off,AC-A10,2027-12-30,Valid
+CM00104,Dangerous Goods Handling,DG-01,2028-09-12,Valid
+CM00104,Route Knowledge Madison-Bethway,RK-MB,2028-04-12,Valid
+CM00104,Safeworking Rules,SAFE-01,2028-01-01,Valid
+CM00104,Mainline Traction,TR-ML,2027-03-07,Valid
+CM00105,Fuel Return Sign-off,AC-A10,2029-01-14,Valid
+CM00105,Dangerous Goods Handling,DG-01,2028-12-20,Valid
+CM00105,Route Knowledge Madison-Bethway,RK-MB,2028-06-22,Valid
+CM00105,Safeworking Rules,SAFE-01,2027-04-10,Valid
+CM00105,Mainline Traction,TR-ML,2028-05-16,Valid
+CM00106,Fuel Return Sign-off,AC-A10,2029-01-28,Valid
+CM00106,Dangerous Goods Handling,DG-01,2028-07-08,Valid
+CM00106,Route Knowledge Madison-Bethway,RK-MB,2027-07-05,Valid
+CM00106,Safeworking Rules,SAFE-01,2029-01-27,Valid
+CM00106,Mainline Traction,TR-ML,2029-02-10,Valid
+CM00107,Fuel Return Sign-off,AC-A10,2028-08-26,Valid
+CM00107,Dangerous Goods Handling,DG-01,2027-12-25,Valid
+CM00107,Route Knowledge Madison-Bethway,RK-MB,2027-09-10,Valid
+CM00107,Safeworking Rules,SAFE-01,2028-05-10,Valid
+CM00107,Mainline Traction,TR-ML,2028-02-23,Valid
+CM00108,Fuel Return Sign-off,AC-A10,2027-04-28,Valid
+CM00108,Dangerous Goods Handling,DG-01,2028-03-27,Valid
+CM00108,Route Knowledge Madison-Bethway,RK-MB,2029-03-04,Valid
+CM00108,Safeworking Rules,SAFE-01,2028-10-04,Valid
+CM00108,Mainline Traction,TR-ML,2028-11-24,Valid
+CM00109,Bethway Join/FI Crew Sign-off,AC-A11,2028-09-05,Valid
+CM00109,Safeworking Rules,SAFE-01,2027-10-08,Valid
+CM00109,Yard Operations,YD-01,2027-06-30,Valid
+CM00110,Bethway Join/FI Crew Sign-off,AC-A11,2027-06-26,Valid
+CM00110,Safeworking Rules,SAFE-01,2028-03-26,Valid
+CM00110,Yard Operations,YD-01,2028-03-12,Valid
+CM00111,Bethway Join/FI Crew Sign-off,AC-A11,2028-10-20,Valid
+CM00111,Safeworking Rules,SAFE-01,2029-03-24,Valid
+CM00111,Yard Operations,YD-01,2028-04-12,Valid
+CM00112,Bethway Join/FI Crew Sign-off,AC-A11,2028-05-02,Valid
+CM00112,Safeworking Rules,SAFE-01,2027-08-24,Valid
+CM00112,Yard Operations,YD-01,2027-10-10,Valid
+CM00113,Bethway Join/FI Crew Sign-off,AC-A11,2029-03-19,Valid
+CM00113,Safeworking Rules,SAFE-01,2028-06-12,Valid
+CM00113,Yard Operations,YD-01,2028-04-05,Valid
+CM00114,Bethway Join/FI Crew Sign-off,AC-A11,2028-05-01,Valid
+CM00114,Safeworking Rules,SAFE-01,2027-11-07,Valid
+CM00114,Yard Operations,YD-01,2027-08-09,Valid
+CM00115,Bethway Join/FI Crew Sign-off,AC-A11,2027-10-06,Valid
+CM00115,Safeworking Rules,SAFE-01,2028-12-29,Valid
+CM00115,Yard Operations,YD-01,2028-11-18,Valid
+CM00116,Bethway Join/FI Crew Sign-off,AC-A11,2028-10-26,Valid
+CM00116,Safeworking Rules,SAFE-01,2028-12-13,Valid
+CM00116,Yard Operations,YD-01,2028-04-04,Valid
+CM00117,Bethway Join/FI Crew Sign-off,AC-A11,2027-03-03,Valid
+CM00117,Safeworking Rules,SAFE-01,2028-08-26,Valid
+CM00117,Yard Operations,YD-01,2027-04-09,Valid
+CM00118,Bethway Join/FI Crew Sign-off,AC-A11,2027-04-28,Valid
+CM00118,Safeworking Rules,SAFE-01,2027-03-13,Valid
+CM00118,Yard Operations,YD-01,2027-07-03,Valid
+CM00119,Bethway Join/FI Crew Sign-off,AC-A11,2028-02-01,Valid
+CM00119,Safeworking Rules,SAFE-01,2027-09-29,Valid
+CM00119,Yard Operations,YD-01,2029-03-15,Valid
+CM00120,Bethway Join/FI Crew Sign-off,AC-A11,2029-01-05,Valid
+CM00120,Safeworking Rules,SAFE-01,2028-04-27,Valid
+CM00120,Yard Operations,YD-01,2028-08-24,Valid
+CM00121,BY Shed Sign-off,AC-A12,2027-03-07,Valid
+CM00121,Safeworking Rules,SAFE-01,2029-02-12,Valid
+CM00121,Shed Operations,SH-01,2029-04-09,Valid
+CM00122,BY Shed Sign-off,AC-A12,2028-10-27,Valid
+CM00122,Safeworking Rules,SAFE-01,2027-04-19,Valid
+CM00122,Shed Operations,SH-01,2028-09-20,Valid
+CM00123,BY Shed Sign-off,AC-A12,2029-01-18,Valid
+CM00123,Safeworking Rules,SAFE-01,2027-07-18,Valid
+CM00123,Shed Operations,SH-01,2028-06-15,Valid
+CM00124,BY Shed Sign-off,AC-A12,2029-03-28,Valid
+CM00124,Safeworking Rules,SAFE-01,2027-09-28,Valid
+CM00124,Shed Operations,SH-01,2027-04-11,Valid
+CM00125,BY Shed Sign-off,AC-A12,2028-12-03,Valid
+CM00125,Safeworking Rules,SAFE-01,2028-04-11,Valid
+CM00125,Shed Operations,SH-01,2027-07-19,Valid
+CM00126,BY Shed Sign-off,AC-A12,2029-03-01,Valid
+CM00126,Safeworking Rules,SAFE-01,2029-03-05,Valid
+CM00126,Shed Operations,SH-01,2027-10-08,Valid
+CM00127,Nelaway Driver Sign-off,AC-A13,2027-04-19,Valid
+CM00127,Nelaway Local Operations,NL-01,2028-06-24,Valid
+CM00127,Safeworking Rules,SAFE-01,2027-05-22,Valid
+CM00128,Nelaway Driver Sign-off,AC-A13,2029-02-12,Valid
+CM00128,Nelaway Local Operations,NL-01,2027-12-11,Valid
+CM00128,Safeworking Rules,SAFE-01,2027-06-19,Valid
+CM00129,Nelaway Driver Sign-off,AC-A13,2027-08-14,Valid
+CM00129,Nelaway Local Operations,NL-01,2027-11-05,Valid
+CM00129,Safeworking Rules,SAFE-01,2027-10-24,Valid
+CM00130,Nelaway Driver Sign-off,AC-A13,2027-04-21,Valid
+CM00130,Nelaway Local Operations,NL-01,2027-08-22,Valid
+CM00130,Safeworking Rules,SAFE-01,2028-10-31,Valid
+CM00131,Nelaway Driver Sign-off,AC-A13,2027-03-26,Valid
+CM00131,Nelaway Local Operations,NL-01,2027-10-31,Valid
+CM00131,Safeworking Rules,SAFE-01,2027-12-28,Valid
+CM00132,Nelaway Driver Sign-off,AC-A13,2027-06-12,Valid
+CM00132,Nelaway Local Operations,NL-01,2028-08-19,Valid
+CM00132,Safeworking Rules,SAFE-01,2029-01-30,Valid
+CM00133,Nelaway Driver Sign-off,AC-A13,2027-10-16,Valid
+CM00133,Nelaway Local Operations,NL-01,2028-07-25,Valid
+CM00133,Safeworking Rules,SAFE-01,2028-08-08,Valid
+CM00134,Nelaway Driver Sign-off,AC-A13,2027-09-10,Valid
+CM00134,Nelaway Local Operations,NL-01,2027-07-23,Valid
+CM00134,Safeworking Rules,SAFE-01,2027-06-29,Valid
+CM00135,Nelaway Driver Sign-off,AC-A13,2027-08-08,Valid
+CM00135,Nelaway Local Operations,NL-01,2027-12-10,Valid
+CM00135,Safeworking Rules,SAFE-01,2028-02-27,Valid
+CM00136,Nelaway Driver Sign-off,AC-A13,2028-10-08,Valid
+CM00136,Nelaway Local Operations,NL-01,2027-11-28,Valid
+CM00136,Safeworking Rules,SAFE-01,2029-01-15,Valid
+CM00137,Nelaway Driver Sign-off,AC-A13,2027-09-04,Valid
+CM00137,Nelaway Local Operations,NL-01,2028-08-08,Valid
+CM00137,Safeworking Rules,SAFE-01,2028-02-16,Valid
+CM00138,Nelaway Driver Sign-off,AC-A13,2028-06-28,Valid
+CM00138,Nelaway Local Operations,NL-01,2029-02-11,Valid
+CM00138,Safeworking Rules,SAFE-01,2027-07-22,Valid
+CM00139,Nelaway Shuttle Driver Sign-off,AC-A14,2029-03-18,Valid
+CM00139,Nelaway Local Operations,NL-01,2028-07-15,Valid
+CM00139,Safeworking Rules,SAFE-01,2028-03-27,Valid
+CM00140,Nelaway Shuttle Driver Sign-off,AC-A14,2027-11-16,Valid
+CM00140,Nelaway Local Operations,NL-01,2028-07-11,Valid
+CM00140,Safeworking Rules,SAFE-01,2027-07-28,Valid
+CM00141,Nelaway Shuttle Driver Sign-off,AC-A14,2027-07-25,Valid
+CM00141,Nelaway Local Operations,NL-01,2028-05-06,Valid
+CM00141,Safeworking Rules,SAFE-01,2028-02-13,Valid
+CM00142,Nelaway Shuttle Driver Sign-off,AC-A14,2027-04-18,Valid
+CM00142,Nelaway Local Operations,NL-01,2027-09-07,Valid
+CM00142,Safeworking Rules,SAFE-01,2027-04-16,Valid
+CM00143,Nelaway Shuttle Driver Sign-off,AC-A14,2028-12-21,Valid
+CM00143,Nelaway Local Operations,NL-01,2027-05-24,Valid
+CM00143,Safeworking Rules,SAFE-01,2028-03-07,Valid
+CM00144,Nelaway Shuttle Driver Sign-off,AC-A14,2028-10-12,Valid
+CM00144,Nelaway Local Operations,NL-01,2027-05-19,Valid
+CM00144,Safeworking Rules,SAFE-01,2027-10-14,Valid
+CM00145,NE Ship Sign-off,AC-A15,2027-09-04,Valid
+CM00145,Nelaway Local Operations,NL-01,2029-01-17,Valid
+CM00145,Safeworking Rules,SAFE-01,2027-04-07,Valid
+CM00145,Shed Operations,SH-01,2028-11-14,Valid
+CM00146,NE Ship Sign-off,AC-A15,2028-04-24,Valid
+CM00146,Nelaway Local Operations,NL-01,2028-08-11,Valid
+CM00146,Safeworking Rules,SAFE-01,2028-02-20,Valid
+CM00146,Shed Operations,SH-01,2029-01-28,Valid
+CM00147,NE Ship Sign-off,AC-A15,2028-09-28,Valid
+CM00147,Nelaway Local Operations,NL-01,2027-08-03,Valid
+CM00147,Safeworking Rules,SAFE-01,2028-05-01,Valid
+CM00147,Shed Operations,SH-01,2027-09-24,Valid
+CM00148,NE Ship Sign-off,AC-A15,2027-11-21,Valid
+CM00148,Nelaway Local Operations,NL-01,2028-07-02,Valid
+CM00148,Safeworking Rules,SAFE-01,2028-11-23,Valid
+CM00148,Shed Operations,SH-01,2027-12-03,Valid
+CM00149,NE Ship Sign-off,AC-A15,2028-08-16,Valid
+CM00149,Nelaway Local Operations,NL-01,2028-07-25,Valid
+CM00149,Safeworking Rules,SAFE-01,2028-06-17,Valid
+CM00149,Shed Operations,SH-01,2029-01-24,Valid
+CM00150,NE Ship Sign-off,AC-A15,2027-12-01,Valid
+CM00150,Nelaway Local Operations,NL-01,2028-09-16,Valid
+CM00150,Safeworking Rules,SAFE-01,2028-05-24,Valid
+CM00150,Shed Operations,SH-01,2028-10-27,Valid
+CM00151,NE Task Sign-off,AC-A16,2027-05-21,Valid
+CM00151,Nelaway Local Operations,NL-01,2028-08-30,Valid
+CM00151,Safeworking Rules,SAFE-01,2029-03-13,Valid
+CM00152,NE Task Sign-off,AC-A16,2029-03-06,Valid
+CM00152,Nelaway Local Operations,NL-01,2029-03-05,Valid
+CM00152,Safeworking Rules,SAFE-01,2028-12-19,Valid
+CM00153,NE Task Sign-off,AC-A16,2029-03-30,Valid
+CM00153,Nelaway Local Operations,NL-01,2028-05-31,Valid
+CM00153,Safeworking Rules,SAFE-01,2028-09-05,Valid
+CM00154,NE Task Sign-off,AC-A16,2028-12-25,Valid
+CM00154,Nelaway Local Operations,NL-01,2027-10-24,Valid
+CM00154,Safeworking Rules,SAFE-01,2028-11-07,Valid
+CM00155,NE Task Sign-off,AC-A16,2028-02-12,Valid
+CM00155,Nelaway Local Operations,NL-01,2029-02-28,Valid
+CM00155,Safeworking Rules,SAFE-01,2027-03-05,Valid
+CM00156,NE Task Sign-off,AC-A16,2028-03-01,Valid
+CM00156,Nelaway Local Operations,NL-01,2027-12-27,Valid
+CM00156,Safeworking Rules,SAFE-01,2028-05-01,Valid
+CM00157,NE Task Sign-off,AC-A16,2028-02-02,Valid
+CM00157,Nelaway Local Operations,NL-01,2028-03-16,Valid
+CM00157,Safeworking Rules,SAFE-01,2028-05-06,Valid
+CM00158,NE Task Sign-off,AC-A16,2027-04-09,Valid
+CM00158,Nelaway Local Operations,NL-01,2027-10-27,Valid
+CM00158,Safeworking Rules,SAFE-01,2027-04-22,Valid
+CM00159,NE Task Sign-off,AC-A16,2028-05-19,Valid
+CM00159,Nelaway Local Operations,NL-01,2028-04-26,Valid
+CM00159,Safeworking Rules,SAFE-01,2029-02-20,Valid
+CM00160,NE Task Sign-off,AC-A16,2027-04-01,Valid
+CM00160,Nelaway Local Operations,NL-01,2027-11-11,Valid
+CM00160,Safeworking Rules,SAFE-01,2027-11-26,Valid
+CM00161,NE Task Sign-off,AC-A16,2028-05-09,Valid
+CM00161,Nelaway Local Operations,NL-01,2028-01-02,Valid
+CM00161,Safeworking Rules,SAFE-01,2028-10-12,Valid
+CM00162,NE Task Sign-off,AC-A16,2027-09-26,Valid
+CM00162,Nelaway Local Operations,NL-01,2027-07-21,Valid
+CM00162,Safeworking Rules,SAFE-01,2027-12-20,Valid
+CM00163,Bethway Join/FI Crew Sign-off,AC-A11,2028-05-11,Valid
+CM00163,Safeworking Rules,SAFE-01,2027-03-20,Valid
+CM00163,Yard Operations,YD-01,2026-11-03,Valid
+CM00164,Bethway Join/FI Crew Sign-off,AC-A11,2028-12-04,Valid
+CM00164,Safeworking Rules,SAFE-01,2027-12-20,Valid
+CM00164,Yard Operations,YD-01,2028-12-12,Valid
+CM00165,NE Task Sign-off,AC-A16,2027-08-16,Valid
+CM00165,Nelaway Local Operations,NL-01,2028-01-30,Valid
+CM00165,Safeworking Rules,SAFE-01,2029-01-15,Valid
+CM00166,Nelaway Driver Sign-off,AC-A13,2028-12-13,Valid
+CM00166,Nelaway Shuttle Driver Sign-off,AC-A14,2028-07-10,Valid
+CM00166,NE Task Sign-off,AC-A16,2027-11-21,Valid
+CM00166,Nelaway Local Operations,NL-01,2027-09-17,Valid
+CM00166,Safeworking Rules,SAFE-01,2027-10-08,Valid
+CM00167,Madison Crew Sign-off,AC-A06,2028-02-01,Valid
+CM00167,Madison Yard Sign-off,AC-A07,2027-07-18,Valid
+CM00167,Work Train Sign-off,AC-A08,2029-03-11,Valid
+CM00167,Fuel Return Sign-off,AC-A10,2028-10-26,Valid
+CM00167,Dangerous Goods Handling,DG-01,2028-12-03,Valid
+CM00167,Route Knowledge Madison-Bethway,RK-MB,2029-02-24,Valid
+CM00167,Safeworking Rules,SAFE-01,2028-03-30,Valid
+CM00167,Mainline Traction,TR-ML,2029-02-19,Valid
+CM00167,Track Work Protection,WT-01,2029-02-08,Valid
+CM00167,Yard Operations,YD-01,2027-05-29,Valid
+CM00168,Haskett Mainline Sign-off,AC-A01,2027-12-14,Valid
+CM00168,Yarmouth Mainline Sign-off,AC-A03,2027-04-22,Valid
+CM00168,CAM LOT Sign-off,AC-A05,2028-04-08,Valid
+CM00168,Route Knowledge Haskett-Yarmouth,RK-HY,2028-09-25,Valid
+CM00168,Safeworking Rules,SAFE-01,2027-09-21,Valid
+CM00168,Mainline Traction,TR-ML,2028-07-25,Valid
+CM00168,Yard Operations,YD-01,2029-01-28,Valid
+CM00169,Yarmouth Mainline CO Sign-off,AC-A04,2027-10-01,Valid
+CM00169,Route Knowledge Haskett-Yarmouth,RK-HY,2027-06-18,Valid
+CM00169,Safeworking Rules,SAFE-01,2028-08-15,Valid
+CM00170,Haskett Mainline Sign-off,AC-A01,2027-10-10,Valid
+CM00170,Yarmouth Mainline Sign-off,AC-A03,2027-07-19,Valid
+CM00170,Route Knowledge Haskett-Yarmouth,RK-HY,2028-06-04,Valid
+CM00170,Safeworking Rules,SAFE-01,2027-11-06,Valid
+CM00170,Mainline Traction,TR-ML,2028-12-18,Valid
+CM00171,Yarmouth Mainline CO Sign-off,AC-A04,2028-07-27,Valid
+CM00171,Route Knowledge Haskett-Yarmouth,RK-HY,2027-05-27,Valid
+CM00171,Safeworking Rules,SAFE-01,2028-10-11,Valid
+CM00172,Haskett Mainline CO Sign-off,AC-A02,2027-07-02,Valid
+CM00172,Yarmouth Mainline CO Sign-off,AC-A04,2028-06-25,Valid
+CM00172,Route Knowledge Haskett-Yarmouth,RK-HY,2027-07-02,Valid
+CM00172,Safeworking Rules,SAFE-01,2028-08-25,Valid
+CM00173,Madison Yard Sign-off,AC-A07,2029-01-21,Valid
+CM00173,Fuel Train Sign-off,AC-A09,2027-12-26,Valid
+CM00173,Dangerous Goods Handling,DG-01,2028-09-09,Valid
+CM00173,Route Knowledge Madison-Bethway,RK-MB,2028-06-08,Valid
+CM00173,Safeworking Rules,SAFE-01,2027-03-14,Valid
+CM00173,Mainline Traction,TR-ML,2028-06-08,Valid
+CM00173,Yard Operations,YD-01,2028-06-29,Valid
+CM00174,Yarmouth Mainline Sign-off,AC-A03,2027-08-16,Valid
+CM00174,CAM LOT Sign-off,AC-A05,2027-05-01,Valid
+CM00174,Route Knowledge Haskett-Yarmouth,RK-HY,2028-08-22,Valid
+CM00174,Safeworking Rules,SAFE-01,2028-09-20,Valid
+CM00174,Mainline Traction,TR-ML,2029-04-04,Valid
+CM00174,Yard Operations,YD-01,2029-03-03,Valid
+CM00175,Nelaway Driver Sign-off,AC-A13,2028-12-11,Valid
+CM00175,Nelaway Shuttle Driver Sign-off,AC-A14,2028-04-14,Valid
+CM00175,NE Ship Sign-off,AC-A15,2027-04-12,Valid
+CM00175,NE Task Sign-off,AC-A16,2029-02-03,Valid
+CM00175,Nelaway Local Operations,NL-01,2028-12-16,Valid
+CM00175,Safeworking Rules,SAFE-01,2028-06-06,Valid
+CM00175,Shed Operations,SH-01,2027-12-03,Valid
+CM00176,Bethway Join/FI Crew Sign-off,AC-A11,2028-01-24,Valid
+CM00176,Safeworking Rules,SAFE-01,2029-03-17,Valid
+CM00176,Yard Operations,YD-01,2027-03-12,Valid
+CM00177,Nelaway Driver Sign-off,AC-A13,2027-06-11,Valid
+CM00177,Nelaway Shuttle Driver Sign-off,AC-A14,2028-02-11,Valid
+CM00177,NE Ship Sign-off,AC-A15,2027-12-09,Valid
+CM00177,NE Task Sign-off,AC-A16,2027-08-22,Valid
+CM00177,Nelaway Local Operations,NL-01,2029-01-11,Valid
+CM00177,Safeworking Rules,SAFE-01,2028-02-10,Valid
+CM00177,Shed Operations,SH-01,2028-08-21,Valid
+CM00178,Bethway Join/FI Crew Sign-off,AC-A11,2027-12-24,Valid
+CM00178,Safeworking Rules,SAFE-01,2028-03-16,Valid
+CM00178,Yard Operations,YD-01,2028-04-26,Valid
+CM00179,CAM LOT Sign-off,AC-A05,2027-03-12,Valid
+CM00179,Safeworking Rules,SAFE-01,2029-02-15,Valid
+CM00179,Yard Operations,YD-01,2028-11-14,Valid
+CM00180,Haskett Mainline Sign-off,AC-A01,2029-01-04,Valid
+CM00180,Haskett Mainline CO Sign-off,AC-A02,2028-10-22,Valid
+CM00180,Yarmouth Mainline Sign-off,AC-A03,2028-04-09,Valid
+CM00180,Yarmouth Mainline CO Sign-off,AC-A04,2029-01-28,Valid
+CM00180,Route Knowledge Haskett-Yarmouth,RK-HY,2028-05-08,Valid
+CM00180,Safeworking Rules,SAFE-01,2029-01-27,Valid
+CM00180,Mainline Traction,TR-ML,2028-01-04,Valid
+CM00181,Haskett Mainline Sign-off,AC-A01,2028-12-22,Valid
+CM00181,Haskett Mainline CO Sign-off,AC-A02,2028-01-22,Valid
+CM00181,Yarmouth Mainline Sign-off,AC-A03,2027-03-01,Valid
+CM00181,Route Knowledge Haskett-Yarmouth,RK-HY,2028-10-26,Valid
+CM00181,Safeworking Rules,SAFE-01,2029-01-04,Valid
+CM00181,Mainline Traction,TR-ML,2028-03-29,Valid
+CM00182,Haskett Mainline Sign-off,AC-A01,2027-11-23,Valid
+CM00182,Yarmouth Mainline Sign-off,AC-A03,2028-10-07,Valid
+CM00182,Yarmouth Mainline CO Sign-off,AC-A04,2029-03-01,Valid
+CM00182,CAM LOT Sign-off,AC-A05,2028-09-25,Valid
+CM00182,Route Knowledge Haskett-Yarmouth,RK-HY,2028-08-09,Valid
+CM00182,Safeworking Rules,SAFE-01,2029-01-21,Valid
+CM00182,Mainline Traction,TR-ML,2028-06-29,Valid
+CM00182,Yard Operations,YD-01,2028-03-27,Valid
+CM00183,Fuel Train Sign-off,AC-A09,2028-03-02,Valid
+CM00183,Fuel Return Sign-off,AC-A10,2029-04-16,Valid
+CM00183,Bethway Join/FI Crew Sign-off,AC-A11,2027-06-17,Valid
+CM00183,BY Shed Sign-off,AC-A12,2027-10-24,Valid
+CM00183,Dangerous Goods Handling,DG-01,2029-03-29,Valid
+CM00183,Route Knowledge Madison-Bethway,RK-MB,2028-02-10,Valid
+CM00183,Safeworking Rules,SAFE-01,2028-06-03,Valid
+CM00183,Shed Operations,SH-01,2027-12-21,Valid
+CM00183,Mainline Traction,TR-ML,2029-03-22,Valid
+CM00183,Yard Operations,YD-01,2027-11-01,Valid
+CM00184,NE Task Sign-off,AC-A16,2027-07-11,Valid
+CM00184,Nelaway Local Operations,NL-01,2028-11-12,Valid
+CM00184,Safeworking Rules,SAFE-01,2029-01-10,Valid
+CM00185,Haskett Mainline Sign-off,AC-A01,2027-04-24,Valid
+CM00185,Yarmouth Mainline Sign-off,AC-A03,2028-03-15,Valid
+CM00185,Route Knowledge Haskett-Yarmouth,RK-HY,2028-01-28,Valid
+CM00185,Safeworking Rules,SAFE-01,2027-03-06,Valid
+CM00185,Mainline Traction,TR-ML,2028-06-28,Valid
+CM00186,NE Task Sign-off,AC-A16,2028-02-15,Valid
+CM00186,Nelaway Local Operations,NL-01,2028-11-06,Valid
+CM00186,Safeworking Rules,SAFE-01,2027-04-19,Valid
+CM00187,Haskett Mainline CO Sign-off,AC-A02,2027-04-15,Valid
+CM00187,Yarmouth Mainline CO Sign-off,AC-A04,2028-01-22,Valid
+CM00187,Route Knowledge Haskett-Yarmouth,RK-HY,2028-09-12,Valid
+CM00187,Safeworking Rules,SAFE-01,2028-11-23,Valid
+CM00188,Haskett Mainline Sign-off,AC-A01,2028-09-19,Valid
+CM00188,Route Knowledge Haskett-Yarmouth,RK-HY,2027-05-20,Valid
+CM00188,Safeworking Rules,SAFE-01,2028-01-04,Valid
+CM00188,Mainline Traction,TR-ML,2028-01-12,Valid
+CM00189,CAM LOT Sign-off,AC-A05,2027-04-07,Valid
+CM00189,Safeworking Rules,SAFE-01,2028-01-16,Valid
+CM00189,Yard Operations,YD-01,2027-06-12,Valid
+CM00190,Haskett Mainline Sign-off,AC-A01,2028-02-07,Valid
+CM00190,Haskett Mainline CO Sign-off,AC-A02,2029-02-03,Valid
+CM00190,Route Knowledge Haskett-Yarmouth,RK-HY,2029-03-18,Valid
+CM00190,Safeworking Rules,SAFE-01,2027-12-13,Valid
+CM00190,Mainline Traction,TR-ML,2027-04-01,Valid
+CM00191,Yarmouth Mainline Sign-off,AC-A03,2027-07-01,Valid
+CM00191,CAM LOT Sign-off,AC-A05,2027-06-01,Valid
+CM00191,Route Knowledge Haskett-Yarmouth,RK-HY,2027-07-01,Valid
+CM00191,Safeworking Rules,SAFE-01,2028-08-08,Valid
+CM00191,Mainline Traction,TR-ML,2027-03-17,Valid
+CM00191,Yard Operations,YD-01,2028-09-10,Valid
+CM00192,Haskett Mainline Sign-off,AC-A01,2027-04-12,Valid
+CM00192,Haskett Mainline CO Sign-off,AC-A02,2027-08-12,Valid
+CM00192,Yarmouth Mainline Sign-off,AC-A03,2029-03-02,Valid
+CM00192,Yarmouth Mainline CO Sign-off,AC-A04,2027-09-01,Valid
+CM00192,Route Knowledge Haskett-Yarmouth,RK-HY,2028-01-02,Valid
+CM00192,Safeworking Rules,SAFE-01,2028-05-27,Valid
+CM00192,Mainline Traction,TR-ML,2028-10-30,Valid
+CM00193,Yarmouth Mainline Sign-off,AC-A03,2028-12-13,Valid
+CM00193,Yarmouth Mainline CO Sign-off,AC-A04,2027-06-29,Valid
+CM00193,CAM LOT Sign-off,AC-A05,2027-09-21,Valid
+CM00193,Route Knowledge Haskett-Yarmouth,RK-HY,2027-12-04,Valid
+CM00193,Safeworking Rules,SAFE-01,2028-08-10,Valid
+CM00193,Mainline Traction,TR-ML,2028-12-16,Valid
+CM00193,Yard Operations,YD-01,2027-05-11,Valid
+CM00194,Haskett Mainline Sign-off,AC-A01,2028-03-03,Valid
+CM00194,Haskett Mainline CO Sign-off,AC-A02,2028-11-07,Valid
+CM00194,Yarmouth Mainline Sign-off,AC-A03,2029-03-23,Valid
+CM00194,CAM LOT Sign-off,AC-A05,2027-04-30,Valid
+CM00194,Route Knowledge Haskett-Yarmouth,RK-HY,2028-09-19,Valid
+CM00194,Safeworking Rules,SAFE-01,2028-01-23,Valid
+CM00194,Mainline Traction,TR-ML,2028-07-20,Valid
+CM00194,Yard Operations,YD-01,2027-12-16,Valid
+CM00195,Madison Crew Sign-off,AC-A06,2028-10-09,Valid
+CM00195,Work Train Sign-off,AC-A08,2028-05-16,Valid
+CM00195,Fuel Return Sign-off,AC-A10,2028-09-12,Valid
+CM00195,Dangerous Goods Handling,DG-01,2027-11-10,Valid
+CM00195,Route Knowledge Madison-Bethway,RK-MB,2027-04-22,Valid
+CM00195,Safeworking Rules,SAFE-01,2029-03-17,Valid
+CM00195,Mainline Traction,TR-ML,2028-12-12,Valid
+CM00195,Track Work Protection,WT-01,2027-09-10,Valid
+CM00195,Yard Operations,YD-01,2027-09-29,Valid
+CM00196,Haskett Mainline Sign-off,AC-A01,2028-10-20,Valid
+CM00196,Yarmouth Mainline CO Sign-off,AC-A04,2029-01-30,Valid
+CM00196,CAM LOT Sign-off,AC-A05,2027-08-29,Valid
+CM00196,Route Knowledge Haskett-Yarmouth,RK-HY,2027-10-18,Valid
+CM00196,Safeworking Rules,SAFE-01,2027-07-30,Valid
+CM00196,Mainline Traction,TR-ML,2028-04-01,Valid
+CM00196,Yard Operations,YD-01,2028-04-29,Valid
+CM00197,Madison Crew Sign-off,AC-A06,2027-12-15,Valid
+CM00197,Fuel Return Sign-off,AC-A10,2027-11-30,Valid
+CM00197,Dangerous Goods Handling,DG-01,2029-03-09,Valid
+CM00197,Route Knowledge Madison-Bethway,RK-MB,2029-02-18,Valid
+CM00197,Safeworking Rules,SAFE-01,2029-03-03,Valid
+CM00197,Mainline Traction,TR-ML,2028-11-28,Valid
+CM00197,Yard Operations,YD-01,2027-03-16,Valid
+CM00198,Haskett Mainline Sign-off,AC-A01,2027-04-11,Valid
+CM00198,Haskett Mainline CO Sign-off,AC-A02,2028-10-06,Valid
+CM00198,Yarmouth Mainline Sign-off,AC-A03,2027-03-31,Valid
+CM00198,Route Knowledge Haskett-Yarmouth,RK-HY,2028-08-11,Valid
+CM00198,Safeworking Rules,SAFE-01,2028-09-20,Valid
+CM00198,Mainline Traction,TR-ML,2028-04-30,Valid
+CM00199,Madison Yard Sign-off,AC-A07,2027-03-18,Valid
+CM00199,Fuel Train Sign-off,AC-A09,2028-06-08,Valid
+CM00199,Fuel Return Sign-off,AC-A10,2029-02-15,Valid
+CM00199,Dangerous Goods Handling,DG-01,2028-06-28,Valid
+CM00199,Route Knowledge Madison-Bethway,RK-MB,2029-01-03,Valid
+CM00199,Safeworking Rules,SAFE-01,2029-04-01,Valid
+CM00199,Mainline Traction,TR-ML,2027-10-14,Valid
+CM00199,Yard Operations,YD-01,2029-01-31,Expired
+CM00200,Haskett Mainline CO Sign-off,AC-A02,2028-04-05,Valid
+CM00200,Route Knowledge Haskett-Yarmouth,RK-HY,2028-04-05,Valid
+CM00200,Safeworking Rules,SAFE-01,2028-07-27,Valid
+CM00201,CAM LOT Sign-off,AC-A05,2028-05-23,Valid
+CM00201,Safeworking Rules,SAFE-01,2028-12-31,Valid
+CM00201,Yard Operations,YD-01,2028-11-24,Valid
+CM00202,Madison Yard Sign-off,AC-A07,2027-04-09,Valid
+CM00202,Safeworking Rules,SAFE-01,2029-03-06,Valid
+CM00202,Yard Operations,YD-01,2028-07-31,Valid
+CM00203,Madison Crew Sign-off,AC-A06,2027-09-21,Valid
+CM00203,Madison Yard Sign-off,AC-A07,2028-03-31,Valid
+CM00203,Fuel Train Sign-off,AC-A09,2028-04-04,Valid
+CM00203,Fuel Return Sign-off,AC-A10,2029-02-06,Valid
+CM00203,Dangerous Goods Handling,DG-01,2027-09-05,Valid
+CM00203,Route Knowledge Madison-Bethway,RK-MB,2028-04-19,Valid
+CM00203,Safeworking Rules,SAFE-01,2027-06-21,Valid
+CM00203,Mainline Traction,TR-ML,2027-03-18,Valid
+CM00203,Yard Operations,YD-01,2027-03-04,Valid
+CM00204,CAM LOT Sign-off,AC-A05,2028-11-15,Valid
+CM00204,Safeworking Rules,SAFE-01,2029-01-25,Valid
+CM00204,Yard Operations,YD-01,2027-03-02,Valid
+CM00205,Haskett Mainline Sign-off,AC-A01,2027-08-22,Valid
+CM00205,Haskett Mainline CO Sign-off,AC-A02,2027-10-09,Valid
+CM00205,Yarmouth Mainline Sign-off,AC-A03,2027-05-18,Valid
+CM00205,Yarmouth Mainline CO Sign-off,AC-A04,2028-12-07,Valid
+CM00205,CAM LOT Sign-off,AC-A05,2028-08-13,Valid
+CM00205,Route Knowledge Haskett-Yarmouth,RK-HY,2029-03-08,Valid
+CM00205,Safeworking Rules,SAFE-01,2027-06-11,Valid
+CM00205,Mainline Traction,TR-ML,2028-06-02,Valid
+CM00205,Yard Operations,YD-01,2027-05-10,Valid
+CM00206,Haskett Mainline Sign-off,AC-A01,2029-01-15,Valid
+CM00206,Haskett Mainline CO Sign-off,AC-A02,2028-07-24,Valid
+CM00206,CAM LOT Sign-off,AC-A05,2027-04-16,Valid
+CM00206,Route Knowledge Haskett-Yarmouth,RK-HY,2027-04-06,Valid
+CM00206,Safeworking Rules,SAFE-01,2027-12-05,Valid
+CM00206,Mainline Traction,TR-ML,2027-11-15,Valid
+CM00206,Yard Operations,YD-01,2028-01-27,Valid
+CM00207,Bethway Join/FI Crew Sign-off,AC-A11,2027-03-14,Valid
+CM00207,BY Shed Sign-off,AC-A12,2028-04-18,Suspended
+CM00207,Safeworking Rules,SAFE-01,2028-08-19,Valid
+CM00207,Shed Operations,SH-01,2027-04-26,Valid
+CM00207,Yard Operations,YD-01,2027-03-25,Valid
+CM00208,NE Task Sign-off,AC-A16,2028-05-01,Suspended
+CM00208,Nelaway Local Operations,NL-01,2028-09-23,Valid
+CM00208,Safeworking Rules,SAFE-01,2028-12-30,Valid
+CM00209,Fuel Return Sign-off,AC-A10,2027-03-05,Valid
+CM00209,Bethway Join/FI Crew Sign-off,AC-A11,2029-01-24,Valid
+CM00209,BY Shed Sign-off,AC-A12,2028-11-16,Valid
+CM00209,Dangerous Goods Handling,DG-01,2029-02-12,Valid
+CM00209,Route Knowledge Madison-Bethway,RK-MB,2029-04-01,Valid
+CM00209,Safeworking Rules,SAFE-01,2027-03-12,Valid
+CM00209,Shed Operations,SH-01,2028-04-04,Valid
+CM00209,Mainline Traction,TR-ML,2028-11-04,Valid
+CM00209,Yard Operations,YD-01,2028-06-12,Valid
+CM00210,Madison Crew Sign-off,AC-A06,2028-05-25,Valid
+CM00210,Safeworking Rules,SAFE-01,2027-09-13,Valid
+CM00210,Yard Operations,YD-01,2029-04-18,Valid
+CM00211,NE Ship Sign-off,AC-A15,2029-01-05,Valid
+CM00211,NE Task Sign-off,AC-A16,2028-12-18,Valid
+CM00211,Nelaway Local Operations,NL-01,2028-08-18,Valid
+CM00211,Safeworking Rules,SAFE-01,2029-03-02,Valid
+CM00211,Shed Operations,SH-01,2029-01-21,Valid
+CM00212,Bethway Join/FI Crew Sign-off,AC-A11,2029-03-21,Valid
+CM00212,BY Shed Sign-off,AC-A12,2028-01-26,Valid
+CM00212,Safeworking Rules,SAFE-01,2027-05-29,Valid
+CM00212,Shed Operations,SH-01,2029-02-14,Valid
+CM00212,Yard Operations,YD-01,2028-12-12,Valid
+CM00213,Haskett Mainline Sign-off,AC-A01,2028-09-03,Valid
+CM00213,Haskett Mainline CO Sign-off,AC-A02,2029-01-28,Valid
+CM00213,Yarmouth Mainline Sign-off,AC-A03,2027-06-26,Valid
+CM00213,Yarmouth Mainline CO Sign-off,AC-A04,2027-12-08,Valid
+CM00213,Route Knowledge Haskett-Yarmouth,RK-HY,2027-07-15,Valid
+CM00213,Safeworking Rules,SAFE-01,2028-11-08,Valid
+CM00213,Mainline Traction,TR-ML,2027-06-01,Valid
+CM00214,NE Ship Sign-off,AC-A15,2028-12-01,Valid
+CM00214,Nelaway Local Operations,NL-01,2028-08-25,Valid
+CM00214,Safeworking Rules,SAFE-01,2029-03-05,Valid
+CM00214,Shed Operations,SH-01,2027-06-09,Valid
+CM00215,Nelaway Driver Sign-off,AC-A13,2027-05-12,Valid
+CM00215,Nelaway Shuttle Driver Sign-off,AC-A14,2028-09-17,Valid
+CM00215,NE Task Sign-off,AC-A16,2027-09-05,Valid
+CM00215,Nelaway Local Operations,NL-01,2028-07-31,Valid
+CM00215,Safeworking Rules,SAFE-01,2027-05-16,Valid
+CM00216,Yarmouth Mainline CO Sign-off,AC-A04,2027-10-17,Valid
+CM00216,Route Knowledge Haskett-Yarmouth,RK-HY,2027-10-25,Valid
+CM00216,Safeworking Rules,SAFE-01,2028-01-12,Valid
+CM00217,Nelaway Driver Sign-off,AC-A13,2028-08-28,Valid
+CM00217,Nelaway Shuttle Driver Sign-off,AC-A14,2027-07-30,Valid
+CM00217,NE Ship Sign-off,AC-A15,2027-10-18,Valid
+CM00217,NE Task Sign-off,AC-A16,2027-04-08,Valid
+CM00217,Nelaway Local Operations,NL-01,2028-05-03,Valid
+CM00217,Safeworking Rules,SAFE-01,2027-11-26,Valid
+CM00217,Shed Operations,SH-01,2027-11-12,Valid
+CM00218,NE Ship Sign-off,AC-A15,2027-04-22,Valid
+CM00218,NE Task Sign-off,AC-A16,2028-12-27,Valid
+CM00218,Nelaway Local Operations,NL-01,2029-01-26,Valid
+CM00218,Safeworking Rules,SAFE-01,2028-10-13,Valid
+CM00218,Shed Operations,SH-01,2028-05-14,Valid
+CM00219,Haskett Mainline CO Sign-off,AC-A02,2029-01-19,Valid
+CM00219,Yarmouth Mainline Sign-off,AC-A03,2029-02-28,Valid
+CM00219,Route Knowledge Haskett-Yarmouth,RK-HY,2028-06-16,Valid
+CM00219,Safeworking Rules,SAFE-01,2028-05-14,Valid
+CM00219,Mainline Traction,TR-ML,2028-09-13,Valid
+CM00220,Haskett Mainline CO Sign-off,AC-A02,2027-10-13,Valid
+CM00220,Yarmouth Mainline Sign-off,AC-A03,2027-03-14,Valid
+CM00220,Route Knowledge Haskett-Yarmouth,RK-HY,2029-02-20,Valid
+CM00220,Safeworking Rules,SAFE-01,2027-12-29,Valid
+CM00220,Mainline Traction,TR-ML,2028-03-05,Valid
+CM00221,CAM LOT Sign-off,AC-A05,2028-08-14,Valid
+CM00221,Safeworking Rules,SAFE-01,2028-02-21,Valid
+CM00221,Yard Operations,YD-01,2027-04-26,Valid
+CM00222,CAM LOT Sign-off,AC-A05,2027-07-31,Valid
+CM00222,Safeworking Rules,SAFE-01,2027-06-02,Valid
+CM00222,Yard Operations,YD-01,2027-09-22,Valid

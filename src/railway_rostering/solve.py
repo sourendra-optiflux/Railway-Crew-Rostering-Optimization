@@ -38,7 +38,7 @@ from typing import Optional
 from ortools.sat.python import cp_model
 
 from .candidate_generation import SINK, SOURCE, CandidateSet, generate_candidates
-from .config import ModelConfig, SolverConfig
+from .config import ModelConfig, SolverConfig, model_config_from_dict
 from .domain import Assignment, Instance, Solution
 from .heuristics import greedy_routes
 from .lp_bound import LPRelaxation, integral_cut_value
@@ -295,6 +295,9 @@ def solve_instance(
     model_config: Optional[ModelConfig] = None,
     solver_config: Optional[SolverConfig] = None,
 ) -> RunResult:
+    if model_config is None and "model_config" in instance.metadata:
+        # Rules derived from the instance's own data (constraints_df).
+        model_config = model_config_from_dict(dict(instance.metadata["model_config"]))
     mcfg = model_config or ModelConfig()
     scfg = solver_config or SolverConfig()
     mcfg.validate()

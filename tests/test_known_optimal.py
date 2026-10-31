@@ -24,12 +24,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_v1_sheets_notebook_instance_covers_all_five():
-    r = solve(load_instance(ROOT / "data/sample/v1_toy"))
+    r = solve(load_instance(ROOT / "tests/fixtures/v1_toy"))
     assert r.solution.status == "OPTIMAL" and covered(r) == 5 and r.validation.passed
 
 
 def test_v1_colab_notebook_instance_covers_four():
-    inst = load_instance(ROOT / "data/sample/v1_toy")
+    inst = load_instance(ROOT / "tests/fixtures/v1_toy")
     inst.crews["A"] = replace(inst.crews["A"], initial_location="Yajpur")  # railway_crew_v1.ipynb data
     r = solve(inst)
     assert covered(r) == 4
@@ -41,14 +41,14 @@ def test_v1_colab_notebook_instance_covers_four():
 def test_briefing_abc_sequence_is_reproduced():
     r = solve(load_instance(ROOT / "data/sample/briefing_abc"))
     assert r.solution.status == "OPTIMAL"
-    assert r.solution.routes == {"ABC": ["D01", "D02", "D03", "D05", "D06", "D07"]}
+    assert r.solution.routes == {"ABC": ["DM02-20261101", "DM04-20261102", "DM06-20261103", "DM01-20261105", "DM03-20261106", "DM05-20261107"]}
     assert r.validation.passed
 
 
 def test_briefing_abc_rejects_duty_on_transition_day():
     inst = load_instance(ROOT / "data/sample/briefing_abc")
-    extra = duty("D04", "2026-11-04 05:00", "Howrah", "Yajpur", "Howrah Mainline")
-    inst = make_instance(list(inst.crews.values()), inst.duties + [extra], quals=inst.qualifications)
+    extra = duty("D04", "2026-11-04 05:00", "Howrah", "Yajpur", "Howrah Mainline", eligible=["ABC"])
+    inst = make_instance(list(inst.crews.values()), inst.duties + [extra])
     r = solve(inst)
     assert covered(r) == 6 and "D04" not in r.solution.routes["ABC"]
 

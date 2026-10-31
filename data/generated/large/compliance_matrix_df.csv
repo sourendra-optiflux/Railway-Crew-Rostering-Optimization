@@ -1,0 +1,58 @@
+Activity ID,Activity Name,Competency LMS Code,Competency,Activity Head
+A01,Haskett Mainline,SAFE-01,Safeworking Rules,Haskett Mainline
+A01,Haskett Mainline,RK-HY,Route Knowledge Haskett-Yarmouth,Haskett Mainline
+A01,Haskett Mainline,TR-ML,Mainline Traction,Haskett Mainline
+A01,Haskett Mainline,AC-A01,Haskett Mainline Sign-off,Haskett Mainline
+A02,Haskett Mainline CO,SAFE-01,Safeworking Rules,Haskett Mainline
+A02,Haskett Mainline CO,RK-HY,Route Knowledge Haskett-Yarmouth,Haskett Mainline
+A02,Haskett Mainline CO,AC-A02,Haskett Mainline CO Sign-off,Haskett Mainline
+A03,Yarmouth Mainline,SAFE-01,Safeworking Rules,Yarmouth Mainline
+A03,Yarmouth Mainline,RK-HY,Route Knowledge Haskett-Yarmouth,Yarmouth Mainline
+A03,Yarmouth Mainline,TR-ML,Mainline Traction,Yarmouth Mainline
+A03,Yarmouth Mainline,AC-A03,Yarmouth Mainline Sign-off,Yarmouth Mainline
+A04,Yarmouth Mainline CO,SAFE-01,Safeworking Rules,Yarmouth Mainline
+A04,Yarmouth Mainline CO,RK-HY,Route Knowledge Haskett-Yarmouth,Yarmouth Mainline
+A04,Yarmouth Mainline CO,AC-A04,Yarmouth Mainline CO Sign-off,Yarmouth Mainline
+A05,CAM LOT,SAFE-01,Safeworking Rules,CAM LOT
+A05,CAM LOT,YD-01,Yard Operations,CAM LOT
+A05,CAM LOT,AC-A05,CAM LOT Sign-off,CAM LOT
+A06,Madison Crew,SAFE-01,Safeworking Rules,Madison Crew
+A06,Madison Crew,YD-01,Yard Operations,Madison Crew
+A06,Madison Crew,AC-A06,Madison Crew Sign-off,Madison Crew
+A07,Madison Yard,SAFE-01,Safeworking Rules,Madison Yard
+A07,Madison Yard,YD-01,Yard Operations,Madison Yard
+A07,Madison Yard,AC-A07,Madison Yard Sign-off,Madison Yard
+A08,Work Train,SAFE-01,Safeworking Rules,Work Train
+A08,Work Train,TR-ML,Mainline Traction,Work Train
+A08,Work Train,WT-01,Track Work Protection,Work Train
+A08,Work Train,AC-A08,Work Train Sign-off,Work Train
+A09,Fuel Train,SAFE-01,Safeworking Rules,Fuel Train
+A09,Fuel Train,TR-ML,Mainline Traction,Fuel Train
+A09,Fuel Train,RK-MB,Route Knowledge Madison-Bethway,Fuel Train
+A09,Fuel Train,DG-01,Dangerous Goods Handling,Fuel Train
+A09,Fuel Train,AC-A09,Fuel Train Sign-off,Fuel Train
+A10,Fuel Return,SAFE-01,Safeworking Rules,Fuel Return
+A10,Fuel Return,TR-ML,Mainline Traction,Fuel Return
+A10,Fuel Return,RK-MB,Route Knowledge Madison-Bethway,Fuel Return
+A10,Fuel Return,DG-01,Dangerous Goods Handling,Fuel Return
+A10,Fuel Return,AC-A10,Fuel Return Sign-off,Fuel Return
+A11,Bethway Join/FI Crew,SAFE-01,Safeworking Rules,Bethway Join/FI Crew
+A11,Bethway Join/FI Crew,YD-01,Yard Operations,Bethway Join/FI Crew
+A11,Bethway Join/FI Crew,AC-A11,Bethway Join/FI Crew Sign-off,Bethway Join/FI Crew
+A12,BY Shed,SAFE-01,Safeworking Rules,BY Shed
+A12,BY Shed,SH-01,Shed Operations,BY Shed
+A12,BY Shed,AC-A12,BY Shed Sign-off,BY Shed
+A13,Nelaway Driver,SAFE-01,Safeworking Rules,Nelaway Driver
+A13,Nelaway Driver,NL-01,Nelaway Local Operations,Nelaway Driver
+A13,Nelaway Driver,AC-A13,Nelaway Driver Sign-off,Nelaway Driver
+A14,Nelaway Shuttle Driver,SAFE-01,Safeworking Rules,Nelaway Shuttle Driver
+A14,Nelaway Shuttle Driver,NL-01,Nelaway Local Operations,Nelaway Shuttle Driver
+A14,Nelaway Shuttle Driver,AC-A14,Nelaway Shuttle Driver Sign-off,Nelaway Shuttle Driver
+A15,NE Ship,SAFE-01,Safeworking Rules,NE Ship
+A15,NE Ship,SH-01,Shed Operations,NE Ship
+A15,NE Ship,NL-01,Nelaway Local Operations,NE Ship
+A15,NE Ship,AC-A15,NE Ship Sign-off,NE Ship
+A16,NE Task,SAFE-01,Safeworking Rules,NE Task
+A16,NE Task,NL-01,Nelaway Local Operations,NE Task
+A16,NE Task,AC-A16,NE Task Sign-off,NE Task
+A17,Route Learning,SAFE-01,Safeworking Rules,Haskett Mainline

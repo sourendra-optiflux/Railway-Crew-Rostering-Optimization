@@ -1,0 +1,62 @@
+Restriction ID,CM Id,Restriction Type,Activity Head,Effective From,Effective To,Reason
+RS00001,CM00033,No Duty,,2026-11-02,2026-11-03,Training Course
+RS00002,CM00042,No Duty,,2026-11-06,2026-11-07,Sick Leave
+RS00003,CM00058,Activity Restriction,Haskett Mainline,2026-11-09,2026-11-11,Pending incident review
+RS00004,CM00072,No Duty,,2026-11-12,2026-11-13,Sick Leave
+RS00005,CM00076,No Duty,,2026-11-04,2026-11-04,Sick Leave
+RS00006,CM00094,Activity Restriction,Yarmouth Mainline,2026-11-14,2026-11-14,Pending incident review
+RS00007,CM00154,No Duty,,2026-11-09,2026-11-09,Sick Leave
+RS00008,CM00178,No Duty,,2026-11-13,2026-11-14,Training Course
+RS00009,CM00227,Activity Restriction,Madison Crew,2026-11-08,2026-11-08,Pending incident review
+RS00010,CM00228,No Duty,,2026-11-07,2026-11-09,Sick Leave
+RS00011,CM00231,No Duty,,2026-11-01,2026-11-01,Training Course
+RS00012,CM00259,No Duty,,2026-11-06,2026-11-07,Sick Leave
+RS00013,CM00380,No Duty,,2026-11-10,2026-11-13,Annual Leave
+RS00014,CM00406,Activity Restriction,BY Shed,2026-11-11,2026-11-11,Pending incident review
+RS00015,CM00422,Activity Restriction,Nelaway Driver,2026-11-02,2026-11-03,Pending incident review
+RS00016,CM00436,Activity Restriction,Nelaway Driver,2026-11-12,2026-11-12,Pending incident review
+RS00017,CM00503,Activity Restriction,NE Task,2026-11-07,2026-11-08,Pending incident review
+RS00018,CM00515,Activity Restriction,NE Task,2026-11-01,2026-11-01,Pending incident review
+RS00019,CM00518,Activity Restriction,NE Task,2026-11-03,2026-11-03,Pending incident review
+RS00020,CM00528,Activity Restriction,NE Task,2026-11-03,2026-11-06,Pending incident review
+RS00021,CM00572,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00022,CM00581,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00023,CM00589,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00024,CM00651,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00025,CM00652,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00026,CM00656,No Duty,,2026-11-12,2026-11-12,Annual Leave
+RS00027,CM00664,No Duty,,2026-11-07,2026-11-07,Annual Leave
+RS00028,CM00688,No Duty,,2026-11-05,2026-11-05,Annual Leave
+RS00029,CM00781,No Duty,,2026-11-09,2026-11-09,Annual Leave
+RS00030,CM00794,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00031,CM00806,No Duty,,2026-11-12,2026-11-12,Annual Leave
+RS00032,CM00817,No Duty,,2026-11-01,2026-11-01,Annual Leave
+RS00033,CM00840,No Duty,,2026-11-05,2026-11-05,Annual Leave
+RS00034,CM00848,No Duty,,2026-11-14,2026-11-14,Annual Leave
+RS00035,CM00856,No Duty,,2026-11-08,2026-11-08,Annual Leave
+RS00036,CM00893,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00037,CM00922,No Duty,,2026-11-10,2026-11-10,Annual Leave
+RS00038,CM00986,No Duty,,2026-11-14,2026-11-14,Annual Leave
+RS00039,CM00988,No Duty,,2026-11-04,2026-11-04,Annual Leave
+RS00040,CM01023,No Duty,,2026-11-14,2026-11-14,Annual Leave
+RS00041,CM01031,No Duty,,2026-11-10,2026-11-10,Annual Leave
+RS00042,CM01046,No Duty,,2026-11-06,2026-11-06,Annual Leave
+RS00043,CM01073,No Duty,,2026-11-12,2026-11-12,Annual Leave
+RS00044,CM01093,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00045,CM01096,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00046,CM01131,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00047,CM01195,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00048,CM01208,No Duty,,2026-11-01,2026-11-01,Annual Leave
+RS00049,CM01211,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00050,CM01212,No Duty,,2026-11-14,2026-11-14,Annual Leave
+RS00051,CM01228,No Duty,,2026-11-04,2026-11-04,Annual Leave
+RS00052,CM01300,No Duty,,2026-11-03,2026-11-03,Annual Leave
+RS00053,CM01311,No Duty,,2026-11-07,2026-11-07,Annual Leave
+RS00054,CM01354,No Duty,,2026-11-04,2026-11-04,Annual Leave
+RS00055,CM01403,No Duty,,2026-11-07,2026-11-07,Annual Leave
+RS00056,CM01417,No Duty,,2026-11-12,2026-11-12,Annual Leave
+RS00057,CM01431,No Duty,,2026-11-10,2026-11-10,Annual Leave
+RS00058,CM01439,No Night Shift,,2026-11-01,2026-11-14,Fatigue management plan
+RS00059,CM01465,No Duty,,2026-11-03,2026-11-03,Annual Leave
+RS00060,CM01494,No Duty,,2026-11-11,2026-11-11,Annual Leave
+RS00061,CM01518,No Duty,,2026-11-10,2026-11-10,Annual Leave

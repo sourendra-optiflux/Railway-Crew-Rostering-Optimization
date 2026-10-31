@@ -20,12 +20,13 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
-from .config import ModelConfig, SolverConfig, load_configs, model_config_from_dict
-from .data_loader import DataError, load_instance, write_instance
+from .config import ModelConfig, SolverConfig, model_config_from_dict, solver_config_from_dict
+from .data_loader import DataError, load_instance
+from .db_schema import DBDataError, build_instance, write_tables
 from .reporting import console_summary, write_outputs
 from .solution_validation import validate_solution
 from .solve import solve_instance
-from .synthetic import PRESETS, SyntheticConfig, generate_instance
+from .synthetic_db import DB_PRESETS, generate_tables
 
 
 def _parse_override(text: str):
@@ -39,16 +40,21 @@ def _parse_override(text: str):
     return key, value
 
 
-def _configs(args) -> tuple[ModelConfig, SolverConfig]:
+def _configs(args, instance=None) -> tuple[ModelConfig, SolverConfig]:
+    """Model rules: defaults < instance data (constraints_df) < --config file < --set / flags."""
+
+    base = ModelConfig().to_dict()
+    if instance is not None and "model_config" in instance.metadata:
+        base.update(instance.metadata["model_config"])
+    scfg = SolverConfig()
     if args.config:
-        mcfg, scfg = load_configs(args.config)
-    else:
-        mcfg, scfg = ModelConfig(), SolverConfig()
+        raw = json.loads(Path(args.config).read_text())
+        base.update(raw.get("model", {}))
+        scfg = solver_config_from_dict(raw.get("solver", {}))
     overrides = dict(args.set or [])
     if getattr(args, "positioning", False):
         overrides["positioning_enabled"] = True
-    if overrides:
-        mcfg = model_config_from_dict({**mcfg.to_dict(), **overrides})
+    mcfg = model_config_from_dict({**base, **overrides})
     if args.time_limit is not None:
         scfg.time_limit_seconds = args.time_limit
     if args.workers is not None:
@@ -95,32 +101,38 @@ def _add_instance_args(p: argparse.ArgumentParser) -> None:
 
 
 def cmd_generate(args) -> int:
-    names = list(PRESETS) if args.preset == "all" else [args.preset]
+    names = list(DB_PRESETS) if args.preset == "all" else [args.preset]
     for name in names:
-        cfg = replace(PRESETS[name]) if name in PRESETS else SyntheticConfig(name=name)
-        for field_name in ("seed", "n_crew", "n_duties", "horizon_days"):
-            val = getattr(args, field_name)
-            if val is not None:
-                setattr(cfg, field_name, val)
+        cfg = replace(DB_PRESETS[name])
+        if args.seed is not None:
+            cfg.seed = args.seed
+        if args.n_crew is not None:
+            cfg.n_relief_excess = args.n_crew
+        if args.horizon_days is not None:
+            cfg.horizon_days = args.horizon_days
+        if args.demand_scale is not None:
+            cfg.demand_scale = args.demand_scale
         if args.name:
             cfg.name = args.name
-        inst = generate_instance(cfg)
-        out = write_instance(inst, Path(args.output_root) / cfg.name)
-        ch = inst.metadata["characteristics"]
+        tables, meta = generate_tables(cfg)
+        inst = build_instance(tables, cfg.name, dict(meta))
+        prep = inst.metadata["data_preparation"]
+        meta["characteristics"] = {k: v for k, v in prep.items() if k not in ("disruptions", "activity_priority")}
+        out = write_tables(tables, Path(args.output_root) / cfg.name, meta)
         print(
-            f"wrote {out}  ({ch['n_crew']} crew, {ch['n_duties']} duties, {ch['open_demand_units']} open units, "
-            f"seed {cfg.seed})"
+            f"wrote {out}  ({prep['n_crew_optimised']} Relief/Excess crew, {prep['n_crew_regular']} regular crew, "
+            f"{len(inst.duties)} duties, {prep['open_demand_units']} open units, seed {cfg.seed})"
         )
     return 0
 
 
 def cmd_solve(args) -> int:
-    mcfg, scfg = _configs(args)
     try:
         inst = _load(args)
-    except DataError as exc:
+    except (DataError, DBDataError) as exc:
         print(exc, file=sys.stderr)
         return 2
+    mcfg, scfg = _configs(args, inst)
     result = solve_instance(inst, mcfg, scfg)
     paths = write_outputs(result, args.output_dir)
     print(console_summary(result))
@@ -138,8 +150,8 @@ def cmd_solve(args) -> int:
 
 
 def cmd_validate(args) -> int:
-    mcfg, _ = _configs(args)
     inst = _load(args)
+    mcfg, _ = _configs(args, inst)
     with open(args.assignments, newline="") as fh:
         pairs = [(r["crew_id"], r["duty_id"]) for r in csv.DictReader(fh)]
     report = validate_solution(inst, mcfg, pairs)
@@ -168,14 +180,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="railway_rostering", description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
 
-    g = sub.add_parser("generate", help="generate synthetic instance(s)")
-    g.add_argument("--preset", default="small", choices=list(PRESETS) + ["all"])
+    g = sub.add_parser("generate", help="generate synthetic instance(s) in the OptiFlux DB schema")
+    g.add_argument("--preset", default="small", choices=list(DB_PRESETS) + ["all"])
     g.add_argument("--output-root", default="data/generated")
     g.add_argument("--name")
     g.add_argument("--seed", type=int)
-    g.add_argument("--n-crew", type=int)
-    g.add_argument("--n-duties", type=int)
+    g.add_argument("--n-crew", type=int, help="number of Relief/Excess crew")
     g.add_argument("--horizon-days", type=int)
+    g.add_argument("--demand-scale", type=float, help="multiplier on crew demand per shift")
     g.set_defaults(func=cmd_generate)
 
     s = sub.add_parser("solve", help="solve an instance and write outputs")

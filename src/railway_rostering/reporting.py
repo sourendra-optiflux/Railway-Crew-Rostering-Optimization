@@ -92,6 +92,7 @@ def build_summary(result: RunResult) -> dict:
             "horizon_end": _fmt(inst.horizon_end),
             "seed": inst.metadata.get("seed"),
         },
+        "data_preparation": {k: v for k, v in inst.metadata.get("data_preparation", {}).items() if k != "disruptions"},
         "status": sol.status,
         "stage_statuses": sol.stage_statuses,
         "objective_values": sol.objective_values,
@@ -256,6 +257,12 @@ def write_outputs(result: RunResult, output_dir: str | Path) -> dict[str, Path]:
         paths["positioning"] = out / "positioning.csv"
         _write_csv(paths["positioning"], cols, result.solution.positioning)
 
+    prep = result.instance.metadata.get("data_preparation")
+    if prep is not None:  # instance built from the OptiFlux DB tables
+        paths["roster_disruptions"] = out / "roster_disruptions.csv"
+        _write_csv(paths["roster_disruptions"], ["assignment_id", "cm_id", "activity", "start", "reason"],
+                   prep.get("disruptions", []))  # fmt: skip
+
     paths["summary"] = out / "summary.json"
     paths["summary"].write_text(json.dumps(build_summary(result), indent=2, default=str) + "\n")
     paths["validation_report"] = out / "validation_report.json"
@@ -267,7 +274,16 @@ def write_outputs(result: RunResult, output_dir: str | Path) -> dict[str, Path]:
 def console_summary(result: RunResult) -> str:
     s = build_summary(result)
     cov = s["coverage"] or {}
-    lines = [
+    prep = s.get("data_preparation") or {}
+    lines = []
+    if prep:
+        lines.append(
+            f"DB tables       : {prep['demand_units_total']} demand units in {prep['horizon_days']} days, "
+            f"{prep['units_covered_by_regular_crew']} covered by regular crew, "
+            f"{prep['regular_rows_disrupted']} roster rows disrupted, "
+            f"{prep['released_unlocked_assignments']} unlocked Relief/Excess rows released"
+        )
+    lines += [
         f"Instance        : {s['instance']['name']} ({s['instance']['n_crew']} crew, "
         f"{s['instance']['n_duties']} duties, {s['instance']['open_demand_units']} open demand units)",
         f"Status          : {s['status']}  stages={s['stage_statuses']}",
