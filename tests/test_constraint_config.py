@@ -287,3 +287,55 @@ def test_activity_head_max_shifts_rejects_invalid_status_in_constraints_df():
 
     with pytest.raises(SystemExit, match="Activity Head Max Shifts Status in constraints_df.csv must be Active or Inactive"):
         Rules.from_table(cons_rows)
+
+
+@pytest.mark.parametrize(("status", "expected_enabled"), [("Active", True), ("Inactive", False)])
+def test_cp_sat_respects_assignment_type_priority_status_in_constraints_df(status: str, expected_enabled: bool):
+    cons_rows = read_csv(DEFAULT_DATA_DIR / "constraints_df.csv")
+    for row in cons_rows:
+        if row["Constraint"] == "Assignment Type Priority":
+            row["Status"] = status
+    rules = Rules.from_table(cons_rows)
+    assert rules.assignment_type_priority_enabled is expected_enabled
+
+    # Test solver behavior with Active vs Inactive:
+    # Relief has higher raw cost (22) than Excess (0).
+    # When Assignment Type Priority is Active, Relief (prio 1) is chosen over Excess (prio 2).
+    # When Inactive, tier penalty is 0, so solver picks lowest cost (Excess at cost 0).
+    start = datetime(2026, 11, 7, 8)
+    relief_opt = Option(
+        0, "fill", start, start + timedelta(hours=8), "A", "A", "A06",
+        seat="seat1", cost=22, source="Relief",
+    )
+    excess_opt = Option(
+        0, "fill", start, start + timedelta(hours=8), "A", "A", "A06",
+        seat="seat1", cost=0, source="Excess",
+    )
+    sw_rel = SimpleNamespace(
+        key="U_REL|1", user="U_REL", home="A", classification="FIFO",
+        earliest_start=None, latest_end=None, row_ids=["R_REL"], droppable=[True],
+        options=[[Option(0, "keep", start, start + timedelta(hours=8), "A", "A", "REL", source="Relief"), relief_opt]],
+    )
+    sw_exc = SimpleNamespace(
+        key="U_EXC|1", user="U_EXC", home="A", classification="FIFO",
+        earliest_start=None, latest_end=None, row_ids=["R_EXC"], droppable=[True],
+        options=[[Option(0, "keep", start, start + timedelta(hours=8), "A", "A", "EXC", source="Excess"), excess_opt]],
+    )
+    seats = {"seat1": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew")}
+
+    res = solve(rules, seats, [sw_rel, sw_exc], Costs(), 5, 1, 0, assignment_type_priority={"Relief": 1, "Excess": 2, "Demand": 3})
+    assert res.places_filled == 1
+    if expected_enabled:
+        assert res.chosen["U_REL|1"] == [relief_opt]
+    else:
+        assert res.chosen["U_EXC|1"] == [excess_opt]
+
+
+def test_assignment_type_priority_rejects_invalid_status_in_constraints_df():
+    cons_rows = read_csv(DEFAULT_DATA_DIR / "constraints_df.csv")
+    for row in cons_rows:
+        if row["Constraint"] == "Assignment Type Priority":
+            row["Status"] = "InvalidStatus"
+
+    with pytest.raises(SystemExit, match="Assignment Type Priority Status in constraints_df.csv must be Active or Inactive"):
+        Rules.from_table(cons_rows)

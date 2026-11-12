@@ -148,6 +148,8 @@ CONSTRAINTS = [
     ("Max Start Change Minutes", "60", "Active"),
     # Per-swing activity-head shift limits from activity_priority.csv (Max Resident Shifts / Max FIFO Shifts).
     ("Activity Head Max Shifts", "", "Active"),
+    # Assignment-type fill priority (Relief > Excess > Demand).
+    ("Assignment Type Priority", "", "Active"),
     # gap_filling_rules.md R4: every row is unlocked; locking is a later application feature.
     ("Default Is Locked", "False", "Active"),
     ("Random Seed", "2026", "Active"),

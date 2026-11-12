@@ -128,9 +128,10 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
                 lits.append(lit)
                 arcs.append((len(nodes), len(nodes), lit.Not()))
                 raw_spend.append((o.cost, lit))
+                use_tier_priority = getattr(rules, "assignment_type_priority_enabled", True)
                 tier_penalty = (
                     1000 * (int(type_priority[o.source]) - 1)
-                    if o.kind == "fill" and o.source in type_priority
+                    if use_tier_priority and o.kind == "fill" and o.source in type_priority
                     else 0
                 )
                 spend.append((tier_penalty + o.cost, lit))
