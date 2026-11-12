@@ -131,8 +131,9 @@ def build_demo_dataset() -> None:
     # Copy base schema tables from data/optiflux_v2
     for name in (
         "activities_df.csv", "activity_demand_df.csv", "activity_priority.csv",
-        "compliance_matrix_df.csv", "constraints_df.csv", "Crew_Onsite_App.csv",
-        "crew_restrictions.csv", "excluded_activities.csv", "roster_lines.csv",
+        "assignment_type_priority.csv", "compliance_matrix_df.csv", "constraints_df.csv",
+        "Crew_Onsite_App.csv", "crew_restrictions.csv", "excluded_activities.csv",
+        "roster_lines.csv",
     ):
         shutil.copy(BASE_DATA / name, DEMO_DATA / name)
 

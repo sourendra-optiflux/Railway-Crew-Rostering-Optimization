@@ -65,6 +65,9 @@ class DashboardDataset:
     crew_by_id: dict[str, dict[str, str]] = field(default_factory=dict)
     priority_by_head: dict[str, int] = field(default_factory=dict)
     limits_by_head: dict[str, tuple[int | None, int | None]] = field(default_factory=dict)
+    assignment_type_priority: dict[str, int] = field(
+        default_factory=lambda: {"Relief": 1, "Excess": 2, "Demand": 3}
+    )
     constraints: dict[str, tuple[str, str]] = field(default_factory=dict)
     config_flags: dict[str, Any] = field(default_factory=dict)
     reassignments: list[dict[str, str]] = field(default_factory=list)
@@ -229,6 +232,25 @@ def load_dashboard_dataset(
         fifo_val = int(fifo_lim) if fifo_lim.isdecimal() else None
         limits_by_head[head] = (res_val, fifo_val)
 
+    type_prio_rows, _ = read_csv_safe(
+        data_dir / "assignment_type_priority.csv",
+        required_columns={"Priority", "Assignment Type"},
+        dedupe_key="Assignment Type",
+    )
+    assignment_type_priority: dict[str, int] = {"Relief": 1, "Excess": 2, "Demand": 3}
+    if type_prio_rows:
+        parsed_type_prio: dict[str, int] = {}
+        for row in type_prio_rows:
+            atype = row.get("Assignment Type", "")
+            if not atype:
+                continue
+            try:
+                parsed_type_prio[atype] = int(row["Priority"])
+            except (KeyError, ValueError):
+                pass
+        if parsed_type_prio:
+            assignment_type_priority = parsed_type_prio
+
     constraint_rows, w = read_csv_safe(
         data_dir / "constraints_df.csv",
         required_columns={"Constraint", "Value", "Status"},
@@ -305,6 +327,7 @@ def load_dashboard_dataset(
         crew_by_id=crew_by_id,
         priority_by_head=priority_by_head,
         limits_by_head=limits_by_head,
+        assignment_type_priority=assignment_type_priority,
         constraints=constraints,
         config_flags=config_flags,
         reassignments=reassignments,

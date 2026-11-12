@@ -13,8 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data" / "optiflux_v2"
 GENERATED = [
     # scripts/build_optiflux_v2_data.py
-    "activities_df.csv", "activity_demand_df.csv", "activity_priority.csv", "compliance_matrix_df.csv",
-    "excluded_activities.csv", "constraints_df.csv", "crew_restrictions.csv", "Crew_Onsite_App.csv",
+    "activities_df.csv", "activity_demand_df.csv", "activity_priority.csv", "assignment_type_priority.csv",
+    "compliance_matrix_df.csv", "excluded_activities.csv", "constraints_df.csv", "crew_restrictions.csv",
+    "Crew_Onsite_App.csv",
     # scripts/roster_making.py
     "roster_df.csv", "crew_master_data_df.csv", "crew_competencies_df.csv", "crew_currency_df.csv",
     "roster_lines.csv", "roster_report.md", "eligibility_matrix.csv",

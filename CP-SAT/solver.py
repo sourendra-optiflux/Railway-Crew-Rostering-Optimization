@@ -34,7 +34,11 @@ from ortools.sat.python import cp_model
 from utils.load_options import ModelSwing, SeatInfo
 
 from option_generation.options import Costs, Option, can_close, can_open, skippable
-from option_generation.priority import ActivityHeadLimits, priority_weights_for
+from option_generation.priority import (
+    DEFAULT_ASSIGNMENT_TYPE_PRIORITIES,
+    ActivityHeadLimits,
+    priority_weights_for,
+)
 from option_generation.rules import Rules
 
 
@@ -76,7 +80,8 @@ def _option_activity_head(o: Option, seats: dict[str, SeatInfo], head_by_activit
 def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], costs: Costs, time_limit: float,
           workers: int, seed: int, log: bool = False, priority_strategy: str | None = None,
           activity_head_limits: dict[str, ActivityHeadLimits] | None = None,
-          co_pairs: list[tuple[str, str]] | None = None) -> Result:  # fmt: skip
+          co_pairs: list[tuple[str, str]] | None = None,
+          assignment_type_priority: dict[str, int] | None = None) -> Result:  # fmt: skip
     if rules.max_changes not in (0, 1):
         raise SystemExit("error: the model supports Max Start Changes Per Block of 0 or 1")
     priority_strategy = rules.priority_strategy if priority_strategy is None else priority_strategy
@@ -84,6 +89,11 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
         raise ValueError("priority_strategy must be one of: none, weighted, lexicographic")
     if activity_head_limits is not None:
         _validate_head_limits(activity_head_limits)
+    type_priority = (
+        assignment_type_priority
+        if assignment_type_priority is not None
+        else getattr(rules, "assignment_type_priority", None) or DEFAULT_ASSIGNMENT_TYPE_PRIORITIES
+    )
     head_by_activity = {
         s.activity_id: s.activity_head
         for s in seats.values()
@@ -95,6 +105,7 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
     at_seat: dict[str, list] = defaultdict(list)
     excess_on: list[tuple[str, object]] = []
     spend: list[tuple[int, object]] = []
+    raw_spend: list[tuple[int, object]] = []
 
     def new_bool(name: str):
         var = model.new_bool_var(name)
@@ -116,7 +127,13 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
                 nodes.append((o, lit))
                 lits.append(lit)
                 arcs.append((len(nodes), len(nodes), lit.Not()))
-                spend.append((o.cost, lit))
+                raw_spend.append((o.cost, lit))
+                tier_penalty = (
+                    1000 * (int(type_priority[o.source]) - 1)
+                    if o.kind == "fill" and o.source in type_priority
+                    else 0
+                )
+                spend.append((tier_penalty + o.cost, lit))
                 if o.seat:
                     at_seat[o.seat].append(lit)
                 if o.excess_seat:
@@ -125,7 +142,9 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
                 d = new_bool(f"w{n}_r{i}_drop")
                 model.add_exactly_one(lits + [d])
                 standby = any(o.standby for o in opts if o.kind == "keep")
-                spend.append((costs.drop_relief if standby else costs.drop_excess, d))
+                drop_cost = costs.drop_relief if standby else costs.drop_excess
+                raw_spend.append((drop_cost, d))
+                spend.append((drop_cost, d))
                 dropped.append(d)
             else:
                 model.add_exactly_one(lits)
@@ -302,10 +321,8 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
     best = sum(first_solver.value(lit) for lit in coverage)
     best_bound = first_solver.best_objective_bound
     cost_solver = stage_solvers.get("cost")
-    # The reported cost is the assignment cost alone; the CO penalty is reported through `co_violations`.
-    penalty = rules.co_pairing_penalty if co_mismatch else 0
-    cost_value = round(cost_solver.objective_value - penalty * sum(cost_solver.value(m) for m in co_mismatch)) \
-        if cost_solver else None
+    # The reported cost is the raw assignment cost alone (excluding tier and CO pairing penalties).
+    cost_value = round(sum(c * cost_solver.value(v) for c, v in raw_spend)) if cost_solver else None
     cost_bound = cost_solver.best_objective_bound if cost_solver else None
     co_violations = sum(final.value(m) for m in co_mismatch) if co_mismatch else None
 

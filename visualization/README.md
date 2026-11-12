@@ -25,6 +25,8 @@ The dashboard reads the input dataset (`data/optiflux_v2/`), Layer 1 option gene
    - Interactive **"Where Did the Layer-1 Candidates Go?" Seat Inspector**: select any unfilled `Seat Key` to see what every Layer-1 candidate from `gap_options.csv` actually did in the final `roster_full.csv` / `reassignments.csv` solution alongside the exact `rejections.csv` breakdown for that seat.
    - Summary charts for Remaining Gaps by Activity Head, by Shift, by Priority, and Resident vs FIFO contribution.
 5. **Constraint & Diagnostic Analysis:**
+   - **Home Depot Swing Start & End Check:** Checks every crew member's assigned swing to verify that its first work shift starts at their Home Depot and its last work shift ends at their Home Depot (`Status = PASS / FAIL`, plus `Swing Context` distinguishing solver-modified swings from pre-existing leave-disrupted swings).
+   - **Assignment Type Priority (`assignment_type_priority.csv`):** Displays the configured source priority order (`1: Relief`, `2: Excess`, `3: Demand`) alongside candidate option counts and selected gap-fill counts.
    - Displays active rule and constraint settings (`Max Resident Shifts` / `Max FIFO Shifts` from `activity_priority.csv` and `Activity Head Max Shifts` status in `constraints_df.csv`, `Residential Start Restriction`, `Relief Only Day/Night Transition`, rest hours, and F3 start-time change limits).
    - Interactive **Per-Swing Activity-Head Shift Utilization vs Configured Limits Bar Chart** and a filterable table for swings reaching their shift limit.
    - Summarizes `swings.csv` availability (`movable` vs `frozen`), `rejections.csv` Layer-1 rejection counts, and the **44 Roster Validation Rule Checks** (`PASS` / `fails after leave too` / `FAIL`).
@@ -46,7 +48,7 @@ The dashboard reads the input dataset (`data/optiflux_v2/`), Layer 1 option gene
 
 | Layer | Default Location | Files Consumed |
 |---|---|---|
-| Base Data | `data/optiflux_v2/` | `activity_demand_df.csv`, `activity_priority.csv`, `crew_master_data_df.csv`, `constraints_df.csv` |
+| Base Data | `data/optiflux_v2/` | `activity_demand_df.csv`, `activity_priority.csv`, `assignment_type_priority.csv`, `crew_master_data_df.csv`, `constraints_df.csv` |
 | Config | `config.yml` | `residential_start_restriction`, `relief_only_day_night_transition`, `priority_strategy` |
 | Layer 1 (Option Generation, optional for diagnostics) | `option_generation/output/` | `seats.csv`, `swings.csv`, `gap_options.csv`, `rejections.csv` |
 | Layer 2 (CP-SAT Solver Output) | `CP-SAT/outputs/roster_full/` | `roster_full.csv`, `reassignments.csv`, `unfilled_gaps.csv`, `summary.md`, `validation.md` |

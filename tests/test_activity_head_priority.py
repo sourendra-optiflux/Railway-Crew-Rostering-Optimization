@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "CP-SAT"))
 
 import solver as solver_module  # noqa: E402
 from solver import solve  # noqa: E402
+from utils.activity_head_priority import load_assignment_type_priorities  # noqa: E402
 from utils.load_options import load_options  # noqa: E402
 
 from option_generation.data import DEFAULT_DATA_DIR, read_csv  # noqa: E402
@@ -733,3 +734,81 @@ def test_solve_rejects_missing_or_untyped_activity_head_limits():
             rules, seats, [swing], Costs(), 5, 1, 0,
             activity_head_limits={"Other Head": ActivityHeadLimits(max_resident_shifts=1, max_fifo_shifts=1)},
         )
+
+
+def test_assignment_type_priorities_load_default_and_validate(tmp_path: Path):
+    assert load_assignment_type_priorities() == {"Relief": 1, "Excess": 2, "Demand": 3}
+
+    custom = tmp_path / "assignment_type_priority.csv"
+    custom.write_text("Priority,Assignment Type\n1,Excess\n2,Relief\n3,Demand\n", encoding="utf-8")
+    assert load_assignment_type_priorities(custom) == {"Excess": 1, "Relief": 2, "Demand": 3}
+
+    bad_missing = tmp_path / "bad_missing.csv"
+    bad_missing.write_text("Priority,Assignment Type\n1,Relief\n2,Excess\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="missing assignment-type priorities"):
+        load_assignment_type_priorities(bad_missing)
+
+    bad_dup = tmp_path / "bad_dup.csv"
+    bad_dup.write_text("Priority,Assignment Type\n1,Relief\n1,Excess\n3,Demand\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="duplicate Priority values"):
+        load_assignment_type_priorities(bad_dup)
+
+
+def test_solver_prefers_relief_over_excess_and_demand_regardless_of_raw_cost():
+    rules = _test_rules()
+    start = datetime(2026, 11, 1, 6)
+    # Excess same-slot has raw cost 0, whereas Relief fill has raw cost 22, and Demand has raw cost 40.
+    # Because Relief has priority 1, Excess has priority 2, and Demand has priority 3,
+    # the optimizer must choose Relief (1) over Excess (2) and Demand (3).
+    relief_opt = Option(
+        0, "fill", start, start + timedelta(hours=8), "A", "A", "A06",
+        seat="seat1", cost=22, source="Relief",
+    )
+    excess_opt = Option(
+        0, "fill", start, start + timedelta(hours=8), "A", "A", "A06",
+        seat="seat1", cost=0, source="Excess",
+    )
+    demand_opt = Option(
+        0, "fill", start, start + timedelta(hours=8), "A", "A", "A06",
+        seat="seat1", cost=40, source="Demand",
+    )
+    sw_rel = SimpleNamespace(
+        key="U_REL|1", user="U_REL", home="A", classification="FIFO",
+        earliest_start=None, latest_end=None, row_ids=["R_REL"], droppable=[True],
+        options=[[Option(0, "keep", start, start + timedelta(hours=8), "A", "A", "REL", source="Relief"), relief_opt]],
+    )
+    sw_exc = SimpleNamespace(
+        key="U_EXC|1", user="U_EXC", home="A", classification="FIFO",
+        earliest_start=None, latest_end=None, row_ids=["R_EXC"], droppable=[True],
+        options=[[Option(0, "keep", start, start + timedelta(hours=8), "A", "A", "EXC", source="Excess"), excess_opt]],
+    )
+    sw_dem = SimpleNamespace(
+        key="U_DEM|1", user="U_DEM", home="A", classification="FIFO",
+        earliest_start=None, latest_end=None, row_ids=["R_DEM"], droppable=[True],
+        options=[[Option(0, "keep", start, start + timedelta(hours=8), "A", "A", "DEM", source="Demand"), demand_opt]],
+    )
+    seats = {"seat1": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew")}
+
+    res_default = solve(
+        rules, seats, [sw_rel, sw_exc, sw_dem], Costs(), 5, 1, 0,
+        assignment_type_priority={"Relief": 1, "Excess": 2, "Demand": 3},
+    )
+    assert res_default.places_filled == 1
+    assert res_default.chosen["U_REL|1"] == [relief_opt]
+    assert res_default.cost == 22
+
+    # When only Excess (priority 2) and Demand (priority 3) are available, Excess is chosen over Demand
+    res_exc_vs_dem = solve(
+        rules, seats, [sw_exc, sw_dem], Costs(), 5, 1, 0,
+        assignment_type_priority={"Relief": 1, "Excess": 2, "Demand": 3},
+    )
+    assert res_exc_vs_dem.places_filled == 1
+    assert res_exc_vs_dem.chosen["U_EXC|1"] == [excess_opt]
+
+    # When priority order is inverted so Excess is priority 1 and Relief is priority 2, Excess is chosen
+    res_custom = solve(
+        rules, seats, [sw_rel, sw_exc, sw_dem], Costs(), 5, 1, 0,
+        assignment_type_priority={"Excess": 1, "Relief": 2, "Demand": 3},
+    )
+    assert res_custom.places_filled == 1
+    assert res_custom.chosen["U_EXC|1"] == [excess_opt]

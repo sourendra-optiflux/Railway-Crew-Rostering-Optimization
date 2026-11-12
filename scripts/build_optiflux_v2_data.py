@@ -232,6 +232,17 @@ def build_priority(old: Path, activities: list[dict[str, str]]) -> tuple[list[st
     ]
 
 
+def build_assignment_type_priority() -> tuple[list[str], list[dict[str, str]]]:
+    """Assignment-type fill priority order: Relief (1) > Excess (2) > Demand (3)."""
+    header = ["Priority", "Assignment Type"]
+    rows = [
+        {"Priority": "1", "Assignment Type": "Relief"},
+        {"Priority": "2", "Assignment Type": "Excess"},
+        {"Priority": "3", "Assignment Type": "Demand"},
+    ]
+    return header, rows
+
+
 def build_compliance(old: Path, activities: list[dict[str, str]]) -> tuple[list[str], list[dict[str, str]]]:
     """Old compliance matrix with the renames; old A17 (Route Learning) dropped; Work Train CO copies Work Train."""
     header, rows = read_csv(old / "compliance_matrix_df.csv")
@@ -286,6 +297,7 @@ def main(argv: list[str] | None = None) -> None:
     write_csv(out / "activities_df.csv", act_header, activities)
     write_csv(out / "activity_demand_df.csv", dem_header, demand)
     write_csv(out / "activity_priority.csv", *build_priority(old, activities))
+    write_csv(out / "assignment_type_priority.csv", *build_assignment_type_priority())
     write_csv(out / "compliance_matrix_df.csv", *build_compliance(old, activities))
     write_csv(out / "excluded_activities.csv", ["Activity ID", "Activity Name"], [])
     write_csv(
