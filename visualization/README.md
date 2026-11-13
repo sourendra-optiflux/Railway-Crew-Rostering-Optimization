@@ -19,6 +19,7 @@ The dashboard reads the input dataset (`data/optiflux_v2/`), Layer 1 option gene
    - Interactive timeline of **actual selected solver assignments** from `roster_full.csv` (never unselected options from `options.csv`).
    - Includes a **"Show Only Reassigned / Moved Crew"** toggle and a `"Changed"` color mode (`Reassigned / Moved` vs `Unchanged`) with full before/after `Reassignment Detail` in the tooltip.
    - Differentiates `Residential` and `FIFO` crew and optionally shows `Off` / `Travel` rows and unassigned on-leave periods.
+   - **Individual Crew Journey & Printable Schedule:** Inspect any crew member's full chronological timeline (including rest hours between shifts) and download as CSV or printable HTML.
 4. **Gap-Filling Analysis:**
    - Detailed table of unfilled demand slots (`Activity Head`, `Priority`, `Swing`, `Date`, `Shift`, `Total Demand`, `Assigned Demand`, `Remaining Gap`, `Resident/FIFO Assigned`, `Locked Gaps`, and `Diagnostic Category`).
    - Interactive **"Where Did the Layer-1 Candidates Go?" Seat Inspector**: select any unfilled `Seat Key` to see what every Layer-1 candidate from `gap_options.csv` actually did in the final `roster_full.csv` / `reassignments.csv` solution alongside the exact `rejections.csv` breakdown for that seat.
@@ -29,6 +30,15 @@ The dashboard reads the input dataset (`data/optiflux_v2/`), Layer 1 option gene
    - Summarizes `swings.csv` availability (`movable` vs `frozen`), `rejections.csv` Layer-1 rejection counts, and the **44 Roster Validation Rule Checks** (`PASS` / `fails after leave too` / `FAIL`).
 6. **Optimization Strategy Comparison:**
    - Compares `None`, `Weighted`, and `Lexicographic` strategy runs across total assigned demand, remaining gaps, coverage %, Activity Head-wise coverage, and Priority-wise coverage.
+7. **Workload, Chains & Depots:**
+   - **Crew Fairness & Fatigue:** Day vs Night shift distribution, standby-to-work conversion rate, and swing fatigue cap alerts.
+   - **Reassignment Move Tracer:** Interactive Sankey flow diagram and multi-hop chain reconstruction from `reassignments.csv`.
+   - **Depot Balance & Travel Deadheading:** Depot inflow/outflow balance chart and FIFO `Travel In` / `Travel Out` hours summary.
+8. **What-If & Disruption Simulator:**
+   - **What-If Scenario Builder:** Tune constraint toggles (`Residential Start Restriction`, `Relief-Only Day/Night Transition`, `Assignment Type Priority`, `Activity Head Max Shifts`), strategy, and rest hours in an isolated temporary workspace and compare before/after KPIs.
+   - **Leave Impact & Disruption Simulator:** Mark active shifts as unavailable ("Simulated Sick") and re-solve local recovery to evaluate pool resilience.
+9. **Pipeline, Tests & Exports:**
+   - Run the full data-to-solver pipeline, `pytest` suite, `scripts/check_roster.py`, or `scripts/edge_case_demo.py`, and export CSV or multi-sheet Excel (`.xlsx`) reports from the Download & Export Center.
 
 ---
 

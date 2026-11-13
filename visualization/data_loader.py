@@ -72,6 +72,9 @@ class DashboardDataset:
     swings: list[dict[str, str]] = field(default_factory=list)
     gap_options: list[dict[str, str]] = field(default_factory=list)
     rejections: list[dict[str, str]] = field(default_factory=list)
+    eligibility_rows: list[dict[str, str]] = field(default_factory=list)
+    currency_rows: list[dict[str, str]] = field(default_factory=list)
+    activities_rows: list[dict[str, str]] = field(default_factory=list)
     summary_markdown: str = ""
     validation_markdown: str = ""
     warnings: list[str] = field(default_factory=list)
@@ -247,6 +250,10 @@ def load_dashboard_dataset(
         gap_options, _ = read_csv_safe(options_dir / "gap_options.csv")
         rejections, _ = read_csv_safe(options_dir / "rejections.csv")
 
+    eligibility_rows, _ = read_csv_safe(data_dir / "eligibility_matrix.csv")
+    currency_rows, _ = read_csv_safe(data_dir / "crew_currency_df.csv")
+    activities_rows, _ = read_csv_safe(data_dir / "activities_df.csv")
+
     summary_md = ""
     summary_path = cpsat_dir / "summary.md"
     if summary_path.exists():
@@ -281,6 +288,9 @@ def load_dashboard_dataset(
         swings=swings,
         gap_options=gap_options,
         rejections=rejections,
+        eligibility_rows=eligibility_rows,
+        currency_rows=currency_rows,
+        activities_rows=activities_rows,
         summary_markdown=summary_md,
         validation_markdown=validation_md,
         warnings=warnings,

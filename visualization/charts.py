@@ -334,3 +334,285 @@ def create_shift_limit_utilization_chart(head_limits_table: list[dict[str, objec
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
     return fig
+
+
+def create_workload_distribution_chart(crew_rows: list[dict[str, object]], top_n: int = 30) -> go.Figure:
+    """Stacked bar chart of Day vs Night shifts for top crew members by total worked shifts."""
+    if not crew_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Crew Workload Data Available")
+        return fig
+
+    subset = crew_rows[:top_n]
+    users = [str(r["User Id"]) for r in subset]
+    day_shifts = [int(r["Day Shifts"]) for r in subset]
+    night_shifts = [int(r["Night Shifts"]) for r in subset]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(name="Day Shifts", x=users, y=day_shifts, marker_color="#f59e0b"),
+            go.Bar(name="Night Shifts", x=users, y=night_shifts, marker_color="#1e3a8a"),
+        ]
+    )
+    fig.update_layout(
+        barmode="stack",
+        title=f"Crew Workload Distribution (Day vs Night Shifts, Top {len(subset)} Crew)",
+        xaxis_title="Crew Member (User Id)",
+        yaxis_title="Worked Shifts",
+        height=400,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig
+
+
+def create_reassignment_sankey_chart(sankey_links: list[dict[str, object]]) -> go.Figure:
+    """Sankey flow diagram showing gap-fill sources flowing into target activities."""
+    if not sankey_links:
+        fig = go.Figure()
+        fig.update_layout(title="No Reassignment Moves to Visualize")
+        return fig
+
+    labels: list[str] = []
+    idx_by_label: dict[str, int] = {}
+
+    def get_idx(lbl: str) -> int:
+        if lbl not in idx_by_label:
+            idx_by_label[lbl] = len(labels)
+            labels.append(lbl)
+        return idx_by_label[lbl]
+
+    sources: list[int] = []
+    targets: list[int] = []
+    values: list[int] = []
+    for link in sankey_links:
+        sources.append(get_idx(str(link["source"])))
+        targets.append(get_idx(str(link["target"])))
+        values.append(int(link["value"]))
+
+    fig = go.Figure(
+        data=[
+            go.Sankey(
+                node={"pad": 15, "thickness": 18, "label": labels},
+                link={"source": sources, "target": targets, "value": values},
+            )
+        ]
+    )
+    fig.update_layout(
+        title="Reassignment Flow: Source Type & Activity -> Target Activity",
+        height=460,
+        margin={"l": 20, "r": 20, "t": 50, "b": 20},
+    )
+    return fig
+
+
+def create_depot_balance_chart(depot_rows: list[dict[str, object]]) -> go.Figure:
+    """Grouped bar chart of Shift Starts vs Shift Ends per Depot."""
+    if not depot_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Depot Balance Data Available")
+        return fig
+
+    depots = [str(r["Depot"]) for r in depot_rows]
+    starts = [int(r["Shift Starts (Outflow)"]) for r in depot_rows]
+    ends = [int(r["Shift Ends (Inflow)"]) for r in depot_rows]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(name="Shift Starts (Outflow)", x=depots, y=starts, marker_color="#0284c7"),
+            go.Bar(name="Shift Ends (Inflow)", x=depots, y=ends, marker_color="#16a34a"),
+        ]
+    )
+    fig.update_layout(
+        barmode="group",
+        title="Depot Inflow vs Outflow Balance",
+        xaxis_title="Depot",
+        yaxis_title="Shift Count",
+        height=380,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig
+
+
+def create_cost_and_offset_charts(cost_analytics: dict[str, object]) -> dict[str, go.Figure]:
+    """Build cost-by-source and start-time offset (F1/F3) distribution charts."""
+    source_rows = cost_analytics.get("source_rows", [])
+    offset_rows = cost_analytics.get("offset_rows", [])
+
+    if source_rows:
+        fig_cost = go.Figure(
+            data=[
+                go.Bar(
+                    x=[str(r["Source Type"]) for r in source_rows],
+                    y=[int(r["Total Cost"]) for r in source_rows],
+                    text=[f"Cost {r['Total Cost']} ({r['Moves']} moves)" for r in source_rows],
+                    textposition="auto",
+                    marker_color=["#2ca02c", "#1f77b4", "#ff7f0e"][: len(source_rows)],
+                )
+            ]
+        )
+        fig_cost.update_layout(
+            title="Reassignment Cost Breakdown by Source Type",
+            xaxis_title="Assignment Source Type",
+            yaxis_title="Total Solver Cost",
+            height=360,
+            margin={"l": 20, "r": 20, "t": 50, "b": 40},
+        )
+    else:
+        fig_cost = go.Figure()
+        fig_cost.update_layout(title="No Cost Breakdown Data Available")
+
+    if offset_rows:
+        fig_off = go.Figure(
+            data=[
+                go.Bar(
+                    x=[str(r["Start Offset"]) for r in offset_rows],
+                    y=[int(r["Moves"]) for r in offset_rows],
+                    text=[int(r["Moves"]) for r in offset_rows],
+                    textposition="auto",
+                    marker_color="#6366f1",
+                )
+            ]
+        )
+        fig_off.update_layout(
+            title="Start-Time Flexibility Usage (F1/F3 Lift-Up / Layback Offsets)",
+            xaxis_title="Offset from Original Start Time",
+            yaxis_title="Number of Moves",
+            height=360,
+            margin={"l": 20, "r": 20, "t": 50, "b": 40},
+        )
+    else:
+        fig_off = go.Figure()
+        fig_off.update_layout(title="No Start-Time Offset Data Available")
+
+    return {"cost_by_source": fig_cost, "offsets": fig_off}
+
+
+def create_skill_supply_chart(supply_rows: list[dict[str, object]]) -> go.Figure:
+    """Grouped bar chart comparing Eligible Certified Crew vs Daily Demand per Activity Head."""
+    if not supply_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Eligibility Supply Data Available")
+        return fig
+
+    heads = [str(r["Activity Head"]) for r in supply_rows]
+    elig = [int(r["Eligible Crew"]) for r in supply_rows]
+    dem = [int(r["Daily Demand (Shifts)"]) for r in supply_rows]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(name="Eligible Certified Crew", x=heads, y=elig, marker_color="#10b981"),
+            go.Bar(name="Daily Demand (Shifts/Day)", x=heads, y=dem, marker_color="#ef4444"),
+        ]
+    )
+    fig.update_layout(
+        barmode="group",
+        title="Certification Supply vs Daily Demand by Activity Head",
+        xaxis_title="Activity Head (Ordered by Priority)",
+        yaxis_title="Headcount / Daily Shifts",
+        height=400,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig
+
+
+def create_depot_head_eligibility_heatmap(matrix_rows: list[dict[str, object]]) -> go.Figure:
+    """Heatmap of certified crew count by Home Depot x Activity Head."""
+    if not matrix_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Depot x Activity Head Eligibility Data Available")
+        return fig
+
+    depots = sorted({str(r["Depot"]) for r in matrix_rows})
+    heads = sorted({str(r["Activity Head"]) for r in matrix_rows})
+    lookup = {(str(r["Depot"]), str(r["Activity Head"])): int(r["Eligible Crew"]) for r in matrix_rows}
+
+    z = [[lookup.get((d, h), 0) for h in heads] for d in depots]
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=z,
+            x=heads,
+            y=depots,
+            colorscale="Blues",
+            text=z,
+            texttemplate="%{text}",
+            colorbar={"title": "Certified Crew"},
+        )
+    )
+    fig.update_layout(
+        title="Depot × Activity Head Certified Crew Matrix",
+        xaxis_title="Activity Head",
+        yaxis_title="Home Depot",
+        height=380,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig
+
+
+def create_rest_margin_histogram(rest_buckets: list[dict[str, object]]) -> go.Figure:
+    """Bar chart of intra-swing rest-time margin buckets."""
+    if not rest_buckets:
+        fig = go.Figure()
+        fig.update_layout(title="No Rest Margin Data Available")
+        return fig
+
+    cats = [str(r["Category"]) for r in rest_buckets]
+    vals = [int(r["Transitions"]) for r in rest_buckets]
+    colors = ["#dc2626", "#f59e0b", "#3b82f6", "#10b981", "#059669"]
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=cats,
+                y=vals,
+                text=vals,
+                textposition="auto",
+                marker_color=colors[: len(cats)],
+            )
+        ]
+    )
+    fig.update_layout(
+        title="Intra-Swing Rest Margin Distribution (Resilience Monitor)",
+        xaxis_title="Rest Hours Between Consecutive Work Shifts",
+        yaxis_title="Shift Transitions",
+        height=360,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig
+
+
+def create_daily_pool_area_chart(daily_pool_rows: list[dict[str, object]]) -> go.Figure:
+    """Stacked area chart of daily crew pool allocation across the planning horizon."""
+    if not daily_pool_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Daily Crew Pool Data Available")
+        return fig
+
+    dates = [str(r["Date"]) for r in daily_pool_rows]
+    series = [
+        ("Working (Demand)", "#2563eb"),
+        ("Working (Excess)", "#06b6d4"),
+        ("Relief Standby", "#10b981"),
+        ("Traveling", "#8b5cf6"),
+        ("On Leave / Unfilled Gap", "#ef4444"),
+        ("Off-Swing", "#9ca3af"),
+    ]
+    fig = go.Figure()
+    for col, color in series:
+        fig.add_trace(
+            go.Scatter(
+                name=col,
+                x=dates,
+                y=[int(r.get(col, 0)) for r in daily_pool_rows],
+                mode="lines",
+                stackgroup="one",
+                line={"width": 0.5, "color": color},
+            )
+        )
+    fig.update_layout(
+        title="Daily Crew Pool Allocation Across Horizon",
+        xaxis_title="Date",
+        yaxis_title="Roster Rows / Crew",
+        height=400,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig

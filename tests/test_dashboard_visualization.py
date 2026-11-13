@@ -23,6 +23,7 @@ from visualization.data_loader import (
 from visualization.gap_analysis import (
     build_constraint_diagnostics,
     build_unfilled_gap_records,
+    check_swing_home_depot,
     inspect_seat_candidates,
     parse_summary_and_validation,
     summarize_gaps,
@@ -292,3 +293,188 @@ def test_charts_and_real_solver_outputs_load_cleanly():
         comp = compare_strategy_datasets(discovered)
         assert comp["overall"]
         assert create_strategy_comparison_charts(comp)["by_head"] is not None
+
+    # Verify that edge-case presets load properly
+    demo_root = Path(__file__).resolve().parents[1] / "CP-SAT" / "outputs" / "edge_case_demo"
+    if (demo_root / "run_4_residential_restriction_off" / "cpsat" / "roster_full.csv").exists():
+        ds_res_off = load_dashboard_dataset(
+            demo_root / "data",
+            demo_root / "run_4_residential_restriction_off" / "cpsat",
+            demo_root / "run_4_residential_restriction_off" / "options",
+            demo_root / "run_4_residential_restriction_off" / "config.yml",
+            name="Edge-Case Demo: Residential Start Restriction Off",
+        )
+        assert ds_res_off.config_flags.get("residential_start_restriction") is False
+        assert len(ds_res_off.roster_rows) > 0
+
+    if (demo_root / "run_5_relief_transition_off" / "cpsat" / "roster_full.csv").exists():
+        ds_rel_off = load_dashboard_dataset(
+            demo_root / "data",
+            demo_root / "run_5_relief_transition_off" / "cpsat",
+            demo_root / "run_5_relief_transition_off" / "options",
+            demo_root / "run_5_relief_transition_off" / "config.yml",
+            name="Edge-Case Demo: Relief Transition Off",
+        )
+        assert ds_rel_off.config_flags.get("relief_only_day_night_transition") is False
+        assert len(ds_rel_off.roster_rows) > 0
+
+
+def test_home_depot_swing_start_and_end_check(tmp_path: Path):
+    data_dir, cpsat_dir, opts_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, opts_dir, cfg_path)
+
+    # In the controlled dataset, both U_RES1 (Haskett -> Haskett) and U_FIFO1 (Nelaway -> Nelaway) start & end at home depot
+    chk = check_swing_home_depot(ds)
+    assert chk["total_swings"] == 2
+    assert chk["passed_swings"] == 2
+    assert chk["failed_swings"] == 0
+    assert chk["pass_pct"] == 100.0
+
+    # Now modify U_RES1's shift End Location to 'Yarmouth' (away from Home Depot 'Haskett')
+    ds.roster_rows[0]["End Location"] = "Yarmouth"
+    chk_fail = check_swing_home_depot(ds)
+    assert chk_fail["total_swings"] == 2
+    assert chk_fail["passed_swings"] == 1
+    assert chk_fail["failed_swings"] == 1
+    assert chk_fail["failed_end_count"] == 1
+    by_user = {r["User Id"]: r for r in chk_fail["swing_rows"]}
+    assert by_user["U_RES_1"]["Status"] == "FAIL"
+    assert by_user["U_RES_1"]["Starts at Home Depot"] is True
+    assert by_user["U_RES_1"]["Ends at Home Depot"] is False
+    assert by_user["U_FIFO_1"]["Status"] == "PASS"
+
+
+def test_workload_chains_depot_and_exports(tmp_path: Path):
+    from visualization.analytics import (
+        build_individual_crew_schedule,
+        build_reassignment_chains,
+        compute_crew_workload_analytics,
+        compute_depot_and_travel_analytics,
+    )
+    from visualization.charts import (
+        create_depot_balance_chart,
+        create_reassignment_sankey_chart,
+        create_workload_distribution_chart,
+    )
+    from visualization.export_utils import (
+        crew_schedule_to_html,
+        datasets_to_excel_bytes,
+        rows_to_csv_bytes,
+    )
+
+    data_dir, cpsat_dir, opts_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, opts_dir, cfg_path)
+
+    workload = compute_crew_workload_analytics(ds)
+    assert workload["summary"]["total_crew"] == 3
+    assert workload["summary"]["total_worked_shifts"] == 2
+    assert create_workload_distribution_chart(workload["crew_rows"]) is not None
+
+    chains = build_reassignment_chains(ds)
+    assert chains["summary"]["total_moves"] == len(ds.reassignments)
+    assert create_reassignment_sankey_chart(chains["sankey_links"]) is not None
+
+    depot_data = compute_depot_and_travel_analytics(ds)
+    assert depot_data["summary"]["depots_count"] >= 1
+    assert create_depot_balance_chart(depot_data["depot_rows"]) is not None
+
+    sched = build_individual_crew_schedule(ds, "U_RES_1")
+    assert len(sched) >= 1
+
+    csv_bytes = rows_to_csv_bytes(sched)
+    assert b"Start Date" in csv_bytes
+
+    xlsx_bytes = datasets_to_excel_bytes({"Schedule": sched, "Empty": []})
+    assert xlsx_bytes[:2] == b"PK"
+
+    html_bytes = crew_schedule_to_html("U_RES_1", ds.crew_by_id["U_RES_1"], sched)
+    assert b"U_RES_1" in html_bytes
+
+
+def test_what_if_and_disruption_runners_on_edge_demo():
+    from visualization.scenario_runner import run_disruption_simulation, run_what_if_scenario
+
+    demo_root = Path(__file__).resolve().parents[1] / "CP-SAT" / "outputs" / "edge_case_demo"
+    if not (demo_root / "data" / "constraints_df.csv").exists() or not (demo_root / "roster_full_gaps.csv").exists():
+        pytest.skip("edge_case_demo outputs not generated")
+
+    sc_ds, sc_logs = run_what_if_scenario(
+        base_data_dir=demo_root / "data",
+        base_roster_full=demo_root / "roster_full_gaps.csv",
+        residential_start_restriction=False,
+        relief_only_day_night_transition=True,
+        priority_strategy="none",
+        assignment_type_priority_enabled=True,
+        activity_head_max_shifts_enabled=True,
+        ordinary_rest_hours=11,
+        transition_rest_hours=23,
+        time_limit=10,
+    )
+    assert sc_ds is not None, sc_logs
+    assert sc_ds.config_flags.get("residential_start_restriction") is False
+
+    base_roster = demo_root / "run_1_strategy_none" / "cpsat" / "roster_full.csv"
+    base_cfg = demo_root / "run_1_strategy_none" / "config.yml"
+    if base_roster.exists() and base_cfg.exists():
+        ds_base = load_dashboard_dataset(demo_root / "data", base_roster.parent, demo_root / "run_1_strategy_none" / "options", base_cfg)
+        active_demand = [
+            r["Assignment ID"]
+            for r in ds_base.roster_rows
+            if r.get("Assignment Type") == "Demand" and r.get("Is Gap") != "True" and r.get("Optimised User Id")
+        ]
+        if active_demand:
+            dis_ds, dis_logs = run_disruption_simulation(
+                base_data_dir=demo_root / "data",
+                base_roster_full=base_roster,
+                base_config_path=base_cfg,
+                disrupted_assignment_ids=[active_demand[0]],
+                time_limit=10,
+            )
+            assert dis_ds is not None, dis_logs
+
+
+def test_executive_insights_cost_skill_resilience_and_run_diff():
+    from visualization.analytics import (
+        build_executive_insights,
+        compute_resilience_and_pool_analytics,
+        compute_run_diff,
+        compute_skill_and_currency_radar,
+        compute_solver_cost_and_offset_analytics,
+    )
+    from visualization.charts import (
+        create_cost_and_offset_charts,
+        create_daily_pool_area_chart,
+        create_depot_head_eligibility_heatmap,
+        create_rest_margin_histogram,
+        create_skill_supply_chart,
+    )
+
+    ds = load_dashboard_dataset(
+        data_dir=DEFAULT_DATA_DIR,
+        cpsat_dir=DEFAULT_CPSAT_DIR,
+        options_dir=DEFAULT_OPTIONS_DIR,
+        config_path=DEFAULT_CONFIG_PATH,
+    )
+
+    insights = build_executive_insights(ds)
+    assert len(insights) >= 2
+
+    cost_data = compute_solver_cost_and_offset_analytics(ds)
+    assert cost_data["total_moves"] == len(ds.reassignments)
+    cost_figs = create_cost_and_offset_charts(cost_data)
+    assert cost_figs["cost_by_source"] is not None
+    assert cost_figs["offsets"] is not None
+
+    radar = compute_skill_and_currency_radar(ds)
+    assert len(radar["supply_rows"]) == 14
+    assert len(radar["matrix_rows"]) > 0
+    assert create_skill_supply_chart(radar["supply_rows"]) is not None
+    assert create_depot_head_eligibility_heatmap(radar["matrix_rows"]) is not None
+
+    resilience = compute_resilience_and_pool_analytics(ds)
+    assert len(resilience["daily_pool_rows"]) > 0
+    assert create_rest_margin_histogram(resilience["rest_buckets"]) is not None
+    assert create_daily_pool_area_chart(resilience["daily_pool_rows"]) is not None
+
+    # Self-diff should return 0 differences
+    assert compute_run_diff(ds, ds) == []
