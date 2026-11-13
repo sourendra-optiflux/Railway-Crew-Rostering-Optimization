@@ -23,10 +23,10 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from ortools.sat.python import cp_model
+from utils.load_options import ModelSwing, SeatInfo
 
 from option_generation.options import Costs, Option
 from option_generation.rules import Rules
-from utils.load_options import ModelSwing, SeatInfo
 
 SEAT_VALUE = 10_000  # one seat always beats any priority tie-break
 LOWEST_PRIORITY = 15
@@ -81,6 +81,10 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
         for i, opts in enumerate(sw.options):
             lits = []
             for o in opts:
+                if (rules.residential_start_restriction and sw.classification == "Residential"
+                        and not o.unchanged and o.kind != "keep"
+                        and not rules.residential_start_allowed(o.start)):
+                    continue
                 lit = new_bool(f"w{n}_r{i}_{o.kind}{len(nodes)}")
                 nodes.append((o, lit))
                 lits.append(lit)

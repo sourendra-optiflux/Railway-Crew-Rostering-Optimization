@@ -6,8 +6,8 @@ adds options of its own. The rules are in `data/optiflux_v2/source/rules/gap_fil
 
 ```bash
 python gap_generation/make_gaps.py
-python option_generation/generate_options.py
-python CP-SAT/run_gap_filling.py --time-limit 120
+python option_generation/generate_options.py --config config.yml
+python CP-SAT/run_gap_filling.py --config config.yml --time-limit 120
 # or all of it, plus the Excel workbook:
 python scripts/run_pipeline.py
 ```
@@ -19,6 +19,7 @@ python scripts/run_pipeline.py
 | `--output-dir` | `CP-SAT/outputs/roster_full` | Where results go. A rerun overwrites them |
 | `--time-limit` | 120 | Seconds per stage |
 | `--workers` | 8 | CP-SAT threads |
+| `--config` | `config.yml` | Shared constraint switches; use the same file as option generation |
 
 ## Output (`CP-SAT/outputs/roster_full/`)
 

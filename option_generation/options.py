@@ -66,6 +66,7 @@ class Option:
     offset: int = 0  # start change in minutes
     cost: int = 0
     level: int = -1  # chain level of the seat (fill only)
+    unchanged: bool = False  # same existing assignment, even when represented as a fill option
 
 
 @dataclass
@@ -167,7 +168,8 @@ def keep_option(data: Data, index: int, row: dict) -> Option:
     key = seat_key(row["Activity ID"], row["_s"])
     return Option(index, "keep", row["_s"], row["_e"], row["Start Location"], row["End Location"],
                   row["Activity ID"], row["Demand ID"], seat=key if typ == "Demand" else "",
-                  excess_seat=key if typ == "Excess" else "", standby=typ == "Relief", source=typ)  # fmt: skip
+                  excess_seat=key if typ == "Excess" else "", standby=typ == "Relief", source=typ,
+                  unchanged=True)  # fmt: skip
 
 
 def build_seats(data: Data) -> dict[str, Seat]:
@@ -214,6 +216,11 @@ def try_fill(data: Data, swing: Swing, index: int, seat: Seat, costs: Costs) -> 
         return None, "row before the solver start or locked (G1)"
     if swing.status != "movable" and not same_seat:
         return None, swing.reason
+    if (data.rules.residential_start_restriction
+        and swing.classification == "Residential"
+        and not same_seat
+        and not data.rules.residential_start_allowed(seat.start)):
+        return None, "Residential crew cannot start a shift between 22:00 and 02:00"
     if typ == "Relief":
         if row["_s"].date() != seat.start.date():
             return None, "different day"
@@ -235,7 +242,7 @@ def try_fill(data: Data, swing: Swing, index: int, seat: Seat, costs: Costs) -> 
     end = seat.start + timedelta(hours=data.rules.shift_hours)
     return Option(index, "fill", seat.start, end, activity["Start Depot"], activity["End Depot"], seat.activity_id,
                   seat.demand_id, seat=seat.key, source=typ, offset=offset, cost=cost,
-                  level=seat.level), ""  # fmt: skip
+                  level=seat.level, unchanged=same_seat), ""  # fmt: skip
 
 
 def ride_options(data: Data, swing: Swing, index: int, target_keys: set[str], costs: Costs) -> list[Option]:
@@ -245,6 +252,9 @@ def ride_options(data: Data, swing: Swing, index: int, target_keys: set[str], co
     for activity_id, shift in RETURN_RIDES:
         start = datetime.fromisoformat(f"{row['_s'].date().isoformat()}T{shift}")
         key = seat_key(activity_id, start)
+        if (data.rules.residential_start_restriction and swing.classification == "Residential"
+                and not data.rules.residential_start_allowed(start)):
+            continue
         if key in target_keys or why_not_eligible(data, swing.user, activity_id, start.date()):
             continue
         activity = data.activities[activity_id]

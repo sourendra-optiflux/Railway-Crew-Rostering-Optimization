@@ -17,20 +17,27 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))  # option_generation
 sys.path.insert(0, str(HERE))  # solver, utils
 
-from option_generation.data import (  # noqa: E402
-    DEFAULT_DATA_DIR, DEFAULT_OUTPUT as DEFAULT_OPTIONS, DEFAULT_ROSTER_FULL, read_csv, load,
-)  # fmt: skip
-from option_generation.options import Costs  # noqa: E402
 from solver import solve  # noqa: E402
 from utils.load_options import load_options  # noqa: E402
 from utils.output import apply, write_outputs, write_summary  # noqa: E402
 from utils.validate import validate  # noqa: E402
+
+from option_generation.data import (  # noqa: E402
+    DEFAULT_CONFIG,
+    DEFAULT_DATA_DIR,
+    DEFAULT_ROSTER_FULL,
+    load,
+    read_csv,
+)  # fmt: skip
+from option_generation.data import DEFAULT_OUTPUT as DEFAULT_OPTIONS  # noqa: E402
+from option_generation.options import Costs  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     p.add_argument("--roster-full", type=Path, default=DEFAULT_ROSTER_FULL, help="output of gap_generation")
+    p.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="YAML constraint switches (default: config.yml)")
     p.add_argument("--options-dir", type=Path, default=DEFAULT_OPTIONS, help="output of option_generation")
     p.add_argument("--output-dir", type=Path, default=HERE / "outputs" / "roster_full")
     p.add_argument("--time-limit", type=float, default=120, help="seconds per stage (default 120)")
@@ -41,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     out = args.output_dir
     out.mkdir(parents=True, exist_ok=True)
 
-    data = load(args.data_dir, args.roster_full)
+    data = load(args.data_dir, args.roster_full, args.config)
     seats, swings = load_options(args.options_dir)
     frozen = {(s["User Id"], s["Swing"]) for s in read_csv(args.options_dir / "swings.csv") if s["Status"] == "frozen"}
     print(f"Seats {len(seats)}, swings in the model {len(swings)}, "

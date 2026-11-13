@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 
-from .rules import Rules
+from .rules import DEFAULT_CONFIG, Rules
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = ROOT / "data" / "optiflux_v2"
@@ -48,7 +48,7 @@ class Data:
     priority: dict[str, int]  # Activity Head -> priority, 1 = highest
 
 
-def load(data_dir: Path, roster_full: Path) -> Data:
+def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) -> Data:
     for table in ("crew_restrictions.csv", "Crew_Onsite_App.csv", "excluded_activities.csv"):
         if read_csv(data_dir / table):
             raise SystemExit(f"error: {table} has rows, but this run does not model them yet")
@@ -64,7 +64,7 @@ def load(data_dir: Path, roster_full: Path) -> Data:
         for m in read_csv(data_dir / "eligibility_matrix.csv")
     }
     return Data(
-        rules=Rules.from_table(read_csv(data_dir / "constraints_df.csv")),
+        rules=Rules.from_table(read_csv(data_dir / "constraints_df.csv"), config_path),
         activities={a["Activity ID"]: a for a in read_csv(data_dir / "activities_df.csv")},
         demand={
             (d["Activity ID"], d["Shift"]): d

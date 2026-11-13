@@ -15,7 +15,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from option_generation.data import (  # noqa: E402
-    DEFAULT_DATA_DIR, DEFAULT_OUTPUT, DEFAULT_ROSTER_FULL, Data, load, write_csv,
+    DEFAULT_CONFIG,
+    DEFAULT_DATA_DIR,
+    DEFAULT_OUTPUT,
+    DEFAULT_ROSTER_FULL,
+    Data,
+    load,
+    write_csv,
 )  # fmt: skip
 from option_generation.options import Costs, Generated, generate  # noqa: E402
 
@@ -25,7 +31,7 @@ SWING_HEADER = ["Swing Key", "User Id", "Swing", "Classification", "Home Depot",
                 "Latest End", "In Model", "Rows", "Droppable Rows"]  # fmt: skip
 OPTION_HEADER = ["Option ID", "Swing Key", "User Id", "Row Index", "Assignment ID", "Row Type", "Kind", "Activity ID",
                  "Start", "End", "Start Location", "End Location", "Demand ID", "Seat Key", "Excess Seat Key",
-                 "Standby", "Offset Minutes", "Cost", "Chain Level"]  # fmt: skip
+                 "Standby", "Offset Minutes", "Cost", "Chain Level", "Unchanged"]  # fmt: skip
 CANDIDATE_HEADER = ["Seat Key", "Chain Level", "Date", "Start", "Activity Name", "Open Seats", "Gap Assignment IDs",
                     "Candidate User Id", "Source", "Candidate Row", "Candidate Row Start", "Offset Minutes", "Cost"]  # fmt: skip
 REJECTION_HEADER = ["Seat Key", "Reason", "Rows Rejected"]
@@ -76,6 +82,7 @@ def write_outputs(data: Data, gen: Generated, out: Path, args) -> dict:
                     "Start Location": o.start_loc, "End Location": o.end_loc, "Demand ID": o.demand_id,
                     "Seat Key": o.seat, "Excess Seat Key": o.excess_seat, "Standby": str(o.standby),
                     "Offset Minutes": o.offset, "Cost": o.cost, "Chain Level": o.level if o.kind == "fill" else "",
+                    "Unchanged": str(o.unchanged),
                 })  # fmt: skip
                 if o.kind == "fill":
                     s = gen.seats[o.seat]
@@ -112,6 +119,8 @@ def write_outputs(data: Data, gen: Generated, out: Path, args) -> dict:
         "fill options by source": Counter(c["Source"] for c in candidates),
         "rejected": Counter(r for (_, r), n in gen.rejections.items() for _ in range(n)),
         "pruned": sum(n for k, n in gen.pruned.items()),
+        "residential start restriction": data.rules.residential_start_restriction,
+        "relief-only day/night transition": data.rules.relief_only_day_night_transition,
     }
     write_summary(out / "summary.md", stats, args)
     return stats
@@ -127,6 +136,8 @@ def write_summary(path: Path, stats: dict, args) -> None:
         "|---|---|",
         f"| Roster with gaps | `{args.roster_full}` |",
         f"| Max Demand moves in a chain | {args.max_chain} |",
+        f"| Residential start restriction | {'on' if stats['residential start restriction'] else 'off'} |",
+        f"| Relief-only day/night transition | {'on' if stats['relief-only day/night transition'] else 'off'} |",
         f"| Gap seats (open, from the solver start) | {stats['gap seats']} seats, {stats['open gap places']} places |",
         f"| Gap seats with no legal candidate | {stats['gap seats with no candidate']} |",
         f"| Seats opened by Demand moves (chain levels 1+) | {stats['chain seats']} |",
@@ -149,11 +160,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     p.add_argument("--roster-full", type=Path, default=DEFAULT_ROSTER_FULL, help="output of gap_generation")
     p.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
+    p.add_argument("--config", type=Path, default=DEFAULT_CONFIG, help="YAML constraint switches (default: config.yml)")
     p.add_argument("--max-chain", type=int, default=2, help="max Demand moves in one chain (F2), default 2")
     p.add_argument("--allow-stand-down", action="store_true", help="let rows of Excess/Relief be dropped")
     p.add_argument("--no-return-rides", action="store_true", help="no trips across the line as Excess")
     args = p.parse_args(argv)
-    data = load(args.data_dir, args.roster_full)
+    data = load(args.data_dir, args.roster_full, args.config)
     gen = generate(data, Costs(), args.max_chain, args.allow_stand_down, not args.no_return_rides)
     stats = write_outputs(data, gen, args.output_dir, args)
     print(f"Gap seats {stats['gap seats']} ({stats['open gap places']} places), "

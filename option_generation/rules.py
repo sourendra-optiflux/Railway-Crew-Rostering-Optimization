@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 SWING_BREAK = timedelta(hours=48)  # a longer gap starts a new swing (same as scripts/check_roster.py)
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.yml"
 
 
 @dataclass(frozen=True)
@@ -23,13 +25,44 @@ class Rules:
     demand_offsets: frozenset[int]  # allowed start changes for Demand crew moving seat (F1: lift-up / layback)
     max_changes: int  # F3: start-time changes allowed per day/night block
     max_change_minutes: int  # F3: size of one change
+    residential_start_restriction: bool = True
+    relief_only_day_night_transition: bool = True
 
     @classmethod
-    def from_table(cls, rows: list[dict[str, str]]) -> "Rules":
+    def from_table(cls, rows: list[dict[str, str]], config_path: Path = DEFAULT_CONFIG) -> "Rules":
         value = {r["Constraint"]: r["Value"] for r in rows if r["Status"] == "Active"}
         day_from, day_to = (int(t[:2]) * 60 + int(t[3:]) for t in value["Day Shift Window"].split("-"))
         if value["Relief Allowed Start Offsets"] != "ANY":
             raise SystemExit("error: only 'ANY' is supported for Relief Allowed Start Offsets")
+
+        try:
+            import yaml
+        except ImportError as exc:  # pragma: no cover - depends on installed extras
+            raise SystemExit("error: loading config.yml requires PyYAML; install the project dependencies") from exc
+
+        try:
+            with config_path.open(encoding="utf-8") as stream:
+                config = yaml.safe_load(stream)
+        except OSError as exc:
+            raise SystemExit(f"error: cannot read constraint config {config_path}: {exc}") from exc
+        except yaml.YAMLError as exc:
+            raise SystemExit(f"error: invalid YAML in constraint config {config_path}: {exc}") from exc
+
+        constraints = config.get("constraints") if isinstance(config, dict) else None
+        if not isinstance(constraints, dict):
+            raise SystemExit(f"error: {config_path} must contain a 'constraints' mapping")
+        allowed = {"residential_start_restriction", "relief_only_day_night_transition"}
+        unknown = set(constraints) - allowed
+        if unknown:
+            raise SystemExit(f"error: unknown constraint switches in {config_path}: {', '.join(sorted(unknown))}")
+        defaults = {
+            "residential_start_restriction": True,
+            "relief_only_day_night_transition": True,
+        }
+        for name, enabled in constraints.items():
+            if type(enabled) is not bool:
+                raise SystemExit(f"error: constraints.{name} in {config_path} must be true or false")
+            defaults[name] = enabled
 
         def offsets(name: str) -> frozenset[int]:
             return frozenset(int(x) for x in value[name].split(";"))
@@ -48,6 +81,7 @@ class Rules:
             demand_offsets=offsets("Demand Allowed Start Offsets"),
             max_changes=int(value["Max Start Changes Per Block"]),
             max_change_minutes=int(value["Max Start Change Minutes"]),
+            **defaults,
         )
 
     @property
@@ -57,6 +91,13 @@ class Rules:
 
     def is_day(self, start: datetime) -> bool:
         return self.day_from <= start.hour * 60 + start.minute < self.day_to
+
+    def residential_start_allowed(self, start: datetime) -> bool:
+        """Residential crew cannot start a shift from 22:00 up to (but not including) 02:00."""
+        if not self.residential_start_restriction:
+            return True
+        minute = start.hour * 60 + start.minute
+        return not (minute >= 22 * 60 or minute < 2 * 60)
 
     def in_horizon(self, day: date) -> bool:
         return self.horizon_start <= day < self.horizon_end
@@ -83,8 +124,12 @@ class Rules:
         if first.start.date() == second.start.date() or first.end_loc != second.start_loc:
             return False
         same_block = self.is_day(first.start) == self.is_day(second.start)
-        if not same_block and gap < self.transition_rest:
-            return False
+        if not same_block:
+            if self.relief_only_day_night_transition and first.source != "Relief":
+                return False
+
+            if gap < self.transition_rest:
+                return False
         if same_block and not (first.standby or second.standby):
             step = abs(self.block_minute(first.start) - self.block_minute(second.start))
             if step > self.max_change_minutes:

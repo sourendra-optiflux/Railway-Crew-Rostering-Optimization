@@ -8,7 +8,7 @@ version = "0.3.0"
 description = "OptiFlux railway crew recovery and rostering prototype (OR-Tools CP-SAT)"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["ortools>=9.10"]
+dependencies = ["ortools>=9.10", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "ruff>=0.5", "openpyxl>=3.1"]

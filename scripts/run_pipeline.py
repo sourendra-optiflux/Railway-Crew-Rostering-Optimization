@@ -11,6 +11,7 @@ The base data (data/optiflux_v2) is only read. Rebuild it first if the rules cha
 
     python scripts/run_pipeline.py
     python scripts/run_pipeline.py --seed 7 --time-limit 300
+    python scripts/run_pipeline.py --config config.yml
 """
 
 from __future__ import annotations
@@ -41,10 +42,16 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--max-chain", type=int, default=2, help="max Demand moves in one chain (default %(default)s)")
     p.add_argument("--time-limit", type=float, default=120, help="CP-SAT seconds per stage (default %(default)s)")
     p.add_argument("--workers", type=int, default=8)
+    p.add_argument("--config", type=Path, default=ROOT / "config.yml", help="shared YAML constraint switches")
     a = p.parse_args(argv)
     step("1. Gap generation", ["gap_generation/make_gaps.py", "--seed", str(a.seed)])
-    step("2. Option generation", ["option_generation/generate_options.py", "--max-chain", str(a.max_chain)])
-    step("3. CP-SAT", ["CP-SAT/run_gap_filling.py", "--time-limit", str(a.time_limit), "--workers", str(a.workers)])
+    step("2. Option generation", [
+        "option_generation/generate_options.py", "--max-chain", str(a.max_chain), "--config", str(a.config.resolve())
+    ])
+    step("3. CP-SAT", [
+        "CP-SAT/run_gap_filling.py", "--time-limit", str(a.time_limit), "--workers", str(a.workers),
+        "--config", str(a.config.resolve()),
+    ])
 
     sys.path.insert(0, str(ROOT / "scripts"))
     from export_excel import export

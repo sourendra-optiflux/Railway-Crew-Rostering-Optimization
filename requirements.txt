@@ -1,5 +1,7 @@
 # Core solver dependency
 ortools>=9.10
+# YAML constraint switches
+PyYAML>=6.0
 # Excel template / loading real data from a workbook
 openpyxl>=3.1
 # Tests

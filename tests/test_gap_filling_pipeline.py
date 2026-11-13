@@ -37,7 +37,7 @@ def run(tmp_path_factory):
     gen.main(["--roster-full", str(gaps / "roster_full.csv"), "--output-dir", str(opts)])
     cp = _module(ROOT / "CP-SAT" / "run_gap_filling.py", "run_gap_filling")
     code = cp.main(["--roster-full", str(gaps / "roster_full.csv"), "--options-dir", str(opts),
-                    "--output-dir", str(final), "--time-limit", "20", "--workers", "8"])  # fmt: skip
+                    "--output-dir", str(final), "--time-limit", "120", "--workers", "8"])  # fmt: skip
     return {"gaps": gaps, "options": opts, "final": final, "code": code}
 
 

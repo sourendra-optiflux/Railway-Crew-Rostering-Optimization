@@ -82,6 +82,7 @@ def load_options(folder: Path) -> tuple[dict[str, SeatInfo], list[ModelSwing]]:
                     datetime.fromisoformat(o["End"]), o["Start Location"], o["End Location"], o["Activity ID"],
                     o["Demand ID"], o["Seat Key"], o["Excess Seat Key"], o["Standby"] == "True", o["Row Type"],
                     int(o["Offset Minutes"]), int(o["Cost"]), int(o["Chain Level"]) if o["Chain Level"] else -1,
+                    o.get("Unchanged", "False") == "True",
                 )  # fmt: skip
             )
     return seats, list(swings.values())

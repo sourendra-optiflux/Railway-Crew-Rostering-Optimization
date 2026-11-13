@@ -8,6 +8,7 @@ options of its own. The rules are in `data/optiflux_v2/source/rules/gap_filling_
 ```bash
 python option_generation/generate_options.py               # after gap_generation/make_gaps.py
 python option_generation/generate_options.py --max-chain 1 # at most one Demand move per chain
+python option_generation/generate_options.py --config config.yml
 ```
 
 | Option | Default | Meaning |
@@ -15,6 +16,15 @@ python option_generation/generate_options.py --max-chain 1 # at most one Demand 
 | `--max-chain` | 2 | Max Demand moves that can follow each other (F2) |
 | `--allow-stand-down` | off | Let Excess or Relief rows be dropped to make room |
 | `--no-return-rides` | off | No trips across the line as Excess |
+| `--config` | `config.yml` | Switches for the configurable constraints, shared with CP-SAT |
+
+`config.yml` controls the two rule switches in both layers. Set either value to `false` to disable that
+constraint for option generation and CP-SAT; use the same file when running both commands.
+
+| Switch | Default | Effect when enabled |
+|---|---:|---|
+| `constraints.residential_start_restriction` | `true` | Residential fill/ride starts are disallowed from 22:00 to 02:00; the separate first-shift-must-be-day rule remains enabled |
+| `constraints.relief_only_day_night_transition` | `true` | Only a Relief assignment may precede a day/night switch; transition rest still applies |
 
 ## What is rejected, and why
 
