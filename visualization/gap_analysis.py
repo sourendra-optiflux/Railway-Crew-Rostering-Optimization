@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+from datetime import datetime, timedelta
 
 from visualization.data_loader import DashboardDataset
 from visualization.metrics import (
@@ -10,6 +11,98 @@ from visualization.metrics import (
     build_demand_slot_records,
     classify_user,
 )
+
+SWING_BREAK = timedelta(hours=48)
+
+
+def _parse_shift_interval(row: dict[str, str]) -> tuple[datetime, datetime] | None:
+    s_date = row.get("Start Date", "").strip()
+    e_date = row.get("End Date", "").strip() or s_date
+    s_time = row.get("Shift Start Time", "").strip()
+    e_time = row.get("Shift End Time", "").strip()
+    if not s_date or not s_time or not e_time:
+        return None
+    try:
+        s_dt = datetime.fromisoformat(f"{s_date}T{s_time}")
+        e_dt = datetime.fromisoformat(f"{e_date}T{e_time}")
+        if e_dt <= s_dt:
+            e_dt += timedelta(days=1)
+        return s_dt, e_dt
+    except ValueError:
+        return None
+
+
+def check_swing_home_depot(dataset: DashboardDataset) -> dict[str, object]:
+    """Check whether every crew member's assigned swing starts and ends at their Home Depot."""
+    per_user_work: dict[str, list[tuple[datetime, datetime, dict[str, str]]]] = defaultdict(list)
+    for r in dataset.roster_rows:
+        in_horizon = r.get("In Horizon", "Yes").strip()
+        if in_horizon not in ("", "Yes", "True", "true"):
+            continue
+        if r.get("Assignment Type", "").strip() not in WORK_ASSIGNMENT_TYPES:
+            continue
+        uid = r.get("Optimised User Id", "").strip()
+        if not uid:
+            continue
+        interval = _parse_shift_interval(r)
+        if interval is None:
+            continue
+        per_user_work[uid].append((interval[0], interval[1], r))
+
+    swing_rows: list[dict[str, object]] = []
+    passed = 0
+    failed = 0
+    failed_start = 0
+    failed_end = 0
+
+    for uid, items in sorted(per_user_work.items()):
+        items.sort(key=lambda x: x[0])
+        crew_info = dataset.crew_by_id.get(uid, {})
+        home = (crew_info.get("Home Depot", "") or crew_info.get("Depot", "")).strip()
+        swings: list[list[tuple[datetime, datetime, dict[str, str]]]] = []
+        for item in items:
+            if not swings or (item[0] - swings[-1][-1][1]) > SWING_BREAK:
+                swings.append([item])
+            else:
+                swings[-1].append(item)
+
+        for idx, sw in enumerate(swings, start=1):
+            first_row = sw[0][2]
+            last_row = sw[-1][2]
+            s_loc = first_row.get("Start Location", "").strip()
+            e_loc = last_row.get("End Location", "").strip()
+            starts_home = (not home) or (s_loc == home)
+            ends_home = (not home) or (e_loc == home)
+            ok = starts_home and ends_home
+            if ok:
+                passed += 1
+            else:
+                failed += 1
+                if not starts_home:
+                    failed_start += 1
+                if not ends_home:
+                    failed_end += 1
+            swing_rows.append({
+                "User Id": uid,
+                "Swing": first_row.get("Swing", "").strip() or str(idx),
+                "Home Depot": home,
+                "Start Location": s_loc,
+                "End Location": e_loc,
+                "Starts at Home Depot": starts_home,
+                "Ends at Home Depot": ends_home,
+                "Status": "PASS" if ok else "FAIL",
+            })
+
+    total = len(swing_rows)
+    return {
+        "total_swings": total,
+        "passed_swings": passed,
+        "failed_swings": failed,
+        "failed_start_count": failed_start,
+        "failed_end_count": failed_end,
+        "pass_pct": round((passed / total) * 100.0, 2) if total else 100.0,
+        "swing_rows": swing_rows,
+    }
 
 
 def build_unfilled_gap_records(
