@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
@@ -46,6 +46,7 @@ class Data:
     eligible: dict[str, set[str]]  # Activity ID -> User Ids (eligibility_matrix.csv, R5)
     last_done: dict[tuple[str, str], date]  # (User Id, Activity Head) -> last performed
     priority: dict[str, int]  # Activity Head -> priority, 1 = highest
+    max_shifts: dict = field(default_factory=dict)  # Activity Head -> ActivityHeadLimits
 
 
 def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) -> Data:
@@ -63,12 +64,23 @@ def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) 
         m["Activity ID"]: {u for u in m["Eligible User Ids"].split(";") if u}
         for m in read_csv(data_dir / "eligibility_matrix.csv")
     }
+    import sys
+
+    if str(ROOT / "CP-SAT") not in sys.path:
+        sys.path.insert(0, str(ROOT / "CP-SAT"))
+    from utils.activity_head_priority import (
+        load_activity_head_limits,
+        load_activity_head_priorities,
+    )
+
+    demand_path = data_dir / "activity_demand_df.csv"
+    priority_path = data_dir / "activity_priority.csv"
     return Data(
         rules=Rules.from_table(read_csv(data_dir / "constraints_df.csv"), config_path),
         activities={a["Activity ID"]: a for a in read_csv(data_dir / "activities_df.csv")},
         demand={
             (d["Activity ID"], d["Shift"]): d
-            for d in read_csv(data_dir / "activity_demand_df.csv")
+            for d in read_csv(demand_path)
             if d["Is Active"] == "Yes"
         },
         crew={c["User Id"]: c for c in read_csv(data_dir / "crew_master_data_df.csv")},
@@ -79,7 +91,8 @@ def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) 
             (r["User Id"], r["Activity Head"]): date.fromisoformat(r["Last Performed Date"])
             for r in read_csv(data_dir / "crew_currency_df.csv")
         },
-        priority={r["Activity Head"]: int(r["Priority"]) for r in read_csv(data_dir / "activity_priority.csv")},
+        priority=load_activity_head_priorities(demand_path, priority_path),
+        max_shifts=load_activity_head_limits(demand_path, priority_path),
     )
 
 

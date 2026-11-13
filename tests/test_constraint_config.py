@@ -36,6 +36,36 @@ def test_constraint_switches_load_independently(tmp_path: Path, disabled: str, e
     assert getattr(rules, enabled) is True
 
 
+@pytest.mark.parametrize("strategy", ["none", "weighted", "lexicographic"])
+def test_priority_strategy_loads_from_optimization_config(tmp_path: Path, strategy: str):
+    config = tmp_path / "config.yml"
+    config.write_text(
+        "constraints:\n"
+        "  residential_start_restriction: true\n"
+        "  relief_only_day_night_transition: true\n"
+        f"optimization:\n  priority_strategy: {strategy}\n",
+        encoding="utf-8",
+    )
+
+    rules = Rules.from_table(read_csv(DEFAULT_DATA_DIR / "constraints_df.csv"), config)
+
+    assert rules.priority_strategy == strategy
+
+
+def test_priority_strategy_rejects_unknown_value(tmp_path: Path):
+    config = tmp_path / "config.yml"
+    config.write_text(
+        "constraints:\n"
+        "  residential_start_restriction: true\n"
+        "  relief_only_day_night_transition: true\n"
+        "optimization:\n  priority_strategy: unsupported\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match="priority_strategy.*none, weighted, or lexicographic"):
+        Rules.from_table(read_csv(DEFAULT_DATA_DIR / "constraints_df.csv"), config)
+
+
 def test_option_generation_blocks_new_but_preserves_unchanged_residential_night_assignment():
     rules = replace(
         Rules.from_table(read_csv(DEFAULT_DATA_DIR / "constraints_df.csv")),
@@ -190,3 +220,68 @@ def test_cp_sat_enforces_relief_only_day_night_transition(
     result = solve(rules, {candidate.seat: SimpleNamespace(capacity=1, priority=1)}, [swing], SimpleNamespace(), 2, 1, 0)
 
     assert result.chosen[swing.key][1].kind == expected
+
+
+@pytest.mark.parametrize(("status", "expected_enabled", "expected_filled"), [("Active", True, 1), ("Inactive", False, 2)])
+def test_cp_sat_respects_activity_head_max_shifts_status_in_constraints_df(
+    status: str, expected_enabled: bool, expected_filled: int
+):
+    cons_rows = read_csv(DEFAULT_DATA_DIR / "constraints_df.csv")
+    for row in cons_rows:
+        if row["Constraint"] == "Activity Head Max Shifts":
+            row["Status"] = status
+    rules = Rules.from_table(cons_rows)
+    assert rules.activity_head_max_shifts is expected_enabled
+    rules = replace(
+        rules,
+        rest=timedelta(hours=8),
+        transition_rest=timedelta(hours=8),
+        day_from=6 * 60,
+        day_to=18 * 60,
+    )
+    rows = []
+    seats = {}
+    for i, day in enumerate((1, 2)):
+        start = datetime(2026, 11, day, 8)
+        end = start + timedelta(hours=8)
+        seat_key = f"A06@2026-11-0{day}T08:00"
+        seats[seat_key] = SimpleNamespace(
+            capacity=1,
+            priority=1,
+            activity_id="A06",
+            activity_head="Madison Crew",
+            max_resident_shifts=1,
+            max_fifo_shifts=1,
+        )
+        rows.append([
+            Option(i, "keep", start, end, "A", "A", "A90", standby=True, source="Relief", cost=0),
+            Option(
+                i, "fill", start, end, "A", "A", "A06",
+                activity_head="Madison Crew", seat=seat_key, source="Relief", cost=10,
+            ),
+        ])
+    swing = SimpleNamespace(
+        key="U1|1",
+        user="U1",
+        home="A",
+        classification="Residential",
+        earliest_start=None,
+        latest_end=None,
+        row_ids=["R1", "R2"],
+        droppable=[False, False],
+        options=rows,
+    )
+
+    result = solve(rules, seats, [swing], SimpleNamespace(), 2, 1, 0)
+
+    assert result.places_filled == expected_filled
+
+
+def test_activity_head_max_shifts_rejects_invalid_status_in_constraints_df():
+    cons_rows = read_csv(DEFAULT_DATA_DIR / "constraints_df.csv")
+    for row in cons_rows:
+        if row["Constraint"] == "Activity Head Max Shifts":
+            row["Status"] = "InvalidStatus"
+
+    with pytest.raises(SystemExit, match="Activity Head Max Shifts Status in constraints_df.csv must be Active or Inactive"):
+        Rules.from_table(cons_rows)

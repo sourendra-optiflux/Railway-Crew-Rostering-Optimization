@@ -146,6 +146,8 @@ CONSTRAINTS = [
     ("Demand Allowed Start Offsets", "-60;0;60", "Active"),
     ("Max Start Changes Per Block", "1", "Active"),
     ("Max Start Change Minutes", "60", "Active"),
+    # Per-swing activity-head shift limits from activity_priority.csv (Max Resident Shifts / Max FIFO Shifts).
+    ("Activity Head Max Shifts", "", "Active"),
     # gap_filling_rules.md R4: every row is unlocked; locking is a later application feature.
     ("Default Is Locked", "False", "Active"),
     ("Random Seed", "2026", "Active"),
@@ -209,8 +211,12 @@ def build_demand(activities: list[dict[str, str]]) -> tuple[list[str], list[dict
 
 
 def build_priority(old: Path, activities: list[dict[str, str]]) -> tuple[list[str], list[dict[str, str]]]:
-    """Old priority order with the renames; every work head must appear exactly once."""
-    header, rows = read_csv(old / "activity_priority.csv")
+    """Old priority order with the renames; every work head must appear exactly once.
+
+    `Max Resident Shifts` (6) and `Max FIFO Shifts` (14) default to the full swing work-day lengths
+    from constraints_df.csv (`Residential Work/Off Days = 6/6`, `FIFO Work/Off Days = 14/14`).
+    """
+    _, rows = read_csv(old / "activity_priority.csv")
     heads = [
         OLD_NAMES.get(r["Activity Head"], r["Activity Head"]) for r in sorted(rows, key=lambda r: int(r["Priority"]))
     ]
@@ -219,7 +225,11 @@ def build_priority(old: Path, activities: list[dict[str, str]]) -> tuple[list[st
     unknown = sorted(set(heads) - work_heads)
     if missing or unknown:
         raise SystemExit(f"priority list: missing heads {missing}, unknown heads {unknown}")
-    return header, [{"Priority": str(i), "Activity Head": h} for i, h in enumerate(heads, start=1)]
+    header = ["Priority", "Activity Head", "Max Resident Shifts", "Max FIFO Shifts"]
+    return header, [
+        {"Priority": str(i), "Activity Head": h, "Max Resident Shifts": "6", "Max FIFO Shifts": "14"}
+        for i, h in enumerate(heads, start=1)
+    ]
 
 
 def build_compliance(old: Path, activities: list[dict[str, str]]) -> tuple[list[str], list[dict[str, str]]]:

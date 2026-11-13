@@ -20,19 +20,26 @@ have already happened and are never filled. `Optimised User Id` stays blank here
 from __future__ import annotations
 
 import argparse
-import csv
 import random
+import sys
 from collections import Counter, defaultdict
 from datetime import date
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-DEFAULT_DATA = ROOT / "data" / "optiflux_v2"
-DEFAULT_OUTPUT = HERE / "output"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-WORK = ("Demand", "Excess", "Relief")
-TRAVEL = ("Travel In", "Travel Out")
+from option_generation.data import (  # noqa: E402
+    DEFAULT_DATA_DIR as DEFAULT_DATA,
+    TRAVEL_TYPES as TRAVEL,
+    WORK_TYPES as WORK,
+    read_csv,
+    write_csv,
+)
+
+DEFAULT_OUTPUT = HERE / "output"
 FULL, DAY, NIGHT, RANDOM = "Full Swing", "Day Shifts", "Night Shifts", "Random"
 LEAVE_SETTINGS = {
     FULL: "Leave Full Swing Fraction",
@@ -46,18 +53,6 @@ USER_COLUMNS = ["New User Id", "Optimised User Id"]
 FLAG_COLUMNS = ["Leave Type", "Is Gap", "Is_locked_gap"]
 LEAVE_PLAN_HEADER = ["Leave ID", "User Id", "Classification", "Depot", "Leave Type", "Swing", "First Date",
                      "Last Date", "Shifts On Leave", "Gaps", "Locked Gaps"]  # fmt: skip
-
-
-def read_csv(path: Path) -> list[dict[str, str]]:
-    with path.open(newline="", encoding="utf-8-sig") as fh:
-        return list(csv.DictReader(fh))
-
-
-def write_csv(path: Path, header: list[str], rows: list[dict[str, str]]) -> None:
-    with path.open("w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=header, lineterminator="\n", extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def is_day(row: dict[str, str], day_from: int, day_to: int) -> bool:
