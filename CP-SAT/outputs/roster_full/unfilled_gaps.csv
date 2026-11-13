@@ -12,13 +12,19 @@ AS0001135,2026-11-01,12:00,A06,Madison Crew,U100037,gap,True,Random
 AS0001136,2026-11-02,12:00,A06,Madison Crew,U100037,gap,True,Random
 AS0001137,2026-11-03,12:00,A06,Madison Crew,U100037,gap,True,Random
 AS0001138,2026-11-05,00:00,A06,Madison Crew,U100037,gap,True,Random
+AS0001139,2026-11-06,00:00,A06,Madison Crew,U100037,gap,False,Random
+AS0001140,2026-11-07,00:00,A06,Madison Crew,U100037,gap,False,Random
 AS0005135,2026-11-04,04:00,A15,NE Ship,U100165,gap,True,Full Swing
 AS0005136,2026-11-05,04:00,A15,NE Ship,U100165,gap,True,Full Swing
 AS0005137,2026-11-06,04:00,A15,NE Ship,U100165,gap,False,Full Swing
 AS0005138,2026-11-07,16:00,A15,NE Ship,U100165,gap,False,Full Swing
+AS0005139,2026-11-08,16:00,A15,NE Ship,U100165,gap,False,Full Swing
 AS0006270,2026-11-05,09:00,A13,Nelaway Driver,U100201,gap,True,Random
 AS0006271,2026-11-06,09:00,A13,Nelaway Driver,U100201,gap,False,Random
 AS0006272,2026-11-07,21:00,A13,Nelaway Driver,U100201,gap,False,Random
+AS0006623,2026-11-11,00:00,A13,Nelaway Driver,U100212,gap,False,Night Shifts
+AS0006624,2026-11-12,00:00,A13,Nelaway Driver,U100212,gap,False,Night Shifts
+AS0006625,2026-11-13,00:00,A13,Nelaway Driver,U100212,gap,False,Night Shifts
 AS0006889,2026-11-04,14:00,A13,Nelaway Driver,U100221,gap,True,Full Swing
 AS0006890,2026-11-05,14:00,A13,Nelaway Driver,U100221,gap,True,Full Swing
 AS0006891,2026-11-06,14:00,A13,Nelaway Driver,U100221,gap,False,Full Swing
@@ -38,18 +44,29 @@ AS0008193,2026-11-02,06:00,A03,Yarmouth Mainline,U100257,gap,True,Full Swing
 AS0008194,2026-11-03,06:00,A01,Haskett Mainline,U100257,gap,True,Full Swing
 AS0008195,2026-11-04,06:00,A03,Yarmouth Mainline,U100257,gap,True,Full Swing
 AS0008196,2026-11-05,06:00,A01,Haskett Mainline,U100257,gap,True,Full Swing
+AS0008197,2026-11-06,06:00,A03,Yarmouth Mainline,U100257,gap,False,Full Swing
+AS0008198,2026-11-07,06:00,A01,Haskett Mainline,U100257,gap,False,Full Swing
+AS0008765,2026-11-14,07:00,A03,Yarmouth Mainline,U100271,gap,False,Random
 AS0008817,2026-11-02,08:00,A03,Yarmouth Mainline,U100273,gap,True,Random
 AS0008818,2026-11-03,08:00,A01,Haskett Mainline,U100273,gap,True,Random
 AS0008819,2026-11-04,08:00,A03,Yarmouth Mainline,U100273,gap,True,Random
 AS0008820,2026-11-05,08:00,A01,Haskett Mainline,U100273,gap,True,Random
 AS0008821,2026-11-06,08:00,A03,Yarmouth Mainline,U100273,gap,False,Random
+AS0008915,2026-11-08,08:00,A01,Haskett Mainline,U100275,gap,False,Full Swing
+AS0008928,2026-11-21,20:00,A03,Yarmouth Mainline,U100275,gap,False,Full Swing
+AS0012682,2026-11-07,04:00,A07,Madison Yard,U100370,gap,False,Random
+AS0012950,2026-11-23,22:00,A07,Madison Yard,U100378,gap,False,Random
 AS0013363,2026-11-01,22:00,A08,Work Train,U100391,gap,True,Full Swing
 AS0013365,2026-11-03,22:00,A08,Work Train,U100391,gap,True,Full Swing
 AS0013367,2026-11-05,22:00,A08,Work Train,U100391,gap,True,Full Swing
 AS0013369,2026-11-07,22:00,A08,Work Train,U100391,gap,False,Full Swing
+AS0013371,2026-11-09,22:00,A08,Work Train,U100391,gap,False,Full Swing
+AS0013373,2026-11-11,22:00,A08,Work Train,U100391,gap,False,Full Swing
+AS0013375,2026-11-13,22:00,A08,Work Train,U100391,gap,False,Full Swing
 AS0013519,2026-11-01,05:00,A04,Yarmouth Mainline CO,U100395,gap,True,Full Swing
 AS0013520,2026-11-02,05:00,A04,Yarmouth Mainline CO,U100395,gap,True,Full Swing
 AS0013521,2026-11-03,05:00,A04,Yarmouth Mainline CO,U100395,gap,True,Full Swing
 AS0013522,2026-11-04,05:00,A04,Yarmouth Mainline CO,U100395,gap,True,Full Swing
 AS0013523,2026-11-05,05:00,A04,Yarmouth Mainline CO,U100395,gap,True,Full Swing
-AS0013933,2026-11-08,04:00,A12,BY Ship,U100406,gap,False,Day Shifts
+AS0013524,2026-11-06,05:00,A04,Yarmouth Mainline CO,U100395,gap,False,Full Swing
+AS0013525,2026-11-07,05:00,A04,Yarmouth Mainline CO,U100395,gap,False,Full Swing

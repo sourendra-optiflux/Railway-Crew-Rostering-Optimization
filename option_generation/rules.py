@@ -27,9 +27,19 @@ class Rules:
     max_change_minutes: int  # F3: size of one change
     residential_start_restriction: bool = True
     relief_only_day_night_transition: bool = True
+    activity_head_max_shifts: bool = True
+    priority_strategy: str = "none"
 
     @classmethod
     def from_table(cls, rows: list[dict[str, str]], config_path: Path = DEFAULT_CONFIG) -> "Rules":
+        status_by_name = {r["Constraint"]: r["Status"] for r in rows}
+        max_shifts_status = status_by_name.get("Activity Head Max Shifts", "Active")
+        if max_shifts_status not in ("Active", "Inactive"):
+            raise SystemExit(
+                f"error: Activity Head Max Shifts Status in constraints_df.csv must be Active or Inactive, "
+                f"got {max_shifts_status!r}"
+            )
+        activity_head_max_shifts = max_shifts_status == "Active"
         value = {r["Constraint"]: r["Value"] for r in rows if r["Status"] == "Active"}
         day_from, day_to = (int(t[:2]) * 60 + int(t[3:]) for t in value["Day Shift Window"].split("-"))
         if value["Relief Allowed Start Offsets"] != "ANY":
@@ -51,6 +61,19 @@ class Rules:
         constraints = config.get("constraints") if isinstance(config, dict) else None
         if not isinstance(constraints, dict):
             raise SystemExit(f"error: {config_path} must contain a 'constraints' mapping")
+        optimization = config.get("optimization", {}) if isinstance(config, dict) else {}
+        if not isinstance(optimization, dict):
+            raise SystemExit(f"error: optimization in {config_path} must be a mapping")
+        unknown_optimization = set(optimization) - {"priority_strategy"}
+        if unknown_optimization:
+            raise SystemExit(
+                f"error: unknown optimization settings in {config_path}: {', '.join(sorted(unknown_optimization))}"
+            )
+        priority_strategy = optimization.get("priority_strategy", "none")
+        if not isinstance(priority_strategy, str) or priority_strategy not in ("none", "weighted", "lexicographic"):
+            raise SystemExit(
+                f"error: optimization.priority_strategy in {config_path} must be none, weighted, or lexicographic"
+            )
         allowed = {"residential_start_restriction", "relief_only_day_night_transition"}
         unknown = set(constraints) - allowed
         if unknown:
@@ -82,6 +105,8 @@ class Rules:
             max_changes=int(value["Max Start Changes Per Block"]),
             max_change_minutes=int(value["Max Start Change Minutes"]),
             **defaults,
+            activity_head_max_shifts=activity_head_max_shifts,
+            priority_strategy=priority_strategy,
         )
 
     @property

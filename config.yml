@@ -1,3 +1,6 @@
 constraints:
   residential_start_restriction: true
   relief_only_day_night_transition: true
+
+optimization:
+  priority_strategy: none  # none / weighted / lexicographic
