@@ -67,6 +67,11 @@ class Option:
     cost: int = 0
     level: int = -1  # chain level of the seat (fill only)
     unchanged: bool = False  # same existing assignment, even when represented as a fill option
+    activity_head: str = ""
+
+    def __post_init__(self) -> None:
+        if self.kind == "keep" and not self.unchanged:
+            object.__setattr__(self, "unchanged", True)
 
 
 @dataclass
@@ -166,10 +171,11 @@ def changeable(data: Data, row: dict) -> bool:
 def keep_option(data: Data, index: int, row: dict) -> Option:
     typ = row["Assignment Type"]
     key = seat_key(row["Activity ID"], row["_s"])
+    head = row.get("Activity Head") or data.activities.get(row["Activity ID"], {}).get("Activity Head", "")
     return Option(index, "keep", row["_s"], row["_e"], row["Start Location"], row["End Location"],
                   row["Activity ID"], row["Demand ID"], seat=key if typ == "Demand" else "",
                   excess_seat=key if typ == "Excess" else "", standby=typ == "Relief", source=typ,
-                  unchanged=True)  # fmt: skip
+                  unchanged=True, activity_head=head)  # fmt: skip
 
 
 def build_seats(data: Data) -> dict[str, Seat]:
@@ -242,7 +248,7 @@ def try_fill(data: Data, swing: Swing, index: int, seat: Seat, costs: Costs) -> 
     end = seat.start + timedelta(hours=data.rules.shift_hours)
     return Option(index, "fill", seat.start, end, activity["Start Depot"], activity["End Depot"], seat.activity_id,
                   seat.demand_id, seat=seat.key, source=typ, offset=offset, cost=cost,
-                  level=seat.level, unchanged=same_seat), ""  # fmt: skip
+                  level=seat.level, unchanged=same_seat, activity_head=activity.get("Activity Head", "")), ""  # fmt: skip
 
 
 def ride_options(data: Data, swing: Swing, index: int, target_keys: set[str], costs: Costs) -> list[Option]:
@@ -261,7 +267,8 @@ def ride_options(data: Data, swing: Swing, index: int, target_keys: set[str], co
         rides.append(Option(index, "ride", start, start + timedelta(hours=data.rules.shift_hours),
                             activity["Start Depot"], activity["End Depot"], activity_id,
                             data.demand[(activity_id, shift)]["Demand ID"], excess_seat=key,
-                            source=row["Assignment Type"], cost=costs.ride))  # fmt: skip
+                            source=row["Assignment Type"], cost=costs.ride,
+                            activity_head=activity.get("Activity Head", "")))  # fmt: skip
     return rides
 
 
@@ -270,17 +277,18 @@ def ride_options(data: Data, swing: Swing, index: int, target_keys: set[str], co
 # ---------------------------------------------------------------------------
 
 
-def can_open(data: Data, swing: Swing, option: Option) -> bool:
+def can_open(rules_or_data: Rules | Data, swing, option: Option) -> bool:
+    rules = getattr(rules_or_data, "rules", rules_or_data)
     if option.start_loc != swing.home or (swing.earliest_start and option.start < swing.earliest_start):
         return False
-    return swing.classification != "Residential" or data.rules.is_day(option.start)
+    return swing.classification != "Residential" or rules.is_day(option.start)
 
 
-def can_close(swing: Swing, option: Option) -> bool:
+def can_close(swing, option: Option) -> bool:
     return option.end_loc == swing.home and not (swing.latest_end and option.end > swing.latest_end)
 
 
-def skippable(swing: Swing, first: int, last: int) -> bool:
+def skippable(swing, first: int, last: int) -> bool:
     """True if every row strictly between positions `first` and `last` may be dropped."""
     return all(swing.droppable[i] for i in range(first + 1, last))
 

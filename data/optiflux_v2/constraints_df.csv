@@ -26,5 +26,7 @@ Excess Allowed Start Offsets,-60;0;60,Active
 Demand Allowed Start Offsets,-60;0;60,Active
 Max Start Changes Per Block,1,Active
 Max Start Change Minutes,60,Active
+Activity Head Max Shifts,,Active
+Assignment Type Priority,1000,Active
 Default Is Locked,False,Active
 Random Seed,2026,Active
