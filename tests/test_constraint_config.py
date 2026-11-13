@@ -339,3 +339,51 @@ def test_assignment_type_priority_rejects_invalid_status_in_constraints_df():
 
     with pytest.raises(SystemExit, match="Assignment Type Priority Status in constraints_df.csv must be Active or Inactive"):
         Rules.from_table(cons_rows)
+
+
+@pytest.mark.parametrize(("penalty_val", "expected_user"), [("1000", "U_REL|1"), ("10", "U_EXC|1")])
+def test_cp_sat_reads_assignment_type_tier_penalty_from_constraints_df(penalty_val: str, expected_user: str):
+    cons_rows = read_csv(DEFAULT_DATA_DIR / "constraints_df.csv")
+    for row in cons_rows:
+        if row["Constraint"] == "Assignment Type Priority":
+            row["Status"] = "Active"
+            row["Value"] = penalty_val
+    rules = Rules.from_table(cons_rows)
+    assert rules.assignment_type_tier_penalty == int(penalty_val)
+
+    start = datetime(2026, 11, 7, 8)
+    relief_opt = Option(
+        0, "fill", start, start + timedelta(hours=8), "A", "A", "A06",
+        seat="seat1", cost=22, source="Relief",
+    )
+    excess_opt = Option(
+        0, "fill", start, start + timedelta(hours=8), "A", "A", "A06",
+        seat="seat1", cost=0, source="Excess",
+    )
+    sw_rel = SimpleNamespace(
+        key="U_REL|1", user="U_REL", home="A", classification="FIFO",
+        earliest_start=None, latest_end=None, row_ids=["R_REL"], droppable=[True],
+        options=[[Option(0, "keep", start, start + timedelta(hours=8), "A", "A", "REL", source="Relief"), relief_opt]],
+    )
+    sw_exc = SimpleNamespace(
+        key="U_EXC|1", user="U_EXC", home="A", classification="FIFO",
+        earliest_start=None, latest_end=None, row_ids=["R_EXC"], droppable=[True],
+        options=[[Option(0, "keep", start, start + timedelta(hours=8), "A", "A", "EXC", source="Excess"), excess_opt]],
+    )
+    seats = {"seat1": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew")}
+
+    res = solve(rules, seats, [sw_rel, sw_exc], Costs(), 5, 1, 0, assignment_type_priority={"Relief": 1, "Excess": 2, "Demand": 3})
+    assert res.places_filled == 1
+    assert res.chosen[expected_user] == [relief_opt if expected_user == "U_REL|1" else excess_opt]
+
+
+@pytest.mark.parametrize("bad_val", ["-5", "abc"])
+def test_assignment_type_priority_rejects_invalid_tier_penalty_value(bad_val: str):
+    cons_rows = read_csv(DEFAULT_DATA_DIR / "constraints_df.csv")
+    for row in cons_rows:
+        if row["Constraint"] == "Assignment Type Priority":
+            row["Status"] = "Active"
+            row["Value"] = bad_val
+
+    with pytest.raises(SystemExit, match="Assignment Type Priority Value in constraints_df.csv must be a non-negative integer"):
+        Rules.from_table(cons_rows)
