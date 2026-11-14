@@ -17,9 +17,27 @@ python scripts/run_pipeline.py
 | `--roster-full` | `gap_generation/output/roster_full.csv` | Roster with gaps |
 | `--options-dir` | `option_generation/output` | Layer 1 output |
 | `--output-dir` | `CP-SAT/outputs/roster_full` | Where results go. A rerun overwrites them |
-| `--time-limit` | 120 | Seconds per stage |
+| `--time-limit` | 120 | Seconds per objective stage |
 | `--workers` | 8 | CP-SAT threads |
 | `--config` | `config.yml` | Shared constraint switches; use the same file as option generation |
+
+Demand filling priorities are configured in
+[`data/optiflux_v2/activity_priority.csv`](../data/optiflux_v2/activity_priority.csv) (or `activity_priority.csv` inside `--data-dir`). It must contain exactly one
+priority per demand activity head. Each priority must have a weight in `PRIORITY_WEIGHTS` in
+`CP-SAT/utils/activity_head_priority.py`; lower numbers indicate higher priority. Missing, duplicate,
+invalid, unweighted, and non-demand activity-head entries are rejected before solving.
+
+`config.yml` selects how those priorities affect optimization:
+
+```yaml
+optimization:
+  priority_strategy: none  # none / weighted / lexicographic
+```
+
+Every strategy first maximizes total demand fulfilment. `none` then minimizes assignment cost;
+`weighted` next maximizes weighted activity-head fulfilment; `lexicographic` instead maximizes
+fulfilment for each priority in ascending order, one stage at a time. Each stage's optimum is fixed
+before the next stage runs, and the next stage is skipped unless the previous stage is proven `OPTIMAL`.
 
 ## Output (`CP-SAT/outputs/roster_full/`)
 
@@ -51,9 +69,11 @@ In `roster_full.csv`, `Optimised User Id` starts as `New User Id` and changes on
   switch start at B and those after it at N, so `03 04 04` is allowed but `03 04 03` and `03 05 05`
   are not. Relief standby rows have no fixed start and are left out.
 - **Excess (G5).** An Excess row may only stay on a seat that is fully covered.
-- **Stage 1** fills as many places as possible. Activity priority only breaks ties.
-- **Stage 2** holds that coverage and makes the cheapest change. The costs are `Costs` in
-  `option_generation/options.py`:
+- **Objective stages** follow `optimization.priority_strategy` as described above. Weighted fulfilment
+  uses `PRIORITY_WEIGHTS` in `CP-SAT/utils/activity_head_priority.py`. Each assigned in-model demand
+  position contributes its seat's weight, and seat-capacity constraints limit how many positions count.
+  The final cost stage uses `Costs` in `option_generation/options.py`. A later stage only runs when the
+  preceding stage is `OPTIMAL`; if a stage is only `FEASIBLE`, all remaining stages are skipped.
 
   | Change | Cost |
   |---|---|
@@ -78,25 +98,12 @@ Recovery checks V1–V6 are added on top:
 - frozen swings lose no rows;
 - every changed person keeps rest, location and the one-change start pattern.
 
-## Result (seed 2026, 120 s per stage)
-
-| Item | Value |
-|---|---|
-| Gaps | 296 (38 locked before 6 Nov, 258 to fill) |
-| Filled | 242 of 258 (93.8%) |
-| Fillers | about 54 Excess, 188 Relief and 38 Demand moves, with 25 + 13 refills further down the chains |
-| Rule check | no unexpected failure |
-
-Most unfilled gaps are on 6–7 Nov. Most crew working those days are partway through a swing that
-started before 6 Nov, so F4 does not allow them to move. Stage 1 usually stops at the time limit 1–2
-places short of its bound. With several workers, two runs can give different rosters of equal quality.
-
 ## Files
 
 | File | Purpose |
 |---|---|
 | `run_gap_filling.py` | Command line entry point |
-| `solver.py` | The CP-SAT model and the two stages |
+| `solver.py` | The CP-SAT model and staged objectives |
 | `utils/load_options.py` | Reads the layer 1 files |
 | `utils/output.py` | Writes `Optimised User Id`, the reports and the summary |
 | `utils/validate.py` | The checker comparison and checks V1–V6 |

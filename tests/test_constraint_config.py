@@ -36,6 +36,36 @@ def test_constraint_switches_load_independently(tmp_path: Path, disabled: str, e
     assert getattr(rules, enabled) is True
 
 
+@pytest.mark.parametrize("strategy", ["none", "weighted", "lexicographic"])
+def test_priority_strategy_loads_from_optimization_config(tmp_path: Path, strategy: str):
+    config = tmp_path / "config.yml"
+    config.write_text(
+        "constraints:\n"
+        "  residential_start_restriction: true\n"
+        "  relief_only_day_night_transition: true\n"
+        f"optimization:\n  priority_strategy: {strategy}\n",
+        encoding="utf-8",
+    )
+
+    rules = Rules.from_table(read_csv(DEFAULT_DATA_DIR / "constraints_df.csv"), config)
+
+    assert rules.priority_strategy == strategy
+
+
+def test_priority_strategy_rejects_unknown_value(tmp_path: Path):
+    config = tmp_path / "config.yml"
+    config.write_text(
+        "constraints:\n"
+        "  residential_start_restriction: true\n"
+        "  relief_only_day_night_transition: true\n"
+        "optimization:\n  priority_strategy: unsupported\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match="priority_strategy.*none, weighted, or lexicographic"):
+        Rules.from_table(read_csv(DEFAULT_DATA_DIR / "constraints_df.csv"), config)
+
+
 def test_option_generation_blocks_new_but_preserves_unchanged_residential_night_assignment():
     rules = replace(
         Rules.from_table(read_csv(DEFAULT_DATA_DIR / "constraints_df.csv")),

@@ -25,8 +25,12 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from .data import PERSON, TRAVEL_TYPES, WORK_TYPES, Data, why_not_eligible
+
+if TYPE_CHECKING:
+    from .rules import Rules
 
 FREE_TYPES = ("Excess", "Relief")
 RETURN_RIDES = (("A03", "22:00"),)  # the Work Train return seat: Excess on Yarmouth Mainline 22:00
@@ -67,6 +71,10 @@ class Option:
     cost: int = 0
     level: int = -1  # chain level of the seat (fill only)
     unchanged: bool = False  # same existing assignment, even when represented as a fill option
+
+    def __post_init__(self) -> None:
+        if self.kind == "keep" and not self.unchanged:
+            object.__setattr__(self, "unchanged", True)
 
 
 @dataclass
@@ -270,17 +278,17 @@ def ride_options(data: Data, swing: Swing, index: int, target_keys: set[str], co
 # ---------------------------------------------------------------------------
 
 
-def can_open(data: Data, swing: Swing, option: Option) -> bool:
+def can_open(rules: Rules, swing, option: Option) -> bool:
     if option.start_loc != swing.home or (swing.earliest_start and option.start < swing.earliest_start):
         return False
-    return swing.classification != "Residential" or data.rules.is_day(option.start)
+    return swing.classification != "Residential" or rules.is_day(option.start)
 
 
-def can_close(swing: Swing, option: Option) -> bool:
+def can_close(swing, option: Option) -> bool:
     return option.end_loc == swing.home and not (swing.latest_end and option.end > swing.latest_end)
 
 
-def skippable(swing: Swing, first: int, last: int) -> bool:
+def skippable(swing, first: int, last: int) -> bool:
     """True if every row strictly between positions `first` and `last` may be dropped."""
     return all(swing.droppable[i] for i in range(first + 1, last))
 
@@ -290,7 +298,7 @@ def prune(data: Data, swing: Swing) -> None:
     reach_start: set[Option] = set()
     for i, options in enumerate(swing.raw):
         for option in options:
-            if skippable(swing, -1, i) and can_open(data, swing, option):
+            if skippable(swing, -1, i) and can_open(rules, swing, option):
                 reach_start.add(option)
                 continue
             for j in range(i):
