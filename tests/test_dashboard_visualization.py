@@ -478,3 +478,38 @@ def test_executive_insights_cost_skill_resilience_and_run_diff():
 
     # Self-diff should return 0 differences
     assert compute_run_diff(ds, ds) == []
+
+
+def test_before_after_activity_name_and_color_coding():
+    from visualization.charts import build_activity_name_color_map, create_crew_gantt_chart
+    from visualization.metrics import build_crew_timeline_records
+
+    ds = load_dashboard_dataset(
+        data_dir=DEFAULT_DATA_DIR,
+        cpsat_dir=DEFAULT_CPSAT_DIR,
+        options_dir=DEFAULT_OPTIONS_DIR,
+        config_path=DEFAULT_CONFIG_PATH,
+    )
+    records = build_crew_timeline_records(ds, only_changed_crew=True, include_off_and_travel=False)
+    assert len(records) > 0
+
+    required_cols = {
+        "Before Activity Name",
+        "After Activity Name",
+        "Before Activity Head",
+        "After Activity Head",
+        "Before Start Datetime",
+        "After Start Datetime",
+        "Activity Name Changed",
+        "Activity Name Change",
+    }
+    assert required_cols.issubset(records[0].keys())
+
+    changed_act = [r for r in records if r["Activity Name Changed"] == "Yes"]
+    assert len(changed_act) > 0
+    assert all(r["Before Activity Name"] != r["After Activity Name"] for r in changed_act)
+
+    cmap = build_activity_name_color_map([r["Activity Name"] for r in records])
+    assert len(cmap) > 0
+    assert create_crew_gantt_chart(records, color_by="Activity Name") is not None
+    assert create_crew_gantt_chart(records, color_by="Activity Name Change") is not None

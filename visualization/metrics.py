@@ -405,6 +405,11 @@ def build_crew_timeline_records(
 
     Reflects only selected assignments from `roster_full.csv` (never unselected candidate options).
     """
+    roster_by_aid: dict[str, dict[str, str]] = {
+        r.get("Assignment ID", "").strip(): r
+        for r in dataset.roster_rows
+        if r.get("Assignment ID", "").strip()
+    }
     reassignment_by_filled_row: dict[str, dict[str, str]] = {}
     moved_users: set[str] = set()
     for reass in dataset.reassignments:
@@ -466,13 +471,47 @@ def build_crew_timeline_records(
         reass = reassignment_by_filled_row.get(aid_row)
         is_row_changed = bool(reass or (opt_user and opt_user != new_user) or r.get("Optimisation Note", "").strip())
         changed_status = "Reassigned / Moved" if is_row_changed else "Unchanged"
+        after_act_name = r.get("Activity Name", "").strip()
+        after_start_dt = f"{r.get('Start Date', '').strip()} {r.get('Shift Start Time', '').strip()}".strip()
+
         if reass:
+            from_row = roster_by_aid.get(reass.get("From Row", "").strip(), {})
+            before_act_name = from_row.get("Activity Name", "").strip() or reass.get("From Activity", "").strip()
+            before_act_head = (
+                from_row.get("Activity Head", "").strip()
+                or from_row.get("Activity Name", "").strip()
+                or reass.get("From Activity", "").strip()
+            )
+            before_start_dt = (
+                reass.get("From Start", "").strip()
+                or f"{from_row.get('Start Date', '').strip()} {from_row.get('Shift Start Time', '').strip()}".strip()
+            )
             reass_detail = (
-                f"From {reass.get('Source', '')} ({reass.get('From Activity', '')} @ {reass.get('From Start', '')}) "
-                f"-> {reass.get('Activity Name', '')} (Offset {reass.get('Offset Minutes', '0')}m, Cost {reass.get('Cost', '')})"
+                f"From {reass.get('Source', '')} ({before_act_name} | {before_act_head} @ {before_start_dt}) "
+                f"-> {after_act_name} | {head} @ {after_start_dt} "
+                f"(Offset {reass.get('Offset Minutes', '0')}m, Cost {reass.get('Cost', '')})"
             )
         else:
+            before_act_name = after_act_name
+            before_act_head = head
+            before_start_dt = after_start_dt
             reass_detail = r.get("Optimisation Note", "").strip() or "Unchanged original assignment"
+
+        act_name_changed = (
+            state == "Assigned"
+            and is_row_changed
+            and bool(before_act_name)
+            and bool(after_act_name)
+            and before_act_name != after_act_name
+        )
+        if state != "Assigned":
+            act_change_category = "Unassigned / On Leave"
+        elif act_name_changed:
+            act_change_category = "Activity Name Changed"
+        elif is_row_changed:
+            act_change_category = "Same Activity (Time/Seat Changed)"
+        else:
+            act_change_category = "Unchanged"
 
         start_dt = f"{r.get('Start Date', '').strip()}T{r.get('Shift Start Time', '00:00').strip()}"
         end_dt = f"{r.get('End Date', '').strip()}T{r.get('Shift End Time', '00:00').strip()}"
@@ -485,9 +524,17 @@ def build_crew_timeline_records(
                 "Crew Classification": cls or "Unknown",
                 "Swing": sw,
                 "Activity ID": r.get("Activity ID", ""),
-                "Activity Name": r.get("Activity Name", ""),
+                "Activity Name": after_act_name,
                 "Activity Head": head if state == "Assigned" else f"Unassigned ({head})",
                 "Raw Activity Head": head,
+                "Before Activity Name": before_act_name,
+                "After Activity Name": after_act_name if state == "Assigned" else "Unassigned",
+                "Before Activity Head": before_act_head,
+                "After Activity Head": head if state == "Assigned" else "Unassigned",
+                "Before Start Datetime": before_start_dt,
+                "After Start Datetime": after_start_dt if state == "Assigned" else "Unassigned",
+                "Activity Name Changed": "Yes" if act_name_changed else "No",
+                "Activity Name Change": act_change_category,
                 "Assignment Type": assign_type,
                 "State": state,
                 "Changed": changed_status,

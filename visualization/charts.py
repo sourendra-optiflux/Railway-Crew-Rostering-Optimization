@@ -132,9 +132,34 @@ def create_demand_coverage_heatmap(
     return fig
 
 
+ACTIVITY_NAME_PALETTE = [
+    "#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed",
+    "#0891b2", "#db2777", "#65a30d", "#ea580c", "#4f46e5",
+    "#0d9488", "#be123c", "#ca8a04", "#0284c7", "#9333ea",
+    "#16a34a", "#e11d48", "#0369a1", "#6d28d9", "#b45309",
+    "#15803d", "#1d4ed8", "#a21caf", "#c2410c",
+]
+
+
+def build_activity_name_color_map(activity_names: list[str]) -> dict[str, str]:
+    """Return a deterministic, distinct hex color mapping for each Activity Name."""
+    unique_names = sorted({str(name).strip() for name in activity_names if str(name).strip()})
+    color_map: dict[str, str] = {}
+    for idx, name in enumerate(unique_names):
+        if name.lower().startswith("unassigned") or "leave" in name.lower():
+            color_map[name] = "#ef4444"
+        elif name.lower() == "off":
+            color_map[name] = "#94a3b8"
+        elif "travel" in name.lower():
+            color_map[name] = "#8b5cf6"
+        else:
+            color_map[name] = ACTIVITY_NAME_PALETTE[idx % len(ACTIVITY_NAME_PALETTE)]
+    return color_map
+
+
 def create_crew_gantt_chart(
     timeline_records: list[dict[str, str]],
-    color_by: str = "Activity Head",
+    color_by: str = "Activity Name",
     max_crew: int = 40,
 ) -> go.Figure:
     """Build an interactive Crew Assignment Gantt chart from actual selected solver assignments."""
@@ -153,11 +178,34 @@ def create_crew_gantt_chart(
     allowed_users = set(unique_users[:max_crew])
     filtered = [r for r in timeline_records if r["User Id"] in allowed_users]
 
-    color_field = (
-        color_by
-        if color_by in ("Activity Head", "Assignment Type", "Crew Classification", "State", "Changed")
-        else "Activity Head"
+    valid_color_fields = (
+        "Activity Name",
+        "Activity Name Change",
+        "Activity Head",
+        "Assignment Type",
+        "Crew Classification",
+        "State",
+        "Changed",
     )
+    color_field = color_by if color_by in valid_color_fields else "Activity Name"
+
+    color_discrete_map: dict[str, str] | None = None
+    if color_field == "Activity Name":
+        color_discrete_map = build_activity_name_color_map(
+            [str(r.get("Activity Name", "")) for r in filtered]
+        )
+    elif color_field == "Activity Name Change":
+        color_discrete_map = {
+            "Activity Name Changed": "#dc2626",
+            "Same Activity (Time/Seat Changed)": "#2563eb",
+            "Unchanged": "#94a3b8",
+            "Unassigned / On Leave": "#fca5a5",
+        }
+    elif color_field == "Changed":
+        color_discrete_map = {
+            "Reassigned / Moved": "#f59e0b",
+            "Unchanged": "#64748b",
+        }
 
     fig = px.timeline(
         filtered,
@@ -165,12 +213,20 @@ def create_crew_gantt_chart(
         x_end="End",
         y="Crew Label",
         color=color_field,
+        color_discrete_map=color_discrete_map,
         hover_name="Activity Name",
         hover_data={
             "Assignment ID": True,
             "User Id": True,
             "Crew Classification": True,
             "Swing": True,
+            "Before Activity Name": True,
+            "After Activity Name": True,
+            "Before Activity Head": True,
+            "After Activity Head": True,
+            "Before Start Datetime": True,
+            "After Start Datetime": True,
+            "Activity Name Changed": True,
             "Assignment Type": True,
             "State": True,
             "Changed": True,

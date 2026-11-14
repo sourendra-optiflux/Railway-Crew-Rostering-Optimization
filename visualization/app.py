@@ -390,11 +390,19 @@ def main() -> None:
         with f4:
             sel_users = st.multiselect("Crew Member (User Id)", all_users)
 
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c1, c2, c3, c4, c5, c6 = st.columns(6)
         with c1:
             color_by = st.selectbox(
                 "Color Bars By",
-                options=["Activity Head", "Changed", "Assignment Type", "Crew Classification", "State"],
+                options=[
+                    "Activity Name",
+                    "Activity Name Change",
+                    "Activity Head",
+                    "Changed",
+                    "Assignment Type",
+                    "Crew Classification",
+                    "State",
+                ],
             )
         with c2:
             max_crew = st.slider("Max Crew Members Displayed", min_value=5, max_value=150, value=35, step=5)
@@ -406,8 +414,14 @@ def main() -> None:
                 help="Filters the timeline to crew members who were moved or reassigned by CP-SAT.",
             )
         with c4:
-            inc_off = st.checkbox("Include Off & Travel Rows", value=False)
+            only_act_name_changed = st.checkbox(
+                "Only Activity Name Changes",
+                value=False,
+                help="Filter to assignments where Before Activity Name differs from After Activity Name.",
+            )
         with c5:
+            inc_off = st.checkbox("Include Off & Travel Rows", value=False)
+        with c6:
             inc_leave = st.checkbox("Show Unassigned / On-Leave Periods", value=True)
 
         timeline_records = build_crew_timeline_records(
@@ -420,8 +434,35 @@ def main() -> None:
             include_unassigned_leave=inc_leave,
             only_changed_crew=only_changed,
         )
+        if only_act_name_changed:
+            timeline_records = [r for r in timeline_records if r.get("Activity Name Changed") == "Yes"]
+
         fig_gantt = create_crew_gantt_chart(timeline_records, color_by=color_by, max_crew=max_crew)
         st.plotly_chart(fig_gantt, use_container_width=True)
+
+        before_after_rows = [
+            {
+                "Assignment ID": r["Assignment ID"],
+                "User Id": r["User Id"],
+                "Swing": r["Swing"],
+                "Activity Name Changed": r["Activity Name Changed"],
+                "Before Activity Name": r["Before Activity Name"],
+                "After Activity Name": r["After Activity Name"],
+                "Before Activity Head": r["Before Activity Head"],
+                "After Activity Head": r["After Activity Head"],
+                "Before Start Datetime": r["Before Start Datetime"],
+                "After Start Datetime": r["After Start Datetime"],
+                "Changed": r["Changed"],
+                "Reassignment Detail": r["Reassignment Detail"],
+            }
+            for r in timeline_records
+            if r.get("Changed") == "Reassigned / Moved"
+        ]
+        st.markdown(f"#### Before vs After Reassignment Changes ({len(before_after_rows)} Moved Shift(s))")
+        if before_after_rows:
+            st.dataframe(before_after_rows, use_container_width=True, hide_index=True)
+        else:
+            st.info("No reassigned/moved shifts match the current filters.")
 
         st.markdown("#### Selected Crew Assignment Records")
         st.dataframe(timeline_records, use_container_width=True, hide_index=True)
