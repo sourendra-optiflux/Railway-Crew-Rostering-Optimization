@@ -553,7 +553,7 @@ def parse_summary_and_validation(dataset: DashboardDataset) -> dict[str, object]
         if len(parts) == 2:
             key, val = parts
             summary_items[key] = val
-            if key.startswith("Objective stage:"):
+            if key.startswith("Objective stage:") or key.startswith("Stage "):
                 stage_name = key.replace("Objective stage:", "").strip()
                 status_badge = "OPTIMAL" if val.startswith("OPTIMAL") else (
                     "FEASIBLE" if val.startswith("FEASIBLE") else "OTHER"
