@@ -75,8 +75,16 @@ class DashboardDataset:
     eligibility_rows: list[dict[str, str]] = field(default_factory=list)
     currency_rows: list[dict[str, str]] = field(default_factory=list)
     activities_rows: list[dict[str, str]] = field(default_factory=list)
+    compliance_rows: list[dict[str, str]] = field(default_factory=list)
+    competency_rows: list[dict[str, str]] = field(default_factory=list)
+    restriction_rows: list[dict[str, str]] = field(default_factory=list)
+    excluded_activity_rows: list[dict[str, str]] = field(default_factory=list)
+    onsite_rows: list[dict[str, str]] = field(default_factory=list)
+    baseline_roster_rows: list[dict[str, str]] = field(default_factory=list)
     summary_markdown: str = ""
     validation_markdown: str = ""
+    baseline_checks_markdown: str = ""
+    solver_log_text: str = ""
     warnings: list[str] = field(default_factory=list)
 
 
@@ -253,6 +261,12 @@ def load_dashboard_dataset(
     eligibility_rows, _ = read_csv_safe(data_dir / "eligibility_matrix.csv")
     currency_rows, _ = read_csv_safe(data_dir / "crew_currency_df.csv")
     activities_rows, _ = read_csv_safe(data_dir / "activities_df.csv")
+    compliance_rows, _ = read_csv_safe(data_dir / "compliance_matrix_df.csv")
+    competency_rows, _ = read_csv_safe(data_dir / "crew_competencies_df.csv")
+    restriction_rows, _ = read_csv_safe(data_dir / "crew_restrictions.csv")
+    excluded_activity_rows, _ = read_csv_safe(data_dir / "excluded_activities.csv")
+    onsite_rows, _ = read_csv_safe(data_dir / "Crew_Onsite_App.csv")
+    baseline_roster_rows, _ = read_csv_safe(data_dir / "roster_df.csv")
 
     summary_md = ""
     summary_path = cpsat_dir / "summary.md"
@@ -263,6 +277,16 @@ def load_dashboard_dataset(
     validation_path = cpsat_dir / "validation.md"
     if validation_path.exists():
         validation_md = validation_path.read_text(encoding="utf-8")
+
+    baseline_checks_md = ""
+    baseline_checks_path = data_dir / "roster_checks.md"
+    if baseline_checks_path.exists():
+        baseline_checks_md = baseline_checks_path.read_text(encoding="utf-8")
+
+    solver_log_text = ""
+    solver_log_path = cpsat_dir / "solver.log"
+    if solver_log_path.exists():
+        solver_log_text = solver_log_path.read_text(encoding="utf-8", errors="replace")
 
     # Backfill Crew Classification on roster rows if missing
     for r in roster_rows:
@@ -291,8 +315,16 @@ def load_dashboard_dataset(
         eligibility_rows=eligibility_rows,
         currency_rows=currency_rows,
         activities_rows=activities_rows,
+        compliance_rows=compliance_rows,
+        competency_rows=competency_rows,
+        restriction_rows=restriction_rows,
+        excluded_activity_rows=excluded_activity_rows,
+        onsite_rows=onsite_rows,
+        baseline_roster_rows=baseline_roster_rows,
         summary_markdown=summary_md,
         validation_markdown=validation_md,
+        baseline_checks_markdown=baseline_checks_md,
+        solver_log_text=solver_log_text,
         warnings=warnings,
     )
 

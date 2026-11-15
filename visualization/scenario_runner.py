@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Callable
 
 from visualization.data_loader import ROOT, DashboardDataset, load_dashboard_dataset
 
@@ -25,6 +26,35 @@ def _write_csv_rows(path: Path, fieldnames: list[str], rows: list[dict[str, str]
         writer.writerows(rows)
 
 
+def _format_num(value: float) -> str:
+    return str(int(value) if float(value).is_integer() else value)
+
+
+def stream_command(
+    cmd: list[str],
+    cwd: Path,
+    log_callback: Callable[[str], None] | None = None,
+) -> tuple[int, str]:
+    """Run a command and stream stdout+stderr line-by-line to log_callback."""
+    lines: list[str] = []
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    if proc.stdout is not None:
+        for raw_line in proc.stdout:
+            line = raw_line.rstrip("\r\n")
+            lines.append(line)
+            if log_callback is not None:
+                log_callback(line)
+    rc = proc.wait()
+    return rc, "\n".join(lines)
+
+
 def _run_layer1_and_layer2(
     data_dir: Path,
     roster_full_path: Path,
@@ -32,10 +62,13 @@ def _run_layer1_and_layer2(
     opts_dir: Path,
     out_dir: Path,
     time_limit: int = 30,
+    log_callback: Callable[[str], None] | None = None,
 ) -> tuple[bool, str]:
     logs: list[str] = []
 
-    res1 = subprocess.run(
+    if log_callback is not None:
+        log_callback("=== Layer 1: Option Generation ===")
+    rc1, out1 = stream_command(
         [
             sys.executable,
             "option_generation/generate_options.py",
@@ -45,15 +78,15 @@ def _run_layer1_and_layer2(
             "--config", str(config_path),
         ],
         cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
+        log_callback=log_callback,
     )
-    logs.append("=== Layer 1: Option Generation ===\n" + (res1.stdout or "") + (res1.stderr or ""))
-    if res1.returncode != 0:
+    logs.append("=== Layer 1: Option Generation ===\n" + out1)
+    if rc1 != 0:
         return False, "\n".join(logs)
 
-    res2 = subprocess.run(
+    if log_callback is not None:
+        log_callback("=== Layer 2: CP-SAT Solver ===")
+    _, out2 = stream_command(
         [
             sys.executable,
             "CP-SAT/run_gap_filling.py",
@@ -66,13 +99,137 @@ def _run_layer1_and_layer2(
             "--workers", "2",
         ],
         cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
+        log_callback=log_callback,
     )
-    logs.append("=== Layer 2: CP-SAT Solver ===\n" + (res2.stdout or "") + (res2.stderr or ""))
+    logs.append("=== Layer 2: CP-SAT Solver ===\n" + out2)
     ok = (out_dir / "roster_full.csv").exists()
     return ok, "\n".join(logs)
+
+
+def _apply_rule_overrides_to_dir(
+    data_dir: Path,
+    config_path: Path,
+    *,
+    residential_start_restriction: bool,
+    relief_only_day_night_transition: bool,
+    priority_strategy: str,
+    assignment_type_priority_enabled: bool,
+    assignment_type_tier_penalty: int,
+    activity_head_max_shifts_enabled: bool,
+    ordinary_rest_hours: float,
+    transition_rest_hours: float,
+    max_start_changes_per_block: int,
+    max_start_change_minutes: int,
+    allow_start_time_offsets: bool,
+    solver_start_date: str | None = None,
+    assignment_type_priority_map: dict[str, int] | None = None,
+    activity_priority_overrides: list[dict[str, str]] | None = None,
+) -> None:
+    """Apply rule, constraint, and objective overrides to data_dir and config_path."""
+    cons_path = data_dir / "constraints_df.csv"
+    fieldnames, cons_rows = _read_csv_rows(cons_path)
+    seen_names: set[str] = set()
+    offsets_val = "-60;0;60" if allow_start_time_offsets else "0"
+
+    for row in cons_rows:
+        name = row.get("Constraint", "")
+        seen_names.add(name)
+        if name == "Assignment Type Priority":
+            row["Value"] = str(int(assignment_type_tier_penalty))
+            row["Status"] = "Active" if assignment_type_priority_enabled else "Inactive"
+        elif name == "Activity Head Max Shifts":
+            row["Status"] = "Active" if activity_head_max_shifts_enabled else "Inactive"
+        elif name == "Ordinary Rest Hours":
+            row["Value"] = _format_num(ordinary_rest_hours)
+        elif name == "Transition Rest Hours":
+            row["Value"] = _format_num(transition_rest_hours)
+        elif name == "Max Start Changes Per Block":
+            row["Value"] = str(int(max_start_changes_per_block))
+        elif name == "Max Start Change Minutes":
+            row["Value"] = str(int(max_start_change_minutes))
+        elif name in {"Excess Allowed Start Offsets", "Demand Allowed Start Offsets"}:
+            row["Value"] = offsets_val
+        elif name == "Solver Start Date" and solver_start_date:
+            row["Value"] = solver_start_date.strip()
+
+    if "Assignment Type Priority" not in seen_names:
+        cons_rows.append({
+            "Constraint": "Assignment Type Priority",
+            "Value": str(int(assignment_type_tier_penalty)),
+            "Status": "Active" if assignment_type_priority_enabled else "Inactive",
+        })
+    if "Activity Head Max Shifts" not in seen_names:
+        cons_rows.append({
+            "Constraint": "Activity Head Max Shifts",
+            "Value": "",
+            "Status": "Active" if activity_head_max_shifts_enabled else "Inactive",
+        })
+    _write_csv_rows(cons_path, fieldnames or ["Constraint", "Value", "Status"], cons_rows)
+
+    if assignment_type_priority_map:
+        at_path = data_dir / "assignment_type_priority.csv"
+        if at_path.exists():
+            at_fields, at_rows = _read_csv_rows(at_path)
+            for row in at_rows:
+                atype = row.get("Assignment Type", "")
+                if atype in assignment_type_priority_map:
+                    row["Priority"] = str(int(assignment_type_priority_map[atype]))
+            _write_csv_rows(at_path, at_fields, at_rows)
+
+    if activity_priority_overrides:
+        ap_path = data_dir / "activity_priority.csv"
+        if ap_path.exists():
+            ap_fields, _ = _read_csv_rows(ap_path)
+            _write_csv_rows(ap_path, ap_fields, activity_priority_overrides)
+
+    config_path.write_text(
+        "constraints:\n"
+        f"  residential_start_restriction: {str(residential_start_restriction).lower()}\n"
+        f"  relief_only_day_night_transition: {str(relief_only_day_night_transition).lower()}\n\n"
+        "optimization:\n"
+        f"  priority_strategy: {priority_strategy}\n",
+        encoding="utf-8",
+    )
+
+
+def save_active_config_and_constraints(
+    data_dir: Path,
+    config_path: Path,
+    *,
+    residential_start_restriction: bool,
+    relief_only_day_night_transition: bool,
+    priority_strategy: str,
+    assignment_type_priority_enabled: bool,
+    assignment_type_tier_penalty: int = 1000,
+    activity_head_max_shifts_enabled: bool = True,
+    ordinary_rest_hours: float = 11.0,
+    transition_rest_hours: float = 23.0,
+    max_start_changes_per_block: int = 1,
+    max_start_change_minutes: int = 60,
+    allow_start_time_offsets: bool = True,
+    solver_start_date: str | None = None,
+    assignment_type_priority_map: dict[str, int] | None = None,
+    activity_priority_overrides: list[dict[str, str]] | None = None,
+) -> None:
+    """Persist rule, constraint, and objective overrides to the active config/data files."""
+    _apply_rule_overrides_to_dir(
+        data_dir,
+        config_path,
+        residential_start_restriction=residential_start_restriction,
+        relief_only_day_night_transition=relief_only_day_night_transition,
+        priority_strategy=priority_strategy,
+        assignment_type_priority_enabled=assignment_type_priority_enabled,
+        assignment_type_tier_penalty=assignment_type_tier_penalty,
+        activity_head_max_shifts_enabled=activity_head_max_shifts_enabled,
+        ordinary_rest_hours=ordinary_rest_hours,
+        transition_rest_hours=transition_rest_hours,
+        max_start_changes_per_block=max_start_changes_per_block,
+        max_start_change_minutes=max_start_change_minutes,
+        allow_start_time_offsets=allow_start_time_offsets,
+        solver_start_date=solver_start_date,
+        assignment_type_priority_map=assignment_type_priority_map,
+        activity_priority_overrides=activity_priority_overrides,
+    )
 
 
 def run_what_if_scenario(
@@ -86,7 +243,15 @@ def run_what_if_scenario(
     activity_head_max_shifts_enabled: bool,
     ordinary_rest_hours: float,
     transition_rest_hours: float,
+    assignment_type_tier_penalty: int = 1000,
+    max_start_changes_per_block: int = 1,
+    max_start_change_minutes: int = 60,
+    allow_start_time_offsets: bool = True,
+    solver_start_date: str | None = None,
+    assignment_type_priority_map: dict[str, int] | None = None,
+    activity_priority_overrides: list[dict[str, str]] | None = None,
     time_limit: int = 30,
+    log_callback: Callable[[str], None] | None = None,
 ) -> tuple[DashboardDataset | None, str]:
     """Run an isolated What-If scenario with custom rule/strategy settings in a temp workspace."""
     with tempfile.TemporaryDirectory(prefix="rostering_whatif_") as tmp:
@@ -100,46 +265,34 @@ def run_what_if_scenario(
         shutil.copytree(base_data_dir, data_dir)
         shutil.copy2(base_roster_full, roster_in)
 
-        # Apply constraints_df.csv overrides
-        cons_path = data_dir / "constraints_df.csv"
-        fieldnames, cons_rows = _read_csv_rows(cons_path)
-        seen_names: set[str] = set()
-        for row in cons_rows:
-            name = row.get("Constraint", "")
-            seen_names.add(name)
-            if name == "Assignment Type Priority":
-                row["Status"] = "Active" if assignment_type_priority_enabled else "Inactive"
-            elif name == "Activity Head Max Shifts":
-                row["Status"] = "Active" if activity_head_max_shifts_enabled else "Inactive"
-            elif name == "Ordinary Rest Hours":
-                row["Value"] = str(int(ordinary_rest_hours) if float(ordinary_rest_hours).is_integer() else ordinary_rest_hours)
-            elif name == "Transition Rest Hours":
-                row["Value"] = str(int(transition_rest_hours) if float(transition_rest_hours).is_integer() else transition_rest_hours)
-
-        if "Assignment Type Priority" not in seen_names:
-            cons_rows.append({
-                "Constraint": "Assignment Type Priority",
-                "Value": "",
-                "Status": "Active" if assignment_type_priority_enabled else "Inactive",
-            })
-        if "Activity Head Max Shifts" not in seen_names:
-            cons_rows.append({
-                "Constraint": "Activity Head Max Shifts",
-                "Value": "",
-                "Status": "Active" if activity_head_max_shifts_enabled else "Inactive",
-            })
-        _write_csv_rows(cons_path, fieldnames or ["Constraint", "Value", "Status"], cons_rows)
-
-        cfg_path.write_text(
-            "constraints:\n"
-            f"  residential_start_restriction: {str(residential_start_restriction).lower()}\n"
-            f"  relief_only_day_night_transition: {str(relief_only_day_night_transition).lower()}\n\n"
-            "optimization:\n"
-            f"  priority_strategy: {priority_strategy}\n",
-            encoding="utf-8",
+        _apply_rule_overrides_to_dir(
+            data_dir,
+            cfg_path,
+            residential_start_restriction=residential_start_restriction,
+            relief_only_day_night_transition=relief_only_day_night_transition,
+            priority_strategy=priority_strategy,
+            assignment_type_priority_enabled=assignment_type_priority_enabled,
+            assignment_type_tier_penalty=assignment_type_tier_penalty,
+            activity_head_max_shifts_enabled=activity_head_max_shifts_enabled,
+            ordinary_rest_hours=ordinary_rest_hours,
+            transition_rest_hours=transition_rest_hours,
+            max_start_changes_per_block=max_start_changes_per_block,
+            max_start_change_minutes=max_start_change_minutes,
+            allow_start_time_offsets=allow_start_time_offsets,
+            solver_start_date=solver_start_date,
+            assignment_type_priority_map=assignment_type_priority_map,
+            activity_priority_overrides=activity_priority_overrides,
         )
 
-        ok, logs = _run_layer1_and_layer2(data_dir, roster_in, cfg_path, opts_dir, out_dir, time_limit=time_limit)
+        ok, logs = _run_layer1_and_layer2(
+            data_dir,
+            roster_in,
+            cfg_path,
+            opts_dir,
+            out_dir,
+            time_limit=time_limit,
+            log_callback=log_callback,
+        )
         if not ok:
             return None, logs
 
@@ -160,6 +313,7 @@ def run_disruption_simulation(
     disrupted_assignment_ids: list[str],
     leave_label: str = "Simulated Sick",
     time_limit: int = 30,
+    log_callback: Callable[[str], None] | None = None,
 ) -> tuple[DashboardDataset | None, str]:
     """Simulate unexpected crew absence on selected Assignment IDs and re-solve recovery."""
     target_ids = {aid.strip() for aid in disrupted_assignment_ids if aid.strip()}
@@ -178,7 +332,6 @@ def run_disruption_simulation(
         shutil.copy2(base_config_path, cfg_path)
 
         fieldnames, rows = _read_csv_rows(base_roster_full)
-        # Keep only gap_generation columns + reset Optimised User Id to New User Id for non-gap rows
         modified_count = 0
         for r in rows:
             if r.get("Assignment ID", "").strip() in target_ids:
@@ -189,7 +342,6 @@ def run_disruption_simulation(
                 r["Is_locked_gap"] = "False"
                 modified_count += 1
             else:
-                # Preserve existing assignment as input to solver
                 if r.get("Is Gap", "").strip() != "True":
                     uid = r.get("Optimised User Id", "").strip() or r.get("User Id", "").strip()
                     r["New User Id"] = uid
@@ -199,7 +351,15 @@ def run_disruption_simulation(
         if modified_count == 0:
             return None, "Selected Assignment IDs were not found in roster_full.csv."
 
-        ok, logs = _run_layer1_and_layer2(data_dir, roster_in, cfg_path, opts_dir, out_dir, time_limit=time_limit)
+        ok, logs = _run_layer1_and_layer2(
+            data_dir,
+            roster_in,
+            cfg_path,
+            opts_dir,
+            out_dir,
+            time_limit=time_limit,
+            log_callback=log_callback,
+        )
         if not ok:
             return None, logs
 

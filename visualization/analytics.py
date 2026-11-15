@@ -47,9 +47,27 @@ def _day_window_minutes(dataset: DashboardDataset) -> tuple[int, int]:
         return 180, 900
 
 
+def _swing_work_caps(dataset: DashboardDataset) -> tuple[int, int]:
+    """Read Residential and FIFO swing work-day caps from constraints_df.csv (default: 6, 14)."""
+    def _parse_work_days(key: str, default: int) -> int:
+        raw = dataset.constraints.get(key, ("", "Active"))[0].strip()
+        if "/" in raw:
+            try:
+                return max(1, int(raw.split("/")[0]))
+            except ValueError:
+                pass
+        return default
+
+    return (
+        _parse_work_days("Residential Work/Off Days", 6),
+        _parse_work_days("FIFO Work/Off Days", 14),
+    )
+
+
 def compute_crew_workload_analytics(dataset: DashboardDataset) -> dict[str, object]:
     """Compute per-crew fairness, day/night split, weekend duties, standby conversion, and fatigue indicators."""
     day_from, day_to = _day_window_minutes(dataset)
+    res_cap, fifo_cap = _swing_work_caps(dataset)
 
     # Track standby rows originally belonging to Relief vs final state
     relief_standby_total: dict[str, int] = defaultdict(int)
@@ -150,7 +168,7 @@ def compute_crew_workload_analytics(dataset: DashboardDataset) -> dict[str, obje
 
         meta = user_meta.get(uid, {"Classification": "Unknown", "Home Depot": "Unknown", "Role": ""})
         classification = meta["Classification"]
-        swing_cap = 6 if classification in ("Residential", "Resident") else 14
+        swing_cap = res_cap if classification in ("Residential", "Resident") else fifo_cap
         near_fatigue = max_consec >= swing_cap and n_shifts > 0
         if near_fatigue:
             fatigue_alerts += 1
@@ -705,6 +723,22 @@ def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, obj
         h_start = datetime(2026, 11, 1).date()
         h_end = h_start + timedelta(days=30)
 
+    # Track assigned work dates during the horizon so currency refreshes are accounted for
+    performed_dates: dict[tuple[str, str], list[datetime.date]] = defaultdict(list)
+    for r in dataset.roster_rows:
+        if r.get("Assignment Type", "").strip() not in WORK_ASSIGNMENT_TYPES:
+            continue
+        opt_uid = r.get("Optimised User Id", "").strip()
+        head = r.get("Activity Head", "").strip()
+        s_date = r.get("Start Date", "").strip()
+        if opt_uid and head and s_date:
+            try:
+                performed_dates[(opt_uid, head)].append(datetime.fromisoformat(s_date).date())
+            except ValueError:
+                pass
+    for key in performed_dates:
+        performed_dates[key].sort()
+
     currency_watchlist: list[dict[str, object]] = []
     for c in dataset.currency_rows:
         uid = c.get("User Id", "").strip()
@@ -718,13 +752,18 @@ def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, obj
         except ValueError:
             continue
         expiry_dt = last_dt + timedelta(days=th_days)
+        for work_dt in performed_dates.get((uid, head), ()):
+            if last_dt < work_dt <= expiry_dt:
+                last_dt = work_dt
+                expiry_dt = last_dt + timedelta(days=th_days)
         if expiry_dt <= h_end:
             status = "Expired Before Horizon" if expiry_dt < h_start else "Expiring In Horizon"
+            crew_info = dataset.crew_by_id.get(uid, {})
             currency_watchlist.append({
                 "User Id": uid,
-                "Home Depot": dataset.crew_by_id.get(uid, {}).get("Home Depot", ""),
+                "Home Depot": crew_info.get("Home Depot", "") or crew_info.get("Depot", ""),
                 "Activity Head": head,
-                "Last Performed": last_str,
+                "Last Performed": last_dt.isoformat(),
                 "Threshold (Days)": th_days,
                 "Currency Expires": expiry_dt.isoformat(),
                 "Status": status,
@@ -858,3 +897,285 @@ def compute_run_diff(ds_a: DashboardDataset, ds_b: DashboardDataset) -> list[dic
                 f"{ds_b.name} Start": sb,
             })
     return diffs
+
+
+def compute_input_readiness_analytics(dataset: DashboardDataset) -> dict[str, object]:
+    """Analyze pre-solver input data: competencies, restrictions, exclusions, onsite checks, and baseline supply."""
+    # 1. Competency & Compliance Matrix
+    req_by_head: dict[str, set[str]] = defaultdict(set)
+    for row in dataset.compliance_rows:
+        head = row.get("Activity Head", "").strip()
+        code = row.get("Competency LMS Code", "").strip()
+        comp = row.get("Competency", "").strip()
+        if head and (code or comp):
+            req_by_head[head].add(code or comp)
+
+    comp_status_by_user: dict[str, dict[str, str]] = defaultdict(dict)
+    invalid_competencies: list[dict[str, str]] = []
+    for row in dataset.competency_rows:
+        uid = row.get("User Id", "").strip()
+        code = row.get("Competency LMS Code", "").strip()
+        comp = row.get("Competency", "").strip()
+        status = row.get("status", "").strip() or row.get("Status", "").strip()
+        expiry = row.get("Expiry Date", "").strip()
+        key = code or comp
+        if uid and key:
+            comp_status_by_user[uid][key] = status or "Unknown"
+        if status and status.lower() != "valid":
+            crew_meta = dataset.crew_by_id.get(uid, {})
+            invalid_competencies.append({
+                "User Id": uid,
+                "Depot": crew_meta.get("Home Depot", "") or crew_meta.get("Depot", ""),
+                "Classification": crew_meta.get("Classification", ""),
+                "Competency Code": code,
+                "Competency": comp,
+                "Expiry Date": expiry,
+                "Status": status,
+            })
+
+    total_crew = len(dataset.crew_by_id)
+    competency_matrix_rows: list[dict[str, object]] = []
+    for head in sorted(req_by_head.keys()):
+        reqs = sorted(req_by_head[head])
+        compliant = 0
+        non_compliant = 0
+        for uid in dataset.crew_by_id:
+            u_comps = comp_status_by_user.get(uid, {})
+            if all(u_comps.get(r, "").lower() == "valid" for r in reqs):
+                compliant += 1
+            else:
+                non_compliant += 1
+        competency_matrix_rows.append({
+            "Activity Head": head,
+            "Required Competencies": ", ".join(reqs),
+            "Compliant Crew": compliant,
+            "Blocked / Missing Crew": non_compliant,
+            "Compliance %": round((compliant / total_crew * 100.0), 1) if total_crew else 0.0,
+        })
+
+    # 2. Onsite App Cross-Check
+    roster_by_user_date: dict[tuple[str, str], list[dict[str, str]]] = defaultdict(list)
+    for r in dataset.roster_rows:
+        uid = r.get("Optimised User Id", "").strip() or r.get("User Id", "").strip()
+        dt = r.get("Start Date", "").strip()
+        if uid and dt:
+            roster_by_user_date[(uid, dt)].append(r)
+
+    onsite_mismatches: list[dict[str, str]] = []
+    for o in dataset.onsite_rows:
+        uid = o.get("User Id", "").strip()
+        dt = o.get("Date", "").strip()
+        loc = o.get("Location", "").strip()
+        status = o.get("Status", "").strip()
+        matched = roster_by_user_date.get((uid, dt), [])
+        if not matched and status.lower() in {"onsite", "checked in", "active", "present"}:
+            onsite_mismatches.append({
+                "User Id": uid,
+                "Date": dt,
+                "Onsite Location": loc,
+                "Onsite Status": status,
+                "Roster Status": "No Matching Shift",
+            })
+
+    # 3. Pre-Gap Baseline Supply vs Demand by Date
+    source_rows = dataset.baseline_roster_rows or dataset.roster_rows
+    daily_counts: dict[str, dict[str, int]] = defaultdict(lambda: {"Demand Shifts": 0, "Baseline Assigned": 0, "Relief/Excess Pool": 0})
+    for r in source_rows:
+        dt = r.get("Start Date", "").strip()
+        if not dt:
+            continue
+        atype = r.get("Assignment Type", "").strip()
+        uid = r.get("User Id", "").strip() or r.get("Optimised User Id", "").strip()
+        if atype == "Demand":
+            daily_counts[dt]["Demand Shifts"] += 1
+            if uid:
+                daily_counts[dt]["Baseline Assigned"] += 1
+        elif atype in {"Relief", "Excess"} and uid:
+            daily_counts[dt]["Relief/Excess Pool"] += 1
+
+    daily_supply_rows = [
+        {"Date": dt, **daily_counts[dt]}
+        for dt in sorted(daily_counts.keys())
+    ]
+
+    return {
+        "competency_matrix": competency_matrix_rows,
+        "invalid_competencies": invalid_competencies,
+        "restrictions": dataset.restriction_rows,
+        "excluded_activities": dataset.excluded_activity_rows,
+        "onsite_mismatches": onsite_mismatches,
+        "onsite_total": len(dataset.onsite_rows),
+        "daily_supply_rows": daily_supply_rows,
+    }
+
+
+def compute_lifecycle_waterfall(dataset: DashboardDataset) -> dict[str, object]:
+    """Compute 3-stage lifecycle metrics: Baseline -> Leave Gaps -> Solver Recovery."""
+    demand_rows = [r for r in dataset.roster_rows if r.get("Assignment Type", "").strip() == "Demand"]
+    total_demand = len(demand_rows)
+    gap_rows = [r for r in demand_rows if r.get("Is Gap", "").strip() == "True"]
+    locked_gaps = sum(1 for r in gap_rows if r.get("Is_locked_gap", "").strip() == "True")
+    open_gaps = len(gap_rows) - locked_gaps
+    filled_gaps = sum(1 for r in gap_rows if r.get("Optimised User Id", "").strip())
+    remaining_unfilled = len(gap_rows) - filled_gaps
+    undisturbed = total_demand - len(gap_rows)
+
+    # Break down fills into Direct (Level 1 / Relief / Excess) vs Multi-Hop Chain
+    chains_data = build_reassignment_chains(dataset)
+    chain_moves = int(chains_data["summary"].get("chain_moves", 0))
+    direct_fills = max(0, filled_gaps - chain_moves)
+    multi_hop_fills = min(filled_gaps, chain_moves)
+
+    leave_breakdown: dict[str, dict[str, int]] = defaultdict(lambda: {"Total": 0, "Locked": 0, "Open": 0, "Filled": 0, "Unfilled": 0})
+    for r in gap_rows:
+        lt = r.get("Leave Type", "").strip() or "Unspecified"
+        is_locked = r.get("Is_locked_gap", "").strip() == "True"
+        is_filled = bool(r.get("Optimised User Id", "").strip())
+        leave_breakdown[lt]["Total"] += 1
+        if is_locked:
+            leave_breakdown[lt]["Locked"] += 1
+        else:
+            leave_breakdown[lt]["Open"] += 1
+        if is_filled:
+            leave_breakdown[lt]["Filled"] += 1
+        else:
+            leave_breakdown[lt]["Unfilled"] += 1
+
+    leave_rows = [
+        {"Leave Type": lt, **vals}
+        for lt, vals in sorted(leave_breakdown.items(), key=lambda x: -x[1]["Total"])
+    ]
+
+    return {
+        "total_demand": total_demand,
+        "undisturbed": undisturbed,
+        "total_gaps": len(gap_rows),
+        "locked_gaps": locked_gaps,
+        "open_gaps": open_gaps,
+        "direct_fills": direct_fills,
+        "multi_hop_fills": multi_hop_fills,
+        "final_covered": undisturbed + filled_gaps,
+        "remaining_unfilled": remaining_unfilled,
+        "leave_breakdown": leave_rows,
+    }
+
+
+def compute_option_density_vs_fill(dataset: DashboardDataset) -> list[dict[str, object]]:
+    """Join seats.csv, gap_options.csv, and roster_rows to inspect option count vs fill outcome."""
+    opts_by_seat: dict[str, int] = defaultdict(int)
+    for opt in dataset.gap_options:
+        sk = opt.get("Seat Key", "").strip()
+        if sk:
+            opts_by_seat[sk] += 1
+
+    unfilled_aids = {u.get("Assignment ID", "").strip() for u in dataset.unfilled_gaps if u.get("Assignment ID", "").strip()}
+    roster_by_aid = {r.get("Assignment ID", "").strip(): r for r in dataset.roster_rows if r.get("Assignment ID", "").strip()}
+
+    rows: list[dict[str, object]] = []
+    for seat in dataset.seats:
+        sk = seat.get("Seat Key", "").strip()
+        aid = seat.get("Assignment ID", "").strip()
+        head = seat.get("Activity Head", "").strip() or roster_by_aid.get(aid, {}).get("Activity Head", "")
+        dt = seat.get("Start Date", "").strip() or seat.get("Date", "").strip() or roster_by_aid.get(aid, {}).get("Start Date", "")
+        shift = seat.get("Shift Start Time", "").strip() or roster_by_aid.get(aid, {}).get("Shift Start Time", "")
+        prio = dataset.priority_by_head.get(head, 99)
+        r_row = roster_by_aid.get(aid, {})
+        is_filled = bool(r_row.get("Optimised User Id", "").strip()) and aid not in unfilled_aids
+        rows.append({
+            "Seat Key": sk,
+            "Assignment ID": aid,
+            "Activity Head": head,
+            "Date": dt,
+            "Shift": shift,
+            "Priority": prio,
+            "Legal Options (Layer 1)": opts_by_seat.get(sk, 0),
+            "Filled": 1 if is_filled else 0,
+            "Outcome": "Filled" if is_filled else "Unfilled",
+        })
+    return rows
+
+
+def compute_slot_diff_matrix(ds_a: DashboardDataset, ds_b: DashboardDataset) -> list[dict[str, object]]:
+    """Compare slot coverage between two runs by (Date, Shift, Activity Head)."""
+    from visualization.metrics import build_demand_slot_records
+
+    slots_a = build_demand_slot_records(ds_a)
+    slots_b = build_demand_slot_records(ds_b)
+    map_a = {(str(s["Date"]), str(s["Shift"]), str(s["Activity Head"])): s for s in slots_a}
+    map_b = {(str(s["Date"]), str(s["Shift"]), str(s["Activity Head"])): s for s in slots_b}
+
+    diffs: list[dict[str, object]] = []
+    for key in sorted(set(map_a.keys()) | set(map_b.keys())):
+        sa = map_a.get(key, {})
+        sb = map_b.get(key, {})
+        cov_a = int(sa.get("Assigned", 0))
+        cov_b = int(sb.get("Assigned", 0))
+        delta = cov_b - cov_a
+        status = "Improved" if delta > 0 else ("Degraded" if delta < 0 else "Unchanged")
+        diffs.append({
+            "Date": key[0],
+            "Shift": key[1],
+            "Activity Head": key[2],
+            "Baseline Assigned": cov_a,
+            "Comparison Assigned": cov_b,
+            "Delta": delta,
+            "Change": status,
+        })
+    return diffs
+
+
+def parse_solver_log_metrics(log_text: str) -> dict[str, object]:
+    """Parse Layer-1 / CP-SAT log text into structured stage summaries, severity counts, and filtered lines."""
+    import re
+
+    lines = [ln for ln in log_text.splitlines() if ln.strip()]
+    stages: list[dict[str, object]] = []
+    cur_stage = "General"
+    stage_line_counts: dict[str, int] = defaultdict(int)
+    severity_counts = {"INFO": 0, "STAGE": 0, "WARNING": 0, "ERROR": 0}
+    parsed_lines: list[dict[str, object]] = []
+
+    stage_re = re.compile(r"^===\s*(.+?)\s*===$")
+    time_re = re.compile(r"(\d+(?:\.\d+)?)\s*(?:s|sec|seconds)\b", re.IGNORECASE)
+
+    for idx, line in enumerate(lines, start=1):
+        m_stage = stage_re.match(line.strip())
+        if m_stage:
+            cur_stage = m_stage.group(1)
+            sev = "STAGE"
+            stages.append({"Stage": cur_stage, "Start Line": idx, "Duration (s)": 0.0})
+        elif any(tok in line.upper() for tok in ("ERROR", "TRACEBACK", "EXCEPTION", "INFEASIBLE", "FAILED")):
+            sev = "ERROR"
+        elif any(tok in line.upper() for tok in ("WARN", "SKIPPING", "TIMEOUT")):
+            sev = "WARNING"
+        else:
+            sev = "INFO"
+
+        severity_counts[sev] += 1
+        stage_line_counts[cur_stage] += 1
+
+        m_time = time_re.search(line)
+        if m_time and stages:
+            try:
+                val = float(m_time.group(1))
+                if val > float(stages[-1]["Duration (s)"]) and val < 36000:
+                    stages[-1]["Duration (s)"] = val
+            except ValueError:
+                pass
+
+        parsed_lines.append({
+            "Line": idx,
+            "Stage": cur_stage,
+            "Severity": sev,
+            "Message": line,
+        })
+
+    for stg in stages:
+        stg["Log Lines"] = stage_line_counts.get(str(stg["Stage"]), 0)
+
+    return {
+        "total_lines": len(lines),
+        "severity_counts": severity_counts,
+        "stages": stages,
+        "lines": parsed_lines,
+    }

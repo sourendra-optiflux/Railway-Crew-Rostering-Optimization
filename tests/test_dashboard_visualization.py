@@ -423,14 +423,41 @@ def test_what_if_and_disruption_runners_on_edge_demo():
             if r.get("Assignment Type") == "Demand" and r.get("Is Gap") != "True" and r.get("Optimised User Id")
         ]
         if active_demand:
+            target_id = active_demand[0]
+            orig_row = next(r for r in ds_base.roster_rows if r["Assignment ID"] == target_id)
+            orig_uid = orig_row["Optimised User Id"]
+
             dis_ds, dis_logs = run_disruption_simulation(
                 base_data_dir=demo_root / "data",
                 base_roster_full=base_roster,
                 base_config_path=base_cfg,
-                disrupted_assignment_ids=[active_demand[0]],
+                disrupted_assignment_ids=[target_id],
                 time_limit=10,
             )
             assert dis_ds is not None, dis_logs
+            dis_row = next(r for r in dis_ds.roster_rows if r["Assignment ID"] == target_id)
+            assert dis_row.get("Optimised User Id", "") != orig_uid
+
+        # Also test extended What-If parameters (tier penalty, offset disable, max start changes)
+        sc_ext_ds, sc_ext_logs = run_what_if_scenario(
+            base_data_dir=demo_root / "data",
+            base_roster_full=demo_root / "roster_full_gaps.csv",
+            residential_start_restriction=False,
+            relief_only_day_night_transition=False,
+            priority_strategy="weighted",
+            assignment_type_priority_enabled=True,
+            activity_head_max_shifts_enabled=True,
+            ordinary_rest_hours=11.0,
+            transition_rest_hours=23.0,
+            assignment_type_tier_penalty=500,
+            max_start_changes_per_block=0,
+            max_start_change_minutes=0,
+            allow_start_time_offsets=False,
+            time_limit=10,
+        )
+        assert sc_ext_ds is not None, sc_ext_logs
+        assert sc_ext_ds.constraints["Assignment Type Priority"][0] == "500"
+        assert sc_ext_ds.constraints["Demand Allowed Start Offsets"][0] == "0"
 
 
 def test_executive_insights_cost_skill_resilience_and_run_diff():
@@ -513,3 +540,154 @@ def test_before_after_activity_name_and_color_coding():
     assert len(cmap) > 0
     assert create_crew_gantt_chart(records, color_by="Activity Name") is not None
     assert create_crew_gantt_chart(records, color_by="Activity Name Change") is not None
+
+
+def test_dynamic_swing_caps_and_currency_refresh(tmp_path):
+    from visualization.analytics import (
+        _swing_work_caps,
+        compute_crew_workload_analytics,
+        compute_skill_and_currency_radar,
+    )
+
+    data_dir, cpsat_dir, options_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    # Override constraints_df.csv with custom Residential 4/4 and FIFO 10/10
+    (data_dir / "constraints_df.csv").write_text(
+        "Constraint,Value,Status\n"
+        "Solver Start Date,2026-11-06,Active\n"
+        "Planning Horizon Start,2026-11-01,Active\n"
+        "Planning Horizon Days,14,Active\n"
+        "Residential Work/Off Days,4/4,Active\n"
+        "FIFO Work/Off Days,10/10,Active\n",
+        encoding="utf-8",
+    )
+    # U_RES_1 and U_FIFO_1 both expire 2026-11-10 (90d from 2026-08-12),
+    # but U_RES_1 works Madison Crew on 2026-11-07 so currency refreshes past 2026-11-15.
+    (data_dir / "crew_currency_df.csv").write_text(
+        "User Id,Activity Head,Last Performed Date\n"
+        "U_RES_1,Madison Crew,2026-08-12\n"
+        "U_FIFO_1,Madison Crew,2026-08-12\n",
+        encoding="utf-8",
+    )
+    (data_dir / "activities_df.csv").write_text(
+        "Activity Head,Currency Threshold\n"
+        "Madison Crew,90\n",
+        encoding="utf-8",
+    )
+    (data_dir / "eligibility_matrix.csv").write_text(
+        "User Id,Activity Head\n"
+        "U_RES_1,Madison Crew\n"
+        "U_FIFO_1,Madison Crew\n",
+        encoding="utf-8",
+    )
+
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, options_dir, cfg_path)
+    res_cap, fifo_cap = _swing_work_caps(ds)
+    assert res_cap == 4
+    assert fifo_cap == 10
+
+    workload = compute_crew_workload_analytics(ds)
+    assert workload["summary"]["total_crew"] == 3
+
+    radar = compute_skill_and_currency_radar(ds)
+    watched_users = {w["User Id"] for w in radar["currency_watchlist"]}
+    assert "U_RES_1" not in watched_users
+    assert "U_FIFO_1" in watched_users
+
+
+def test_run_history_sqlite_crud(tmp_path):
+    from visualization.run_history import clear_runs, init_db, list_runs, record_run
+
+    db_path = tmp_path / "test_history.db"
+    init_db(db_path)
+    row_id = record_run(
+        run_type="What-If",
+        preset="Full v2 Roster",
+        strategy="weighted",
+        rule_toggles={"residential_start_restriction": False},
+        total_demand=100,
+        assigned_demand=98,
+        unfilled_demand=2,
+        coverage_pct=98.0,
+        total_cost=120.5,
+        db_path=db_path,
+    )
+    assert row_id >= 1
+    runs = list_runs(limit=10, db_path=db_path)
+    assert len(runs) == 1
+    assert runs[0]["strategy"] == "weighted"
+    assert runs[0]["rule_toggles"]["residential_start_restriction"] is False
+
+    clear_runs(db_path=db_path)
+    assert list_runs(limit=10, db_path=db_path) == []
+
+
+def test_input_readiness_lifecycle_density_diff_and_log_parser():
+    from visualization.analytics import (
+        compute_input_readiness_analytics,
+        compute_lifecycle_waterfall,
+        compute_option_density_vs_fill,
+        compute_slot_diff_matrix,
+        parse_solver_log_metrics,
+    )
+    from visualization.charts import (
+        create_competency_bottleneck_chart,
+        create_daily_supply_vs_demand_chart,
+        create_lifecycle_waterfall_chart,
+        create_option_density_scatter_chart,
+        create_rejection_pareto_chart,
+        create_slot_diff_heatmap,
+        create_solver_log_timeline_chart,
+        create_unfilled_treemap_chart,
+    )
+    from visualization.gap_analysis import build_constraint_diagnostics, build_unfilled_gap_records
+
+    ds = load_dashboard_dataset(
+        data_dir=DEFAULT_DATA_DIR,
+        cpsat_dir=DEFAULT_CPSAT_DIR,
+        options_dir=DEFAULT_OPTIONS_DIR,
+        config_path=DEFAULT_CONFIG_PATH,
+    )
+
+    readiness = compute_input_readiness_analytics(ds)
+    assert len(readiness["competency_matrix"]) > 0
+    assert len(readiness["daily_supply_rows"]) > 0
+    assert create_competency_bottleneck_chart(readiness["competency_matrix"]) is not None
+    assert create_daily_supply_vs_demand_chart(readiness["daily_supply_rows"]) is not None
+
+    lifecycle = compute_lifecycle_waterfall(ds)
+    assert lifecycle["total_demand"] > 0
+    assert create_lifecycle_waterfall_chart(lifecycle) is not None
+
+    density = compute_option_density_vs_fill(ds)
+    assert len(density) == len(ds.seats)
+    assert create_option_density_scatter_chart(density) is not None
+
+    diag = build_constraint_diagnostics(ds)
+    assert create_rejection_pareto_chart(diag["rejection_summary"]) is not None
+    unfilled = build_unfilled_gap_records(ds)
+    assert create_unfilled_treemap_chart(unfilled) is not None
+
+    sample_uid = next(iter(ds.crew_by_id))
+    from visualization.analytics import build_individual_crew_schedule
+    from visualization.charts import create_individual_crew_calendar_chart
+
+    indiv_sched = build_individual_crew_schedule(ds, sample_uid)
+    assert create_individual_crew_calendar_chart(indiv_sched, sample_uid) is not None
+
+    slot_diffs = compute_slot_diff_matrix(ds, ds)
+    assert all(d["Delta"] == 0 for d in slot_diffs)
+    assert create_slot_diff_heatmap(slot_diffs) is not None
+
+    sample_log = (
+        "=== Layer 1: Option Generation ===\n"
+        "Generated 100 options in 1.5s\n"
+        "=== Layer 2: CP-SAT Solver ===\n"
+        "WARNING: 1 seat had 0 options\n"
+        "Solved in 4.2 seconds\n"
+    )
+    parsed = parse_solver_log_metrics(sample_log)
+    assert parsed["total_lines"] == 5
+    assert parsed["severity_counts"]["STAGE"] == 2
+    assert parsed["severity_counts"]["WARNING"] == 1
+    assert len(parsed["stages"]) == 2
+    assert create_solver_log_timeline_chart(parsed) is not None

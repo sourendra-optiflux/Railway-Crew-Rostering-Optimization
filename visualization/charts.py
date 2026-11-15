@@ -7,6 +7,33 @@ from collections import defaultdict
 import plotly.express as px
 import plotly.graph_objects as go
 
+VIBRANT_PALETTE = [
+    "#2563eb",  # Royal Blue
+    "#10b981",  # Emerald
+    "#f59e0b",  # Amber
+    "#ef4444",  # Coral Red
+    "#8b5cf6",  # Violet
+    "#06b6d4",  # Cyan
+    "#ec4899",  # Pink
+    "#14b8a6",  # Teal
+]
+px.defaults.color_discrete_sequence = VIBRANT_PALETTE
+
+
+def _apply_chart_theme(fig: go.Figure) -> go.Figure:
+    """Apply consistent typography, gridlines, and high-contrast hover styling."""
+    fig.update_layout(
+        template="plotly_white",
+        font={"family": "Inter, Segoe UI, sans-serif", "size": 12, "color": "#1e293b"},
+        title_font={"size": 15, "color": "#0f172a"},
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(248, 250, 252, 0.55)",
+        hoverlabel={"bgcolor": "#0f172a", "font_color": "#f8fafc", "font_size": 12},
+    )
+    fig.update_xaxes(showgrid=True, gridcolor="rgba(203, 213, 225, 0.45)", zeroline=False)
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(203, 213, 225, 0.45)", zeroline=False)
+    return fig
+
 
 def create_demand_coverage_heatmap(
     slot_records: list[dict[str, object]],
@@ -672,3 +699,284 @@ def create_daily_pool_area_chart(daily_pool_rows: list[dict[str, object]]) -> go
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
     return fig
+
+
+def create_lifecycle_waterfall_chart(lifecycle: dict[str, object]) -> go.Figure:
+    """3-stage waterfall chart from Baseline Demand through Leave Gaps to Solver Recovery."""
+    fig = go.Figure(
+        go.Waterfall(
+            name="Demand Lifecycle",
+            orientation="v",
+            measure=["absolute", "relative", "relative", "relative", "total"],
+            x=[
+                "Baseline Demand",
+                "Leave Gaps Injected",
+                "Direct Fills",
+                "Multi-Hop Chain Fills",
+                "Final Covered Demand",
+            ],
+            y=[
+                int(lifecycle.get("total_demand", 0)),
+                -int(lifecycle.get("total_gaps", 0)),
+                int(lifecycle.get("direct_fills", 0)),
+                int(lifecycle.get("multi_hop_fills", 0)),
+                0,
+            ],
+            textposition="outside",
+            connector={"line": {"color": "#94a3b8"}},
+            increasing={"marker": {"color": "#10b981"}},
+            decreasing={"marker": {"color": "#ef4444"}},
+            totals={"marker": {"color": "#2563eb"}},
+        )
+    )
+    fig.update_layout(
+        title="3-Stage Lifecycle: Baseline Demand -> Leave Gaps -> Solver Recovery",
+        yaxis_title="Demand Shifts",
+        height=390,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return _apply_chart_theme(fig)
+
+
+def create_rejection_pareto_chart(rejection_summary: list[dict[str, object]]) -> go.Figure:
+    """Pareto bar + cumulative % line chart of Layer-1 rejection reasons."""
+    if not rejection_summary:
+        fig = go.Figure()
+        fig.update_layout(title="No Layer-1 Rejection Data Available")
+        return fig
+
+    sorted_rows = sorted(rejection_summary, key=lambda r: -int(r.get("Count", 0)))
+    reasons = [str(r.get("Reason", r.get("Rejection Reason", "Unknown"))) for r in sorted_rows]
+    counts = [int(r.get("Count", 0)) for r in sorted_rows]
+    total = sum(counts) or 1
+    cum_pct: list[float] = []
+    running = 0
+    for c in counts:
+        running += c
+        cum_pct.append(round(running / total * 100.0, 1))
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name="Rejections", x=reasons, y=counts, marker_color="#f59e0b", yaxis="y"))
+    fig.add_trace(
+        go.Scatter(
+            name="Cumulative %",
+            x=reasons,
+            y=cum_pct,
+            mode="lines+markers",
+            line={"color": "#dc2626", "width": 2},
+            yaxis="y2",
+        )
+    )
+    fig.update_layout(
+        title="Layer-1 Rejection Pareto (Top Constraint Bottlenecks)",
+        xaxis_title="Rejection Reason",
+        yaxis={"title": "Rejection Count"},
+        yaxis2={"title": "Cumulative %", "overlaying": "y", "side": "right", "range": [0, 105]},
+        height=390,
+        margin={"l": 20, "r": 30, "t": 50, "b": 70},
+        legend={"orientation": "h", "y": 1.12},
+    )
+    return _apply_chart_theme(fig)
+
+
+def create_unfilled_treemap_chart(unfilled_records: list[dict[str, object]]) -> go.Figure:
+    """Treemap breaking down unfilled demand by Activity Head -> Priority -> Shift."""
+    if not unfilled_records:
+        fig = go.Figure()
+        fig.update_layout(title="No Unfilled Demand Slots")
+        return fig
+
+    fig = px.treemap(
+        unfilled_records,
+        path=["Activity Head", "Priority", "Shift"],
+        values="Remaining Gap",
+        color="Remaining Gap",
+        color_continuous_scale="Reds",
+        title="Unfilled Demand Treemap (Activity Head -> Priority -> Shift)",
+    )
+    fig.update_layout(height=420, margin={"l": 10, "r": 10, "t": 50, "b": 10})
+    return fig
+
+
+def create_option_density_scatter_chart(seat_density_rows: list[dict[str, object]]) -> go.Figure:
+    """Scatter plot of Layer-1 legal option count vs fill outcome per open seat."""
+    if not seat_density_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Seat Option Density Data Available")
+        return fig
+
+    fig = px.strip(
+        seat_density_rows,
+        x="Legal Options (Layer 1)",
+        y="Outcome",
+        color="Activity Head",
+        hover_data=["Seat Key", "Date", "Shift", "Priority"],
+        title="Option Density vs Fill Outcome (0 Options = Layer-1 Bottleneck, >0 Unfilled = Layer-2 Conflict)",
+    )
+    fig.update_layout(height=390, margin={"l": 20, "r": 20, "t": 50, "b": 40})
+    return fig
+
+
+def create_individual_crew_calendar_chart(schedule_rows: list[dict[str, object]], user_id: str) -> go.Figure:
+    """Visual timeline/calendar strip for a single crew member across the horizon."""
+    plot_rows: list[dict[str, object]] = []
+    for r in schedule_rows:
+        s_date = str(r.get("Start Date", "")).strip()
+        e_date = str(r.get("End Date", "")).strip() or s_date
+        s_time = str(r.get("Shift Start", "")).strip() or "00:00"
+        e_time = str(r.get("Shift End", "")).strip() or "23:59"
+        if not s_date:
+            continue
+        start_ts = f"{s_date} {s_time}"
+        end_ts = f"{e_date} {e_time}"
+        if end_ts <= start_ts:
+            end_ts = f"{e_date} 23:59"
+        plot_rows.append({
+            **r,
+            "Start": start_ts,
+            "End": end_ts,
+            "Activity Head": str(r.get("Activity Head", "")).strip() or str(r.get("Assignment Type", "Other")),
+        })
+
+    if not plot_rows:
+        fig = go.Figure()
+        fig.update_layout(title=f"No Schedule Entries for {user_id}")
+        return _apply_chart_theme(fig)
+
+    fig = px.timeline(
+        plot_rows,
+        x_start="Start",
+        x_end="End",
+        y="Assignment Type",
+        color="Activity Head",
+        hover_data=[
+            "Start Date",
+            "Shift Start",
+            "End Date",
+            "Shift End",
+            "Status",
+            "Start Location",
+            "End Location",
+            "Rest Since Prev Shift",
+            "Note",
+        ],
+        title=f"Visual Schedule Strip: {user_id}",
+    )
+    fig.update_yaxes(autorange="reversed")
+    fig.update_layout(height=320, margin={"l": 20, "r": 20, "t": 50, "b": 30})
+    return _apply_chart_theme(fig)
+
+
+def create_competency_bottleneck_chart(comp_rows: list[dict[str, object]]) -> go.Figure:
+    """Horizontal bar chart showing compliant vs blocked crew per Activity Head."""
+    if not comp_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Competency Compliance Matrix Available")
+        return fig
+
+    heads = [str(r["Activity Head"]) for r in comp_rows]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name="Compliant Crew", y=heads, x=[int(r["Compliant Crew"]) for r in comp_rows], orientation="h", marker_color="#10b981"))
+    fig.add_trace(go.Bar(name="Blocked / Missing Crew", y=heads, x=[int(r["Blocked / Missing Crew"]) for r in comp_rows], orientation="h", marker_color="#ef4444"))
+    fig.update_layout(
+        barmode="stack",
+        title="Competency Compliance Readiness by Activity Head",
+        xaxis_title="Crew Count",
+        height=400,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig
+
+
+def create_daily_supply_vs_demand_chart(daily_supply_rows: list[dict[str, object]]) -> go.Figure:
+    """Pre-gap daily demand vs baseline assigned vs relief/excess pool."""
+    if not daily_supply_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Daily Supply vs Demand Data Available")
+        return fig
+
+    dates = [str(r["Date"]) for r in daily_supply_rows]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name="Baseline Assigned", x=dates, y=[int(r["Baseline Assigned"]) for r in daily_supply_rows], marker_color="#2563eb"))
+    fig.add_trace(go.Bar(name="Relief / Excess Pool", x=dates, y=[int(r["Relief/Excess Pool"]) for r in daily_supply_rows], marker_color="#10b981"))
+    fig.add_trace(go.Scatter(name="Total Demand Shifts", x=dates, y=[int(r["Demand Shifts"]) for r in daily_supply_rows], mode="lines+markers", line={"color": "#dc2626", "width": 2}))
+    fig.update_layout(
+        barmode="stack",
+        title="Pre-Gap Baseline Supply & Relief Pool vs Daily Demand",
+        xaxis_title="Date",
+        yaxis_title="Shifts / Crew",
+        height=380,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig
+
+
+def create_slot_diff_heatmap(diff_rows: list[dict[str, object]]) -> go.Figure:
+    """Heatmap of coverage delta (Comparison - Baseline) across Activity Head x Date."""
+    if not diff_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Slot Differences Available")
+        return fig
+
+    agg: dict[tuple[str, str], int] = {}
+    dates: set[str] = set()
+    heads: set[str] = set()
+    for r in diff_rows:
+        d = str(r["Date"])
+        h = str(r["Activity Head"])
+        dates.add(d)
+        heads.add(h)
+        agg[(h, d)] = agg.get((h, d), 0) + int(r.get("Delta", 0))
+
+    sorted_dates = sorted(dates)
+    sorted_heads = sorted(heads)
+    z = [[agg.get((h, d), 0) for d in sorted_dates] for h in sorted_heads]
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=z,
+            x=sorted_dates,
+            y=sorted_heads,
+            colorscale="RdYlGn",
+            zmid=0,
+            colorbar={"title": "Delta Assigned"},
+        )
+    )
+    fig.update_layout(
+        title="Before vs After Slot Coverage Delta (Green = Improved, Red = Degraded)",
+        xaxis_title="Date",
+        yaxis_title="Activity Head",
+        height=420,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return fig
+
+
+def create_solver_log_timeline_chart(parsed_log: dict[str, object]) -> go.Figure:
+    """Bar chart of solver log stage durations / line volume."""
+    stages = parsed_log.get("stages", [])
+    if not stages:
+        fig = go.Figure()
+        fig.update_layout(title="No Stage Headers Found in Solver Log")
+        return fig
+
+    names = [str(s["Stage"]) for s in stages]
+    durations = [float(s.get("Duration (s)", 0.0)) for s in stages]
+    lines = [int(s.get("Log Lines", 0)) for s in stages]
+
+    fig = go.Figure()
+    if any(d > 0 for d in durations):
+        fig.add_trace(go.Bar(name="Reported Duration (s)", x=names, y=durations, marker_color="#2563eb"))
+        yaxis_title = "Seconds"
+    else:
+        fig.add_trace(go.Bar(name="Log Lines", x=names, y=lines, marker_color="#6366f1"))
+        yaxis_title = "Log Lines"
+
+    fig.update_layout(
+        title="Solver Log Stage Breakdown",
+        xaxis_title="Stage",
+        yaxis_title=yaxis_title,
+        height=320,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return _apply_chart_theme(fig)
