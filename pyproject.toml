@@ -34,3 +34,6 @@ extend-exclude = ["*.ipynb"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
 ignore = ["E501", "B905"]
+
+[tool.pyright]
+extraPaths = ["src", "CP-SAT", "."]

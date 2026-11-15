@@ -11,13 +11,13 @@ from visualization.analytics import (
     compute_depot_and_travel_analytics,
     compute_solver_cost_and_offset_analytics,
 )
+from visualization.data_loader import ROOT, DashboardDataset
+from visualization.export_utils import datasets_to_excel_bytes, rows_to_csv_bytes
+from visualization.gap_analysis import build_unfilled_gap_records
 from visualization.metrics import (
     aggregate_by_activity_head,
     compute_summary_kpis,
 )
-from visualization.data_loader import ROOT, DashboardDataset
-from visualization.export_utils import datasets_to_excel_bytes, rows_to_csv_bytes
-from visualization.gap_analysis import build_unfilled_gap_records
 from visualization.run_history import record_run
 from visualization.scenario_runner import stream_command
 from visualization.views.solver_log_viewer import render_solver_log_visualizer

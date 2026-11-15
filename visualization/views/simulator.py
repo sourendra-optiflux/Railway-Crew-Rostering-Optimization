@@ -14,16 +14,16 @@ from visualization.analytics import (
     compute_solver_cost_and_offset_analytics,
 )
 from visualization.charts import create_slot_diff_heatmap
-from visualization.metrics import compute_summary_kpis
-from visualization.views.solver_log_viewer import render_solver_log_visualizer
 from visualization.data_loader import DashboardDataset
 from visualization.gap_analysis import build_unfilled_gap_records
+from visualization.metrics import compute_summary_kpis
 from visualization.run_history import clear_runs, list_runs, record_run
 from visualization.scenario_runner import (
     run_disruption_simulation,
     run_what_if_scenario,
     save_active_config_and_constraints,
 )
+from visualization.views.solver_log_viewer import render_solver_log_visualizer
 
 
 def _read_csv_dict_rows(path: Path) -> list[dict[str, str]]:

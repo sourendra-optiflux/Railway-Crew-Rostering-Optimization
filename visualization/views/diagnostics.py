@@ -14,7 +14,6 @@ from visualization.analytics import (
     compute_slot_diff_matrix,
     compute_solver_cost_and_offset_analytics,
 )
-from visualization.metrics import compare_strategy_datasets
 from visualization.charts import (
     create_cost_and_offset_charts,
     create_daily_pool_area_chart,
@@ -34,6 +33,7 @@ from visualization.data_loader import ROOT, DashboardDataset, discover_strategy_
 from visualization.export_utils import rows_to_csv_bytes
 from visualization.gap_analysis import build_constraint_diagnostics
 from visualization.kpi_engine import aggregate_by_priority_tier, compute_extended_kpis
+from visualization.metrics import compare_strategy_datasets
 from visualization.validators import run_post_solve_qa_suite
 
 

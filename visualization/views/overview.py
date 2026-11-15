@@ -10,13 +10,6 @@ from visualization.analytics import (
     compute_lifecycle_waterfall,
     compute_option_density_vs_fill,
 )
-from visualization.metrics import (
-    aggregate_by_activity_head,
-    aggregate_by_swing,
-    build_crew_timeline_records,
-    build_demand_slot_records,
-    compute_summary_kpis,
-)
 from visualization.charts import (
     create_assignment_type_donut_charts,
     create_crew_gantt_chart,
@@ -43,6 +36,13 @@ from visualization.kpi_engine import (
     compute_cross_run_deltas,
     compute_extended_kpis,
     generate_operational_brief,
+)
+from visualization.metrics import (
+    aggregate_by_activity_head,
+    aggregate_by_swing,
+    build_crew_timeline_records,
+    build_demand_slot_records,
+    compute_summary_kpis,
 )
 
 
