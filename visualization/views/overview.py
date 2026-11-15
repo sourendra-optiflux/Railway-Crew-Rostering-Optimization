@@ -18,9 +18,13 @@ from visualization.metrics import (
     compute_summary_kpis,
 )
 from visualization.charts import (
+    create_assignment_type_donut_charts,
     create_crew_gantt_chart,
     create_demand_coverage_heatmap,
+    create_depot_coverage_chart,
+    create_fill_rate_gauge_chart,
     create_gap_summary_charts,
+    create_head_depot_coverage_heatmap,
     create_individual_crew_calendar_chart,
     create_lifecycle_waterfall_chart,
     create_option_density_scatter_chart,
@@ -33,6 +37,13 @@ from visualization.gap_analysis import (
     inspect_seat_candidates,
     summarize_gaps,
 )
+from visualization.kpi_engine import (
+    aggregate_by_depot,
+    aggregate_by_depot_and_head,
+    compute_cross_run_deltas,
+    compute_extended_kpis,
+    generate_operational_brief,
+)
 
 
 def _select_set(values: list[str]) -> set[str] | None:
@@ -43,10 +54,40 @@ def render_overview(
     dataset: DashboardDataset,
     all_slots: list[dict[str, object]],
     parsed_meta: dict[str, object],
+    baseline_dataset: DashboardDataset | None = None,
 ) -> None:
-    """Render Section 1: Overall Summary KPIs, Solver Stages, Insights & Tables."""
-    st.subheader("Overall Summary KPIs")
+    """Render Page 1: Executive Overview, Automated Operational Brief, KPIs & Reconciled Summaries."""
+    brief = generate_operational_brief(dataset, all_slots)
+    if int(brief["total_unfilled"]) == 0:
+        st.success(f"**Automated Executive Operational Brief** — {brief['narrative']}")
+    else:
+        st.info(f"**Automated Executive Operational Brief** — {brief['narrative']}")
+
+    if baseline_dataset is not None:
+        deltas = compute_cross_run_deltas(dataset, baseline_dataset)
+        st.markdown(f"#### Cross-Run Delta vs Baseline (`{baseline_dataset.name}`)")
+        d1, d2, d3, d4, d5 = st.columns(5)
+        d1.metric("Active Coverage %", f"{deltas['active']['coverage_pct']:.2f}%", f"{deltas['delta_coverage_pct']:+.2f}%")
+        d2.metric("Active Gap Fill %", f"{deltas['active']['gap_fill_pct']:.2f}%", f"{deltas['delta_gap_fill_pct']:+.2f}%")
+        d3.metric(
+            "Unfilled Demand",
+            f"{deltas['active']['unfilled_demand']:,}",
+            f"{deltas['delta_unfilled_demand']:+d}",
+            delta_color="inverse",
+        )
+        d4.metric(
+            "Reassigned Crews",
+            f"{deltas['active']['reassigned_crew_count']:,}",
+            f"{deltas['delta_reassigned_crews']:+d}",
+            delta_color="inverse",
+        )
+        cost_val = f"{deltas['active']['solver_cost']:,}" if deltas["active"]["solver_cost"] is not None else "N/A"
+        cost_delta = f"{deltas['delta_cost']:+d}" if deltas["delta_cost"] is not None else None
+        d5.metric("Assignment Cost", cost_val, cost_delta, delta_color="inverse")
+
+    st.subheader("Executive Summary KPIs (Reconciled Source Metrics)")
     kpis = compute_summary_kpis(dataset)
+    ext = compute_extended_kpis(dataset)
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric("Total Crew Demand", f"{kpis.total_demand:,}", help=f"Exact total demand shifts: {kpis.total_demand}")
@@ -68,7 +109,7 @@ def render_overview(
         help=f"Demand shifts: {kpis.fifo_demand_assignments:,} | All work shifts (incl. Excess/Relief): {kpis.fifo_work_assignments:,}",
     )
 
-    g1, g2, g3, g4 = st.columns(4)
+    g1, g2, g3, g4, g5, g6 = st.columns(6)
     g1.metric("Total Leave Gaps", f"{kpis.total_gaps:,}", help=f"Open: {kpis.open_gaps_to_fill:,} + Locked: {kpis.locked_gaps:,}")
     g2.metric("Open Gaps (On/After Solver Start)", f"{kpis.open_gaps_to_fill:,}")
     g3.metric(
@@ -76,7 +117,22 @@ def render_overview(
         f"{kpis.gaps_filled:,} ({kpis.gap_fill_pct:.1f}%)",
         help=f"Exact fill rate: {kpis.gap_fill_pct:.4f}% ({kpis.gaps_filled:,} / {kpis.open_gaps_to_fill:,})",
     )
-    g4.metric("Locked Gaps (Before Solver Start)", f"{kpis.locked_gaps:,}")
+    g4.metric(
+        "Selected Work Shifts",
+        f"{ext['total_selected_work_assignments']:,}",
+        help=f"Demand: {ext['demand_assignments']:,} | Relief: {ext['relief_assignments']:,} | Excess: {ext['excess_assignments']:,}",
+    )
+    g5.metric(
+        "Reassigned Crews",
+        f"{ext['reassigned_crew_count']:,}",
+        help=f"Unique crews moved vs baseline ({ext['reassigned_row_count']:,} reassigned shift rows)",
+    )
+    rt_str = f"{ext['solver_runtime_sec']:.1f}s" if ext["solver_runtime_sec"] is not None else "N/A"
+    g6.metric(
+        "Solver Status & Runtime",
+        f"{ext['solver_status']} ({rt_str})",
+        help=f"Locked gaps before solver start: {kpis.locked_gaps:,}",
+    )
 
     stages = parsed_meta.get("stages", [])
     val_headline = str(parsed_meta.get("validation_headline", ""))
@@ -85,11 +141,15 @@ def render_overview(
         b_cols = st.columns(max(1, len(stages) + 1))
         for idx, stg in enumerate(stages):
             detail_txt = stg["Details"].replace(stg["Status"], "").strip(" ()")
+            stage_label = stg["Stage"].title()
+            if not stage_label.lower().startswith("stage "):
+                stage_label = f"Stage {idx + 1}: {stage_label}"
             b_cols[idx].metric(
-                f"Stage {idx + 1}: {stg['Stage'].title()}",
+                stage_label,
                 stg["Status"],
                 detail_txt,
-                help=f"{stg['Stage'].title()}: {stg['Status']} ({detail_txt})",
+                delta_color="off",
+                help=f"{stage_label}: {stg['Status']} ({detail_txt})",
             )
         if val_headline:
             val_status = "PASS (0 Failures)" if "0 unexpected failure" in val_headline else "Check Failures"
@@ -97,6 +157,7 @@ def render_overview(
                 "Validation Check",
                 val_status,
                 val_headline,
+                delta_color="off",
                 help=val_headline,
             )
 
@@ -115,28 +176,64 @@ def render_overview(
                 col.info(msg)
 
     st.markdown("---")
+    g_col1, g_col2, g_col3 = st.columns([4, 3, 3])
+    donuts = create_assignment_type_donut_charts(ext)
+    with g_col1:
+        st.plotly_chart(
+            create_fill_rate_gauge_chart(kpis.coverage_pct, kpis.gap_fill_pct),
+            use_container_width=True,
+            key="ov_gauge",
+        )
+    with g_col2:
+        st.plotly_chart(donuts["assignment_type"], use_container_width=True, key="ov_donut_type")
+    with g_col3:
+        st.plotly_chart(donuts["crew_classification"], use_container_width=True, key="ov_donut_cls")
+
     col_left, col_right = st.columns(2)
     head_agg = aggregate_by_activity_head(all_slots)
     swing_agg = aggregate_by_swing(dataset)
+    depot_agg = aggregate_by_depot(dataset, all_slots)
 
     with col_left:
         st.markdown("#### Activity Head-wise Coverage Summary")
-        st.dataframe(head_agg, use_container_width=True, hide_index=True)
+        st.dataframe(
+            head_agg,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Coverage %": st.column_config.ProgressColumn(
+                    "Coverage %", format="%.2f%%", min_value=0, max_value=100
+                ),
+            },
+        )
 
     with col_right:
         st.markdown("#### Swing-wise Coverage Summary")
-        st.dataframe(swing_agg, use_container_width=True, hide_index=True)
+        st.dataframe(
+            swing_agg,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Coverage %": st.column_config.ProgressColumn(
+                    "Coverage %", format="%.2f%%", min_value=0, max_value=100
+                ),
+            },
+        )
 
     gap_summaries = summarize_gaps(build_unfilled_gap_records(dataset))
     summary_figs = create_gap_summary_charts(gap_summaries, head_agg)
-    st.plotly_chart(summary_figs["resident_vs_fifo"], use_container_width=True)
+    c_chart1, c_chart2 = st.columns([3, 2])
+    with c_chart1:
+        st.plotly_chart(summary_figs["resident_vs_fifo"], use_container_width=True, key="ov_res_fifo")
+    with c_chart2:
+        st.plotly_chart(create_depot_coverage_chart(depot_agg), use_container_width=True, key="ov_depot_cov")
 
     st.markdown("---")
     st.markdown("#### 3-Stage Demand Lifecycle & Leave Impact Breakdown")
     lifecycle = compute_lifecycle_waterfall(dataset)
     lc1, lc2 = st.columns([3, 2])
     with lc1:
-        st.plotly_chart(create_lifecycle_waterfall_chart(lifecycle), use_container_width=True)
+        st.plotly_chart(create_lifecycle_waterfall_chart(lifecycle), use_container_width=True, key="ov_lifecycle")
     with lc2:
         st.markdown("**Leave Type Recovery Breakdown**")
         if lifecycle["leave_breakdown"]:
@@ -151,16 +248,31 @@ def render_demand_coverage(
     all_swings: list[str],
     all_dates: list[str],
     all_shifts: list[str],
+    default_heads: list[str] | None = None,
+    default_swings: list[str] | None = None,
+    default_crew_types: list[str] | None = None,
 ) -> None:
-    """Render Section 2: Demand vs Coverage Heatmap."""
-    st.subheader("Demand vs Coverage Heatmap")
+    """Render Page 2: Demand vs Coverage Analysis & Heatmaps."""
+    st.subheader("Demand vs Coverage Analysis & Bottleneck Heatmaps")
     f1, f2, f3, f4, f5 = st.columns(5)
     with f1:
-        sel_heads = st.multiselect("Filter by Activity Head", all_heads)
+        sel_heads = st.multiselect(
+            "Filter by Activity Head",
+            all_heads,
+            default=[h for h in (default_heads or []) if h in all_heads],
+        )
     with f2:
-        sel_swings = st.multiselect("Filter by Swing", all_swings)
+        sel_swings = st.multiselect(
+            "Filter by Swing",
+            all_swings,
+            default=[s for s in (default_swings or []) if s in all_swings],
+        )
     with f3:
-        sel_crew_types = st.multiselect("Filter by Crew Type", ["Residential", "FIFO"])
+        sel_crew_types = st.multiselect(
+            "Filter by Crew Type",
+            ["Residential", "FIFO"],
+            default=[c for c in (default_crew_types or []) if c in ("Residential", "FIFO")],
+        )
     with f4:
         sel_dates = st.multiselect("Filter by Date", all_dates)
     with f5:
@@ -207,16 +319,53 @@ def render_demand_coverage(
     m4.metric("Filtered Coverage %", f"{filtered_kpis.coverage_pct:.2f}%")
 
     fig_heatmap = create_demand_coverage_heatmap(filtered_slots, column_mode=col_mode)
-    st.plotly_chart(fig_heatmap, use_container_width=True)
+    st.plotly_chart(fig_heatmap, use_container_width=True, key="cov_heatmap_main")
+
+    hd_col1, hd_col2 = st.columns([3, 2])
+    head_depot_rows = aggregate_by_depot_and_head(dataset, filtered_slots)
+    bottleneck_heads = sorted(
+        aggregate_by_activity_head(filtered_slots),
+        key=lambda r: (-int(r["Remaining Gap"]), int(r["Priority"]), str(r["Activity Head"])),
+    )
+    with hd_col1:
+        st.plotly_chart(
+            create_head_depot_coverage_heatmap(head_depot_rows),
+            use_container_width=True,
+            key="cov_heatmap_depot",
+        )
+    with hd_col2:
+        st.markdown("#### Ranked Bottleneck Table (By Unfilled Demand & Priority)")
+        st.dataframe(
+            bottleneck_heads,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Coverage %": st.column_config.ProgressColumn(
+                    "Coverage %", format="%.2f%%", min_value=0, max_value=100
+                ),
+            },
+        )
 
     st.markdown("#### Detailed Slot Coverage Table")
-    st.dataframe(filtered_slots, use_container_width=True, hide_index=True)
+    st.dataframe(
+        filtered_slots,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Coverage %": st.column_config.ProgressColumn(
+                "Coverage %", format="%.2f%%", min_value=0, max_value=100
+            ),
+        },
+    )
 
 
 def render_crew_assignment(
     dataset: DashboardDataset,
     all_heads: list[str],
     all_swings: list[str],
+    default_heads: list[str] | None = None,
+    default_swings: list[str] | None = None,
+    default_crew_types: list[str] | None = None,
 ) -> None:
     """Render Section 3: Crew Assignment Gantt Chart & Individual Schedule."""
     st.subheader("Crew Assignment Gantt Chart (Actual Selected Solver Assignments)")
@@ -224,11 +373,23 @@ def render_crew_assignment(
 
     f1, f2, f3, f4 = st.columns(4)
     with f1:
-        sel_crew_types = st.multiselect("Crew Classification", ["Residential", "FIFO"])
+        sel_crew_types = st.multiselect(
+            "Crew Classification",
+            ["Residential", "FIFO"],
+            default=[c for c in (default_crew_types or []) if c in ("Residential", "FIFO")],
+        )
     with f2:
-        sel_swings = st.multiselect("Swing", all_swings)
+        sel_swings = st.multiselect(
+            "Swing",
+            all_swings,
+            default=[s for s in (default_swings or []) if s in all_swings],
+        )
     with f3:
-        sel_heads = st.multiselect("Activity Head", all_heads)
+        sel_heads = st.multiselect(
+            "Activity Head",
+            all_heads,
+            default=[h for h in (default_heads or []) if h in all_heads],
+        )
     with f4:
         sel_users = st.multiselect("Crew Member (User Id)", all_users)
 
@@ -302,11 +463,24 @@ def render_crew_assignment(
     st.markdown(f"#### Before vs After Reassignment Changes ({len(before_after_rows)} Moved Shift(s))")
     if before_after_rows:
         st.dataframe(before_after_rows, use_container_width=True, hide_index=True)
+        st.download_button(
+            "Download Reassignment Diff Table (CSV)",
+            data=rows_to_csv_bytes(before_after_rows),
+            file_name="reassignment_diff_table.csv",
+            mime="text/csv",
+        )
     else:
         st.info("No reassigned/moved shifts match the current filters.")
 
     st.markdown("#### Selected Crew Assignment Records")
     st.dataframe(timeline_records, use_container_width=True, hide_index=True)
+    if timeline_records:
+        st.download_button(
+            "Download Selected Crew Assignments (CSV)",
+            data=rows_to_csv_bytes(timeline_records),
+            file_name="selected_crew_assignments.csv",
+            mime="text/csv",
+        )
 
     st.markdown("#### Individual Crew Journey & Printable Schedule")
     crew_options = sorted(dataset.crew_by_id.keys()) or all_users
@@ -341,14 +515,24 @@ def render_gap_analysis(
     dataset: DashboardDataset,
     all_heads: list[str],
     all_swings: list[str],
+    default_heads: list[str] | None = None,
+    default_swings: list[str] | None = None,
 ) -> None:
     """Render Section 4: Gap-Filling Analysis & Seat Inspector."""
     st.subheader("Gap-Filling Analysis (Unfilled Demand)")
     f1, f2 = st.columns(2)
     with f1:
-        sel_head = st.multiselect("Inspect Activity Head(s)", all_heads)
+        sel_head = st.multiselect(
+            "Inspect Activity Head(s)",
+            all_heads,
+            default=[h for h in (default_heads or []) if h in all_heads],
+        )
     with f2:
-        sel_swing = st.multiselect("Filter by Swing", all_swings)
+        sel_swing = st.multiselect(
+            "Inspect Swing(s)",
+            all_swings,
+            default=[s for s in (default_swings or []) if s in all_swings],
+        )
 
     unfilled_records = build_unfilled_gap_records(
         dataset,
@@ -367,25 +551,32 @@ def render_gap_analysis(
 
     r1c1, r1c2 = st.columns(2)
     with r1c1:
-        st.plotly_chart(charts["by_head"], use_container_width=True)
+        st.plotly_chart(charts["by_head"], use_container_width=True, key="gap_by_head")
     with r1c2:
-        st.plotly_chart(charts["by_priority"], use_container_width=True)
+        st.plotly_chart(charts["by_priority"], use_container_width=True, key="gap_by_priority")
 
     r2c1, r2c2 = st.columns(2)
     with r2c1:
-        st.plotly_chart(charts["by_shift"], use_container_width=True)
+        st.plotly_chart(charts["by_shift"], use_container_width=True, key="gap_by_shift")
     with r2c2:
-        st.plotly_chart(charts["resident_vs_fifo"], use_container_width=True)
+        st.plotly_chart(charts["resident_vs_fifo"], use_container_width=True, key="gap_res_fifo")
 
     t_col1, t_col2 = st.columns(2)
     with t_col1:
-        st.plotly_chart(create_unfilled_treemap_chart(unfilled_records), use_container_width=True)
+        st.plotly_chart(create_unfilled_treemap_chart(unfilled_records), use_container_width=True, key="gap_treemap")
     with t_col2:
         density_rows = compute_option_density_vs_fill(dataset)
-        st.plotly_chart(create_option_density_scatter_chart(density_rows), use_container_width=True)
+        st.plotly_chart(create_option_density_scatter_chart(density_rows), use_container_width=True, key="gap_density")
 
     st.markdown("#### Unfilled Demand Slots Table")
     st.dataframe(unfilled_records, use_container_width=True, hide_index=True)
+    if unfilled_records:
+        st.download_button(
+            "Download Filtered Unfilled Gap Report (CSV)",
+            data=rows_to_csv_bytes(unfilled_records),
+            file_name="unfilled_gap_report.csv",
+            mime="text/csv",
+        )
 
     if unfilled_records:
         st.markdown("---")

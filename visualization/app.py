@@ -28,8 +28,8 @@ from visualization.gap_analysis import parse_summary_and_validation  # noqa: E40
 from visualization.metrics import build_demand_slot_records  # noqa: E402
 from visualization.views.diagnostics import (  # noqa: E402
     render_constraint_diagnostics,
+    render_priority_and_telemetry,
     render_skill_currency_radar,
-    render_strategy_comparison,
     render_workload_chains_depots,
 )
 from visualization.views.input_readiness import render_input_readiness  # noqa: E402
@@ -265,8 +265,15 @@ def main() -> None:
             font-weight: 700 !important;
         }
         div[data-testid="stMetricDelta"] {
-            color: #1e293b !important;
+            color: #0f172a !important;
+            background: #f1f5f9 !important;
+            font-size: 0.95rem !important;
+            line-height: 1.45 !important;
             font-weight: 600 !important;
+            padding: 4px 8px !important;
+            border-radius: 6px !important;
+            margin-top: 6px !important;
+            display: inline-block !important;
         }
         div[data-testid="stMetric"] svg {
             color: #475569 !important;
@@ -354,23 +361,32 @@ def main() -> None:
         )
         return
 
+    baseline_options = ["None (Single Run)"] + [p for p in PRESET_OPTIONS if p not in (preset, "Custom Paths")]
+    baseline_preset = st.sidebar.selectbox("Baseline Run (Compare Deltas)", options=baseline_options, index=0)
+    baseline_dataset: DashboardDataset | None = None
+    if baseline_preset != "None (Single Run)":
+        b_data, b_cpsat, b_opt, b_cfg, _ = resolve_preset_paths(baseline_preset)
+        if (b_cpsat / "roster_full.csv").exists():
+            b_sig = _dataset_mtime_signature(b_data, b_cpsat, b_opt, b_cfg)
+            try:
+                baseline_dataset = _cached_load_dataset(
+                    str(b_data), str(b_cpsat), str(b_opt), str(b_cfg), baseline_preset, b_sig
+                )
+            except ValueError:
+                baseline_dataset = None
+
     section = st.sidebar.radio(
         "Navigation",
         options=[
-            "0. Input Data & Readiness",
-            "1. Overview",
-            "2. Demand vs Coverage",
-            "3. Crew Assignment",
-            "4. Gap Analysis",
-            "5. Constraint Diagnostics",
-            "6. Strategy Comparison",
-            "7. Workload, Chains & Depots",
-            "8. Skill & Currency Radar",
-            "9. What-If & Disruption Simulator",
-            "10. Pipeline, Tests & Exports",
-            "11. Solver Log Explorer",
+            "1. Executive Overview & Brief",
+            "2. Demand & Coverage Analysis",
+            "3. Crew Allocation & Roster Gantt",
+            "4. Unfilled Gap & Bottleneck Forensics",
+            "5. Priority, Stages & Telemetry",
+            "6. Validation & Solution Diagnostics",
+            "7. What-If Simulator & Pipeline Ops",
         ],
-        index=1,
+        index=0,
     )
 
     all_slots = _cached_demand_slots(dataset, mtime_sig)
@@ -383,6 +399,16 @@ def main() -> None:
     all_shifts = sorted({str(s["Shift"]) for s in all_slots})
     parsed_meta = parse_summary_and_validation(dataset)
 
+    with st.sidebar.expander("Global Scope Filter", expanded=False):
+        global_heads = st.multiselect("Activity Heads", options=all_heads, key="global_scope_heads")
+        global_swings = st.multiselect("Swings", options=all_swings, key="global_scope_swings")
+        global_crew_types = st.multiselect(
+            "Crew Classification",
+            options=["Residential", "FIFO"],
+            key="global_scope_crew_types",
+        )
+    active_scope_count = len(global_heads) + len(global_swings) + len(global_crew_types)
+
     strat_lbl = str(dataset.config_flags.get("priority_strategy", "none"))
     res_lbl = "ON" if dataset.config_flags.get("residential_start_restriction", True) else "OFF"
     rel_lbl = "ON" if dataset.config_flags.get("relief_only_day_night_transition", True) else "OFF"
@@ -391,6 +417,11 @@ def main() -> None:
     res_cls = "pill-green" if res_lbl == "ON" else "pill-amber"
     rel_cls = "pill-green" if rel_lbl == "ON" else "pill-amber"
     atp_cls = "pill-green" if atp_lbl == "Active" else "pill-amber"
+    scope_pill = (
+        f"<span class='status-pill pill-amber'>Scope Filters: {active_scope_count}</span>"
+        if active_scope_count
+        else ""
+    )
     st.markdown(
         f"<div class='exec-banner'>"
         f"<span class='status-pill pill-blue'>Dataset: {preset}</span>"
@@ -399,48 +430,80 @@ def main() -> None:
         f"<span class='status-pill {rel_cls}'>Relief D/N: {rel_lbl}</span>"
         f"<span class='status-pill {atp_cls}'>Type Priority: {atp_lbl}</span>"
         f"<span class='status-pill pill-blue'>Validation: {val_lbl}</span>"
+        f"{scope_pill}"
         f"</div>",
         unsafe_allow_html=True,
     )
 
-    if section == "0. Input Data & Readiness":
-        render_input_readiness(dataset)
-    elif section == "1. Overview":
-        render_overview(dataset, all_slots, parsed_meta)
-    elif section == "2. Demand vs Coverage":
-        render_demand_coverage(dataset, all_heads, all_swings, all_dates, all_shifts)
-    elif section == "3. Crew Assignment":
-        render_crew_assignment(dataset, all_heads, all_swings)
-
-    # =========================================================================
-    # SECTION 4: GAP-FILLING ANALYSIS
-    # =========================================================================
-    elif section == "4. Gap Analysis":
-        render_gap_analysis(dataset, all_heads, all_swings)
-    elif section == "5. Constraint Diagnostics":
-        render_constraint_diagnostics(dataset, parsed_meta)
-    elif section == "6. Strategy Comparison":
-        render_strategy_comparison(ROOT)
-    elif section == "7. Workload, Chains & Depots":
-        render_workload_chains_depots(
+    if section == "1. Executive Overview & Brief":
+        render_overview(dataset, all_slots, parsed_meta, baseline_dataset=baseline_dataset)
+    elif section == "2. Demand & Coverage Analysis":
+        render_demand_coverage(
             dataset,
-            parsed_meta,
-            workload_fn=lambda ds: _cached_workload(ds, mtime_sig),
-            resilience_fn=lambda ds: _cached_resilience(ds, mtime_sig),
+            all_heads,
+            all_swings,
+            all_dates,
+            all_shifts,
+            default_heads=global_heads,
+            default_swings=global_swings,
+            default_crew_types=global_crew_types,
         )
-    elif section == "8. Skill & Currency Radar":
-        render_skill_currency_radar(
+    elif section == "3. Crew Allocation & Roster Gantt":
+        render_crew_assignment(
             dataset,
-            radar_fn=lambda ds: _cached_radar(ds, mtime_sig),
+            all_heads,
+            all_swings,
+            default_heads=global_heads,
+            default_swings=global_swings,
+            default_crew_types=global_crew_types,
         )
-    elif section == "9. What-If & Disruption Simulator":
-        render_simulator(dataset, config_path, base_roster_input, preset)
-    elif section == "10. Pipeline, Tests & Exports":
-        render_pipeline_and_exports(dataset, all_slots, preset)
-    elif section == "11. Solver Log Explorer":
-        st.subheader("Solver Execution Log Explorer")
-        active_log = st.session_state.get("last_solver_log") or dataset.solver_log_text
-        render_solver_log_visualizer(active_log, title="Captured Solver & Pipeline Log Analysis", key_prefix="nav_log")
+    elif section == "4. Unfilled Gap & Bottleneck Forensics":
+        render_gap_analysis(
+            dataset,
+            all_heads,
+            all_swings,
+            default_heads=global_heads,
+            default_swings=global_swings,
+        )
+    elif section == "5. Priority, Stages & Telemetry":
+        render_priority_and_telemetry(dataset, all_slots, parsed_meta, ROOT)
+    elif section == "6. Validation & Solution Diagnostics":
+        tab_qa, tab_chains, tab_skills = st.tabs([
+            "Post-Solve QA & Rules",
+            "Workload, Chains & Depots",
+            "Skills, Currency & Rest Margins",
+        ])
+        with tab_qa:
+            render_constraint_diagnostics(dataset, parsed_meta)
+        with tab_chains:
+            render_workload_chains_depots(
+                dataset,
+                parsed_meta,
+                workload_fn=lambda ds: _cached_workload(ds, mtime_sig),
+                resilience_fn=lambda ds: _cached_resilience(ds, mtime_sig),
+            )
+        with tab_skills:
+            render_skill_currency_radar(
+                dataset,
+                radar_fn=lambda ds: _cached_radar(ds, mtime_sig),
+            )
+    elif section == "7. What-If Simulator & Pipeline Ops":
+        tab_sim, tab_ready, tab_pipe, tab_logs = st.tabs([
+            "What-If & Disruption Simulator",
+            "Input Data & Readiness",
+            "Pipeline, Tests & Exports",
+            "Solver Log Explorer",
+        ])
+        with tab_sim:
+            render_simulator(dataset, config_path, base_roster_input, preset)
+        with tab_ready:
+            render_input_readiness(dataset)
+        with tab_pipe:
+            render_pipeline_and_exports(dataset, all_slots, preset)
+        with tab_logs:
+            st.subheader("Solver Execution Log Explorer")
+            active_log = st.session_state.get("last_solver_log") or dataset.solver_log_text
+            render_solver_log_visualizer(active_log, title="Captured Solver & Pipeline Log Analysis", key_prefix="nav_log")
 
 
 if __name__ == "__main__":

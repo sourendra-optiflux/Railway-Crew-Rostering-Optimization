@@ -15,21 +15,18 @@ def test_dashboard_app_boots_and_navigates_without_exception():
     at.run()
     assert not at.exception
 
-    # Navigate across key sections to verify view modules render cleanly
+    # Navigate across all pages to verify view modules render cleanly
     nav_radios = [r for r in at.radio if r.label == "Navigation"]
     assert len(nav_radios) == 1
     for target in [
-        "0. Input Data & Readiness",
-        "2. Demand vs Coverage",
-        "3. Crew Assignment",
-        "4. Gap Analysis",
-        "5. Constraint Diagnostics",
-        "6. Strategy Comparison",
-        "7. Workload, Chains & Depots",
-        "8. Skill & Currency Radar",
-        "9. What-If & Disruption Simulator",
-        "10. Pipeline, Tests & Exports",
-        "11. Solver Log Explorer",
+        "2. Demand & Coverage Analysis",
+        "3. Crew Allocation & Roster Gantt",
+        "4. Unfilled Gap & Bottleneck Forensics",
+        "5. Priority, Stages & Telemetry",
+        "6. Validation & Solution Diagnostics",
+        "7. What-If Simulator & Pipeline Ops",
+        "1. Executive Overview & Brief",
     ]:
-        nav_radios[0].set_value(target).run()
-        assert not at.exception, f"Exception on section {target}: {at.exception}"
+        nav_radio = [r for r in at.radio if r.label == "Navigation"][0]
+        nav_radio.set_value(target).run()
+        assert not at.exception, f"Exception on page {target}: {at.exception}"

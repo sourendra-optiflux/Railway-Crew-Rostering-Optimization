@@ -20,6 +20,7 @@ from visualization.charts import (
     create_daily_pool_area_chart,
     create_depot_balance_chart,
     create_depot_head_eligibility_heatmap,
+    create_priority_adherence_waterfall_chart,
     create_reassignment_sankey_chart,
     create_rejection_pareto_chart,
     create_rest_margin_histogram,
@@ -30,15 +31,113 @@ from visualization.charts import (
     create_workload_distribution_chart,
 )
 from visualization.data_loader import ROOT, DashboardDataset, discover_strategy_datasets
+from visualization.export_utils import rows_to_csv_bytes
 from visualization.gap_analysis import build_constraint_diagnostics
+from visualization.kpi_engine import aggregate_by_priority_tier, compute_extended_kpis
+from visualization.validators import run_post_solve_qa_suite
+
+
+def render_priority_and_telemetry(
+    dataset: DashboardDataset,
+    all_slots: list[dict[str, object]],
+    parsed_meta: dict[str, object],
+    base_root: Path = ROOT,
+) -> None:
+    """Render Page 5: Priority Hierarchy, Multi-Stage Telemetry & Cross-Run Comparison."""
+    st.subheader("Priority Adherence, Multi-Stage Objectives & Solver Telemetry")
+
+    st.markdown("#### Conceptual Separation of Priority & Crew Dimensions")
+    ext = compute_extended_kpis(dataset)
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        st.info(
+            "**1. Activity Head Priority (Task Criticality)**\n\n"
+            f"Configured in `activity_priority.csv` (`1 = Highest` .. `{max(dataset.priority_by_head.values(), default=14)}`). "
+            f"Active `priority_strategy`: **`{dataset.config_flags.get('priority_strategy', 'none')}`**."
+        )
+    with d2:
+        atp_status = dataset.constraints.get("Assignment Type Priority", ("Demand > Relief > Excess", "Active"))[1]
+        st.info(
+            "**2. Assignment Type Priority (Source Tier)**\n\n"
+            f"Status: **`{atp_status}`** (`constraints_df.csv`). "
+            f"Selected Work Shifts — Demand: **{ext['demand_assignments']:,}**, "
+            f"Relief: **{ext['relief_assignments']:,}**, Excess: **{ext['excess_assignments']:,}**."
+        )
+    with d3:
+        st.info(
+            "**3. Crew Classification (Operational Rules)**\n\n"
+            "Separates **Residential** vs **FIFO** crew rules (Residential night-start restriction & per-swing "
+            f"Max Resident / FIFO Shifts). Demand filled — Resident: **{ext['resident_demand_assignments']:,}**, "
+            f"FIFO: **{ext['fifo_demand_assignments']:,}**."
+        )
+
+    prio_rows = aggregate_by_priority_tier(all_slots)
+    st.plotly_chart(
+        create_priority_adherence_waterfall_chart(prio_rows),
+        use_container_width=True,
+        key="prio_waterfall_chart",
+    )
+    st.markdown("#### Priority Tier Coverage & Cumulative Adherence Table")
+    st.dataframe(
+        prio_rows,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Coverage %": st.column_config.ProgressColumn(
+                "Coverage %", format="%.2f%%", min_value=0, max_value=100
+            ),
+            "Cumulative Coverage %": st.column_config.ProgressColumn(
+                "Cumulative Coverage %", format="%.2f%%", min_value=0, max_value=100
+            ),
+        },
+    )
+
+    stages = parsed_meta.get("stages", [])
+    summary_items = parsed_meta.get("summary_items", {})
+    st.markdown("#### Solver Stage Telemetry (`summary.md`)")
+    if stages:
+        st.dataframe(stages, use_container_width=True, hide_index=True)
+    else:
+        st.caption("No explicit stage breakdown rows found in `summary.md`.")
+    if summary_items:
+        with st.expander("View All Raw Solver Telemetry Items (`summary.md`)", expanded=False):
+            st.dataframe(
+                [{"Metric": k, "Value": v} for k, v in summary_items.items()],
+                use_container_width=True,
+                hide_index=True,
+            )
+
+    st.markdown("---")
+    render_strategy_comparison(base_root)
 
 
 def render_constraint_diagnostics(
     dataset: DashboardDataset,
     parsed_meta: dict[str, object],
 ) -> None:
-    """Render Section 5: Constraint & Diagnostic Analysis."""
-    st.subheader("Constraint & Diagnostic Analysis")
+    """Render Page 6: Automated Post-Solve QA Engine & Constraint Diagnostics."""
+    st.subheader("Automated Post-Solve QA Scorecard & Constraint Diagnostics")
+    qa = run_post_solve_qa_suite(dataset)
+
+    q1, q2, q3, q4 = st.columns(4)
+    q1.metric("Total Validation Checks", f"{qa['total_checks']}")
+    q2.metric("Passed Checks", f"{qa['passed']}")
+    q3.metric("Failed (Critical)", f"{qa['failed_critical']}")
+    q4.metric("Warnings", f"{qa['warnings']}")
+
+    st.markdown("#### Post-Solve QA Check Suite")
+    st.dataframe(qa["checks"], use_container_width=True, hide_index=True)
+
+    if qa["offending_rows"]:
+        with st.expander(f"Inspect QA Diagnostic Log Rows ({len(qa['offending_rows'])} item(s))", expanded=False):
+            st.dataframe(qa["offending_rows"], use_container_width=True, hide_index=True)
+            st.download_button(
+                "Download QA Diagnostic Log (CSV)",
+                data=rows_to_csv_bytes(qa["offending_rows"]),
+                file_name="qa_diagnostic_log.csv",
+                mime="text/csv",
+            )
+
     st.info(
         "**Evidence Policy:** Diagnostics below report only explicit evidence exported by the pipeline "
         "(`Is_locked_gap` in `roster_full.csv`, candidate counts in `gap_options.csv`, and Layer-1 rejection "

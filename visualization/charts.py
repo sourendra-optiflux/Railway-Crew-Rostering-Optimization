@@ -980,3 +980,229 @@ def create_solver_log_timeline_chart(parsed_log: dict[str, object]) -> go.Figure
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
     return _apply_chart_theme(fig)
+
+
+def create_fill_rate_gauge_chart(coverage_pct: float, gap_fill_pct: float) -> go.Figure:
+    """Create a dual bullet/gauge chart for Overall Demand Coverage % and Open Gap Fill Rate %."""
+    fig = go.Figure()
+    fig.add_trace(
+        go.Indicator(
+            mode="gauge+number",
+            value=round(coverage_pct, 2),
+            number={"suffix": "%"},
+            title={"text": "Overall Demand Coverage %"},
+            domain={"x": [0.0, 0.46], "y": [0.0, 1.0]},
+            gauge={
+                "axis": {"range": [0, 100]},
+                "bar": {"color": "#10B981" if coverage_pct >= 95 else "#F59E0B"},
+                "steps": [
+                    {"range": [0, 85], "color": "rgba(239, 68, 68, 0.14)"},
+                    {"range": [85, 95], "color": "rgba(245, 158, 11, 0.16)"},
+                    {"range": [95, 100], "color": "rgba(16, 185, 129, 0.16)"},
+                ],
+            },
+        )
+    )
+    fig.add_trace(
+        go.Indicator(
+            mode="gauge+number",
+            value=round(gap_fill_pct, 2),
+            number={"suffix": "%"},
+            title={"text": "Open Leave Gap Recovery %"},
+            domain={"x": [0.54, 1.0], "y": [0.0, 1.0]},
+            gauge={
+                "axis": {"range": [0, 100]},
+                "bar": {"color": "#2563EB" if gap_fill_pct >= 85 else "#F59E0B"},
+                "steps": [
+                    {"range": [0, 70], "color": "rgba(239, 68, 68, 0.14)"},
+                    {"range": [70, 90], "color": "rgba(245, 158, 11, 0.16)"},
+                    {"range": [90, 100], "color": "rgba(37, 99, 235, 0.16)"},
+                ],
+            },
+        )
+    )
+    fig.update_layout(height=270, margin={"l": 20, "r": 20, "t": 45, "b": 15})
+    return _apply_chart_theme(fig)
+
+
+def create_assignment_type_donut_charts(extended_kpis: dict[str, object]) -> dict[str, go.Figure]:
+    """Create donut charts for Assignment Type (Demand/Relief/Excess) and Crew Classification (Resident/FIFO)."""
+    d_cnt = int(extended_kpis.get("demand_assignments", 0))
+    r_cnt = int(extended_kpis.get("relief_assignments", 0))
+    e_cnt = int(extended_kpis.get("excess_assignments", 0))
+    fig_type = go.Figure(
+        data=[
+            go.Pie(
+                labels=["Demand", "Relief (Standby)", "Excess"],
+                values=[d_cnt, r_cnt, e_cnt],
+                hole=0.52,
+                marker={"colors": ["#2563EB", "#F59E0B", "#8B5CF6"]},
+                textinfo="label+percent",
+            )
+        ]
+    )
+    fig_type.update_layout(
+        title="Selected Work Shifts by Assignment Type",
+        height=320,
+        margin={"l": 20, "r": 20, "t": 50, "b": 20},
+    )
+
+    res_cnt = int(extended_kpis.get("resident_work_assignments", 0))
+    fifo_cnt = int(extended_kpis.get("fifo_work_assignments", 0))
+    fig_cls = go.Figure(
+        data=[
+            go.Pie(
+                labels=["Residential", "FIFO"],
+                values=[res_cnt, fifo_cnt],
+                hole=0.52,
+                marker={"colors": ["#10B981", "#0D9488"]},
+                textinfo="label+percent",
+            )
+        ]
+    )
+    fig_cls.update_layout(
+        title="Selected Work Shifts by Crew Classification",
+        height=320,
+        margin={"l": 20, "r": 20, "t": 50, "b": 20},
+    )
+    return {
+        "assignment_type": _apply_chart_theme(fig_type),
+        "crew_classification": _apply_chart_theme(fig_cls),
+    }
+
+
+def create_depot_coverage_chart(depot_rows: list[dict[str, object]]) -> go.Figure:
+    """Stacked bar chart of Assigned Demand (Residential + FIFO) and Remaining Gap by Depot."""
+    depots = [str(r["Depot"]) for r in depot_rows]
+    res = [int(r["Resident Assigned"]) for r in depot_rows]
+    fifo = [int(r["FIFO Assigned"]) for r in depot_rows]
+    gaps = [int(r["Remaining Gap"]) for r in depot_rows]
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name="Residential Assigned", x=depots, y=res, marker_color="#10B981"))
+    fig.add_trace(go.Bar(name="FIFO Assigned", x=depots, y=fifo, marker_color="#0D9488"))
+    fig.add_trace(go.Bar(name="Remaining Unfilled Gap", x=depots, y=gaps, marker_color="#EF4444"))
+    fig.update_layout(
+        barmode="stack",
+        title="Crew Allocation & Demand Fulfillment by Depot",
+        xaxis_title="Start Location (Depot)",
+        yaxis_title="Crew-Shifts",
+        height=340,
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return _apply_chart_theme(fig)
+
+
+def create_head_depot_coverage_heatmap(head_depot_rows: list[dict[str, object]]) -> go.Figure:
+    """2D heatmap of Coverage % across `Activity Head x Depot`."""
+    if not head_depot_rows:
+        fig = go.Figure()
+        fig.update_layout(title="No Activity Head x Depot Records")
+        return fig
+
+    heads = list(dict.fromkeys(str(r["Activity Head"]) for r in head_depot_rows))
+    depots = sorted({str(r["Depot"]) for r in head_depot_rows})
+    lookup = {(str(r["Activity Head"]), str(r["Depot"])): r for r in head_depot_rows}
+
+    z_matrix: list[list[float | None]] = []
+    text_matrix: list[list[str]] = []
+    hover_matrix: list[list[str]] = []
+
+    for h in heads:
+        z_row: list[float | None] = []
+        t_row: list[str] = []
+        h_row: list[str] = []
+        for d in depots:
+            rec = lookup.get((h, d))
+            if rec is None:
+                z_row.append(None)
+                t_row.append("")
+                h_row.append(f"<b>{h}</b> @ Depot {d}<br>No demand scheduled")
+            else:
+                cov = float(rec["Coverage %"])
+                td = int(rec["Total Demand"])
+                ad = int(rec["Assigned Demand"])
+                rg = int(rec["Remaining Gap"])
+                z_row.append(cov)
+                t_row.append(f"{cov:.1f}% ({ad}/{td})")
+                h_row.append(
+                    f"<b>{h}</b> (Priority {rec['Priority']}) @ Depot <b>{d}</b><br>"
+                    f"Demand: {td} | Assigned: {ad} | Unfilled Gap: {rg}<br>"
+                    f"Coverage: {cov:.2f}%"
+                )
+        z_matrix.append(z_row)
+        text_matrix.append(t_row)
+        hover_matrix.append(h_row)
+
+    fig = go.Figure(
+        data=go.Heatmap(
+            z=z_matrix,
+            x=depots,
+            y=heads,
+            text=text_matrix,
+            texttemplate="%{text}",
+            hovertext=hover_matrix,
+            hoverinfo="text",
+            zmin=80,
+            zmax=100,
+            colorscale=[
+                [0.0, "#EF4444"],
+                [0.7, "#F59E0B"],
+                [1.0, "#10B981"],
+            ],
+            colorbar={"title": "Coverage %"},
+        )
+    )
+    fig.update_layout(
+        title="Coverage % Heatmap: Activity Head × Depot",
+        xaxis_title="Start Location (Depot)",
+        yaxis_title="Activity Head (Ordered by Priority)",
+        yaxis={"autorange": "reversed"},
+        height=max(360, 32 * len(heads) + 100),
+        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+    )
+    return _apply_chart_theme(fig)
+
+
+def create_priority_adherence_waterfall_chart(prio_rows: list[dict[str, object]]) -> go.Figure:
+    """Stacked bar of Assigned vs Unfilled Demand by Priority tier with Cumulative Coverage % overlay."""
+    tiers = [f"P{r['Priority']} ({r['Activity Heads']})" for r in prio_rows]
+    assigned = [int(r["Assigned Demand"]) for r in prio_rows]
+    unfilled = [int(r["Remaining Gap"]) for r in prio_rows]
+    cum_cov = [float(r["Cumulative Coverage %"]) for r in prio_rows]
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(name="Filled Demand", x=tiers, y=assigned, marker_color="#10B981", yaxis="y1")
+    )
+    fig.add_trace(
+        go.Bar(name="Remaining Unfilled Gap", x=tiers, y=unfilled, marker_color="#EF4444", yaxis="y1")
+    )
+    fig.add_trace(
+        go.Scatter(
+            name="Cumulative Coverage %",
+            x=tiers,
+            y=cum_cov,
+            mode="lines+markers+text",
+            text=[f"{v:.1f}%" for v in cum_cov],
+            textposition="top center",
+            marker={"color": "#2563EB", "size": 8},
+            line={"color": "#2563EB", "width": 3},
+            yaxis="y2",
+        )
+    )
+    fig.update_layout(
+        barmode="stack",
+        title="Priority Tier Adherence & Cumulative Demand Coverage",
+        xaxis_title="Priority Tier (1 = Highest Criticality)",
+        yaxis={"title": "Crew-Shifts"},
+        yaxis2={
+            "title": "Cumulative Coverage %",
+            "overlaying": "y",
+            "side": "right",
+            "range": [80, 102],
+        },
+        height=400,
+        margin={"l": 20, "r": 40, "t": 50, "b": 80},
+    )
+    return _apply_chart_theme(fig)
