@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Any
 
 from visualization.data_loader import DashboardDataset
 
@@ -64,7 +65,7 @@ def build_demand_slot_records(
     date_filter: set[str] | None = None,
     shift_filter: set[str] | None = None,
     only_disrupted_gaps: bool = False,
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     """Reconcile demand slots with assigned crew in roster_full.csv.
 
     Each slot corresponds to `(Activity ID, Start Date, Shift Start Time)` (or per Swing when filtered by Swing).
@@ -111,7 +112,7 @@ def build_demand_slot_records(
 
         grouped[(aid, day, shift)].append(r)
 
-    slot_records: list[dict[str, object]] = []
+    slot_records: list[dict[str, Any]] = []
     for (aid, day, shift), rows in sorted(grouped.items(), key=lambda x: (x[0][1], x[0][2], x[0][0])):
         first = rows[0]
         did = first.get("Demand ID", "").strip()
@@ -300,9 +301,9 @@ def compute_summary_kpis(
     )
 
 
-def aggregate_by_activity_head(slot_records: list[dict[str, object]]) -> list[dict[str, object]]:
+def aggregate_by_activity_head(slot_records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Aggregate demand, assigned, remaining gap, and Resident/FIFO breakdown by Activity Head."""
-    by_head: dict[str, dict[str, object]] = {}
+    by_head: dict[str, dict[str, Any]] = {}
     for s in slot_records:
         head = str(s["Activity Head"])
         entry = by_head.setdefault(
@@ -332,7 +333,7 @@ def aggregate_by_activity_head(slot_records: list[dict[str, object]]) -> list[di
         else:
             entry["Unfilled Slots"] = int(entry["Unfilled Slots"]) + 1
 
-    result: list[dict[str, object]] = []
+    result: list[dict[str, Any]] = []
     for entry in by_head.values():
         td = int(entry["Total Demand"])
         ad = int(entry["Assigned Demand"])
@@ -343,7 +344,7 @@ def aggregate_by_activity_head(slot_records: list[dict[str, object]]) -> list[di
     return result
 
 
-def aggregate_by_swing(dataset: DashboardDataset) -> list[dict[str, object]]:
+def aggregate_by_swing(dataset: DashboardDataset) -> list[dict[str, Any]]:
     """Aggregate Demand, Assigned, Remaining Gap, and Resident/FIFO breakdown by Swing number."""
     by_swing: dict[str, dict[str, int]] = defaultdict(
         lambda: {
@@ -372,7 +373,7 @@ def aggregate_by_swing(dataset: DashboardDataset) -> list[dict[str, object]]:
     def _swing_sort_key(sw_key: str) -> tuple[int, int | str]:
         return (0, int(sw_key)) if sw_key.isdecimal() else (1, sw_key)
 
-    result: list[dict[str, object]] = []
+    result: list[dict[str, Any]] = []
     for sw in sorted(by_swing, key=_swing_sort_key):
         vals = by_swing[sw]
         td = vals["Total Demand"]
@@ -554,11 +555,11 @@ def build_crew_timeline_records(
     return records
 
 
-def compare_strategy_datasets(datasets: dict[str, DashboardDataset]) -> dict[str, object]:
+def compare_strategy_datasets(datasets: dict[str, DashboardDataset]) -> dict[str, Any]:
     """Compare KPIs, Activity Head coverage, and Priority coverage across multiple strategy runs."""
-    overall_rows: list[dict[str, object]] = []
-    by_head_rows: list[dict[str, object]] = []
-    by_priority_rows: list[dict[str, object]] = []
+    overall_rows: list[dict[str, Any]] = []
+    by_head_rows: list[dict[str, Any]] = []
+    by_priority_rows: list[dict[str, Any]] = []
 
     for label, ds in datasets.items():
         kpis = compute_summary_kpis(ds)

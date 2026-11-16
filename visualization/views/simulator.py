@@ -16,7 +16,11 @@ from visualization.analytics import (
 from visualization.charts import create_slot_diff_heatmap
 from visualization.data_loader import DashboardDataset
 from visualization.gap_analysis import build_unfilled_gap_records
-from visualization.metrics import compute_summary_kpis
+from visualization.metrics import (
+    aggregate_by_activity_head,
+    build_demand_slot_records,
+    compute_summary_kpis,
+)
 from visualization.run_history import clear_runs, list_runs, record_run
 from visualization.scenario_runner import (
     run_disruption_simulation,
@@ -156,6 +160,59 @@ def render_simulator(
                 st.markdown("**Activity Head Priorities & Max Resident/FIFO Shift Limits**")
                 edited_ap_rows = st.data_editor(ap_rows, use_container_width=True, hide_index=True, key="ap_prio_editor")
 
+        # --- Group 4: Full Pipeline Constraint Matrix & Optional Stage 1 Gap Generation ---
+        edited_cons_rows: list[dict[str, str]] | None = None
+        include_gap_gen = False
+        gap_seed_val = _parse_int(dataset.constraints.get("Random Seed", ("2026", "Active"))[0], 2026)
+        persist_out_name = ""
+        with st.expander(
+            "4. Full Constraint Table (`constraints_df.csv` Active/Inactive & Values) + Optional Gap Generation (`make_gaps.py`)",
+            expanded=False,
+        ):
+            st.caption(
+                "Toggle `Status` (`Active` / `Inactive`) or edit `Value` for any of the 30 pipeline constraints "
+                "(including Leave Fractions, Shift Windows, Allowed Offsets, Rest Rules, and Horizon settings)."
+            )
+            g_col1, g_col2, g_col3 = st.columns([3, 2, 3])
+            with g_col1:
+                include_gap_gen = st.checkbox(
+                    "Re-run Stage 1 Gap Generation (`make_gaps.py`) before solving",
+                    value=False,
+                    help="Enable this when testing different Leave Fractions or Random Seeds so fresh leave gaps are generated before Option Generation and CP-SAT.",
+                )
+            with g_col2:
+                gap_seed_val = int(
+                    st.number_input("Gap Generation Random Seed", min_value=1, max_value=999999, value=gap_seed_val, step=1)
+                )
+            with g_col3:
+                persist_out_name = st.text_input(
+                    "Optional: Save Scenario to `CP-SAT/outputs/<name>`",
+                    value="",
+                    placeholder="e.g. whatif_relaxed_rest",
+                    help="If set, saves the solved scenario output folder under CP-SAT/outputs/ so you can select it in the sidebar Baseline Run comparison.",
+                )
+
+            raw_cons_rows = _read_csv_dict_rows(dataset.data_dir / "constraints_df.csv")
+            if raw_cons_rows:
+                edited_cons_rows = list(
+                    st.data_editor(
+                        raw_cons_rows,
+                        column_config={
+                            "Constraint": st.column_config.TextColumn("Constraint Name", disabled=False),
+                            "Value": st.column_config.TextColumn("Value"),
+                            "Status": st.column_config.SelectboxColumn(
+                                "Status",
+                                options=["Active", "Inactive"],
+                                required=True,
+                            ),
+                        },
+                        num_rows="dynamic",
+                        use_container_width=True,
+                        hide_index=True,
+                        key="full_cons_table_editor",
+                    )
+                )
+
         btn_col1, btn_col2 = st.columns([2, 1])
         with btn_col1:
             run_wi_btn = st.button("Solve What-If Scenario (Isolated Temp Run)", type="primary")
@@ -180,6 +237,7 @@ def render_simulator(
                 solver_start_date=wi_start_date.strip() or None,
                 assignment_type_priority_map=edited_at_map,
                 activity_priority_overrides=edited_ap_rows,
+                constraints_table_overrides=edited_cons_rows,
             )
             st.cache_data.clear()
             st.success(f"Saved rule & constraint settings to `{config_path.name}` and `{dataset.data_dir.name}/`!")
@@ -209,6 +267,10 @@ def render_simulator(
                 solver_start_date=wi_start_date.strip() or None,
                 assignment_type_priority_map=edited_at_map,
                 activity_priority_overrides=edited_ap_rows,
+                constraints_table_overrides=edited_cons_rows,
+                include_gap_generation=include_gap_gen,
+                gap_seed=int(gap_seed_val),
+                persist_output_name=persist_out_name.strip() or None,
                 time_limit=int(wi_time),
                 log_callback=_append_wi_line,
             )
@@ -232,20 +294,99 @@ def render_simulator(
                         "transition_rest_hours": float(wi_trans_rest),
                         "max_start_changes_per_block": int(wi_max_chg),
                         "max_start_change_minutes": int(wi_chg_min),
+                        "include_gap_generation": include_gap_gen,
+                        "gap_seed": int(gap_seed_val),
                     },
                     total_demand=sc_kpis.total_demand,
                     assigned_demand=sc_kpis.assigned_demand,
                     unfilled_demand=sc_kpis.unfilled_demand,
                     coverage_pct=sc_kpis.coverage_pct,
-                    total_cost=float(sc_cost["total_cost"]),
+                    total_cost=_parse_float(str(sc_cost.get("total_cost", 0.0)), 0.0),
                 )
                 st.success("Scenario solved! Before vs After Comparison:")
-                m1, m2, m3, m4 = st.columns(4)
+                if persist_out_name.strip():
+                    st.info(
+                        f"Saved scenario outputs to `CP-SAT/outputs/{persist_out_name.strip()}` — "
+                        "you can now select it in the sidebar **Baseline Run** or **Dataset Preset** selector!"
+                    )
+                base_reass_cnt = len(dataset.reassignments)
+                sc_reass_cnt = len(sc_ds.reassignments)
+                base_work_cnt = baseline_kpis.resident_work_assignments + baseline_kpis.fifo_work_assignments
+                sc_work_cnt = sc_kpis.resident_work_assignments + sc_kpis.fifo_work_assignments
+                m1, m2, m3, m4, m5, m6 = st.columns(6)
                 m1.metric("Assigned Demand", sc_kpis.assigned_demand, delta=sc_kpis.assigned_demand - baseline_kpis.assigned_demand)
                 m2.metric("Unfilled Demand", sc_kpis.unfilled_demand, delta=sc_kpis.unfilled_demand - baseline_kpis.unfilled_demand, delta_color="inverse")
                 m3.metric("Coverage %", f"{sc_kpis.coverage_pct:.2f}%", delta=f"{sc_kpis.coverage_pct - baseline_kpis.coverage_pct:+.2f}%")
-                m4.metric("Gaps Filled", sc_kpis.filled_open_gaps, delta=sc_kpis.filled_open_gaps - baseline_kpis.filled_open_gaps)
-                st.plotly_chart(create_slot_diff_heatmap(compute_slot_diff_matrix(dataset, sc_ds)), use_container_width=True)
+                m4.metric("Gaps Filled", sc_kpis.gaps_filled, delta=sc_kpis.gaps_filled - baseline_kpis.gaps_filled)
+                m5.metric("Reassigned Shifts", sc_reass_cnt, delta=sc_reass_cnt - base_reass_cnt, delta_color="inverse")
+                m6.metric("Total Work Shifts", sc_work_cnt, delta=sc_work_cnt - base_work_cnt)
+
+                diff_t1, diff_t2, diff_t3, diff_t4 = st.tabs([
+                    "🗺️ Slot Coverage Diff Heatmap",
+                    "📊 Activity Head Before vs After Diff",
+                    "🎯 Priority Tier Before vs After Diff",
+                    "🔄 Scenario Reassignments Log",
+                ])
+                base_slots = build_demand_slot_records(dataset)
+                sc_slots = build_demand_slot_records(sc_ds)
+                base_head_rows = aggregate_by_activity_head(base_slots)
+                sc_head_rows = aggregate_by_activity_head(sc_slots)
+                with diff_t1:
+                    st.plotly_chart(
+                        create_slot_diff_heatmap(compute_slot_diff_matrix(dataset, sc_ds)),
+                        use_container_width=True,
+                        key="wi_slot_diff_heatmap",
+                    )
+                with diff_t2:
+                    base_heads = {str(r["Activity Head"]): r for r in base_head_rows}
+                    sc_heads = {str(r["Activity Head"]): r for r in sc_head_rows}
+                    head_diff_rows = []
+                    for h_name in sorted(set(base_heads) | set(sc_heads)):
+                        bh = base_heads.get(h_name, {})
+                        sh = sc_heads.get(h_name, {})
+                        b_ass = _parse_int(str(bh.get("Assigned Demand", 0)), 0)
+                        s_ass = _parse_int(str(sh.get("Assigned Demand", 0)), 0)
+                        b_cov = _parse_float(str(bh.get("Coverage %", 0.0)), 0.0)
+                        s_cov = _parse_float(str(sh.get("Coverage %", 0.0)), 0.0)
+                        head_diff_rows.append({
+                            "Activity Head": h_name,
+                            "Priority": sh.get("Priority", bh.get("Priority", "")),
+                            "Baseline Assigned": b_ass,
+                            "Scenario Assigned": s_ass,
+                            "Delta Assigned": s_ass - b_ass,
+                            "Baseline Unfilled": _parse_int(str(bh.get("Remaining Gap", 0)), 0),
+                            "Scenario Unfilled": _parse_int(str(sh.get("Remaining Gap", 0)), 0),
+                            "Baseline Coverage %": round(b_cov, 2),
+                            "Scenario Coverage %": round(s_cov, 2),
+                            "Delta Coverage %": round(s_cov - b_cov, 2),
+                        })
+                    st.dataframe(head_diff_rows, use_container_width=True, hide_index=True)
+                with diff_t3:
+                    prio_levels = sorted({_parse_int(str(r["Priority"]), 999) for r in base_head_rows + sc_head_rows})
+                    prio_diff_rows = []
+                    for p_lvl in prio_levels:
+                        bp_rows = [r for r in base_head_rows if _parse_int(str(r["Priority"]), 999) == p_lvl]
+                        sp_rows = [r for r in sc_head_rows if _parse_int(str(r["Priority"]), 999) == p_lvl]
+                        b_tot = sum(_parse_int(str(r["Total Demand"]), 0) for r in bp_rows)
+                        s_tot = sum(_parse_int(str(r["Total Demand"]), 0) for r in sp_rows)
+                        b_ass = sum(_parse_int(str(r["Assigned Demand"]), 0) for r in bp_rows)
+                        s_ass = sum(_parse_int(str(r["Assigned Demand"]), 0) for r in sp_rows)
+                        b_cov = (b_ass / b_tot * 100.0) if b_tot > 0 else 0.0
+                        s_cov = (s_ass / s_tot * 100.0) if s_tot > 0 else 0.0
+                        heads_str = ", ".join(sorted({str(r["Activity Head"]) for r in bp_rows + sp_rows}))
+                        prio_diff_rows.append({
+                            "Priority Tier": f"P{p_lvl}",
+                            "Heads": heads_str,
+                            "Baseline Assigned": b_ass,
+                            "Scenario Assigned": s_ass,
+                            "Delta Assigned": s_ass - b_ass,
+                            "Baseline Coverage %": round(b_cov, 2),
+                            "Scenario Coverage %": round(s_cov, 2),
+                            "Delta Coverage %": round(s_cov - b_cov, 2),
+                        })
+                    st.dataframe(prio_diff_rows, use_container_width=True, hide_index=True)
+                with diff_t4:
+                    st.dataframe(sc_ds.reassignments, use_container_width=True, hide_index=True)
             st.session_state["last_solver_log"] = sc_logs
             render_solver_log_visualizer(sc_logs, title="What-If Solver Log Visualizer", key_prefix="wi_log")
 
@@ -305,7 +446,7 @@ def render_simulator(
                         assigned_demand=dis_kpis.assigned_demand,
                         unfilled_demand=dis_kpis.unfilled_demand,
                         coverage_pct=dis_kpis.coverage_pct,
-                        total_cost=float(dis_cost["total_cost"]),
+                        total_cost=_parse_float(str(dis_cost.get("total_cost", 0.0)), 0.0),
                     )
                     st.success("Disruption recovery solved!")
                     dm1, dm2, dm3 = st.columns(3)
@@ -363,8 +504,12 @@ def render_simulator(
                         "Type": r["run_type"],
                         "Strategy": r["strategy"],
                         "Coverage %": r["coverage_pct"],
-                        "Coverage Delta vs First": round(float(r["coverage_pct"]) - float(base_run["coverage_pct"]), 2),
-                        "Cost Delta vs First": round(float(r["total_cost"]) - float(base_run["total_cost"]), 2),
+                        "Coverage Delta vs First": round(
+                            _parse_float(str(r["coverage_pct"]), 0.0) - _parse_float(str(base_run["coverage_pct"]), 0.0), 2
+                        ),
+                        "Cost Delta vs First": round(
+                            _parse_float(str(r["total_cost"]), 0.0) - _parse_float(str(base_run["total_cost"]), 0.0), 2
+                        ),
                         "Rule Toggles": r["rule_toggles_json"],
                     }
                     for r in ordered

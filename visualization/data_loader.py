@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_DIR = ROOT / "data" / "optiflux_v2"
@@ -65,7 +66,7 @@ class DashboardDataset:
     priority_by_head: dict[str, int] = field(default_factory=dict)
     limits_by_head: dict[str, tuple[int | None, int | None]] = field(default_factory=dict)
     constraints: dict[str, tuple[str, str]] = field(default_factory=dict)
-    config_flags: dict[str, object] = field(default_factory=dict)
+    config_flags: dict[str, Any] = field(default_factory=dict)
     reassignments: list[dict[str, str]] = field(default_factory=list)
     unfilled_gaps: list[dict[str, str]] = field(default_factory=list)
     seats: list[dict[str, str]] = field(default_factory=list)
@@ -146,9 +147,9 @@ def read_csv_safe(
     return rows, warnings
 
 
-def _load_config_flags(config_path: Path | None) -> tuple[dict[str, object], list[str]]:
+def _load_config_flags(config_path: Path | None) -> tuple[dict[str, Any], list[str]]:
     warnings: list[str] = []
-    flags: dict[str, object] = {
+    flags: dict[str, Any] = {
         "residential_start_restriction": True,
         "relief_only_day_night_transition": True,
         "priority_strategy": "none",

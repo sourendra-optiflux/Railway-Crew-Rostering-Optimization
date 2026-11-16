@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import datetime, timedelta
+from typing import Any
 
 from visualization.data_loader import DashboardDataset
 from visualization.gap_analysis import check_swing_home_depot, parse_summary_and_validation
@@ -31,13 +32,13 @@ def _parse_interval(row: dict[str, str]) -> tuple[datetime, datetime] | None:
         return None
 
 
-def run_post_solve_qa_suite(dataset: DashboardDataset) -> dict[str, object]:
+def run_post_solve_qa_suite(dataset: DashboardDataset) -> dict[str, Any]:
     """Run all 6 deterministic post-solve QA checks and combine with `validation.md` rule checks."""
-    checks: list[dict[str, object]] = []
-    offending_rows: list[dict[str, object]] = []
+    checks: list[dict[str, Any]] = []
+    offending_rows: list[dict[str, Any]] = []
 
     # 1. Schema & Completeness Check
-    schema_errors: list[dict[str, object]] = []
+    schema_errors: list[dict[str, Any]] = []
     work_count = 0
     for r in dataset.roster_rows:
         if r.get("In Horizon", "Yes").strip() not in ("", "Yes", "True", "true"):
@@ -100,10 +101,10 @@ def run_post_solve_qa_suite(dataset: DashboardDataset) -> dict[str, object]:
         if interval is not None:
             per_user_shifts[uid].append((interval[0], interval[1], r))
 
-    overlap_errors: list[dict[str, object]] = []
+    overlap_errors: list[dict[str, Any]] = []
     for uid, items in sorted(per_user_shifts.items()):
         items.sort(key=lambda x: (x[0], x[1]))
-        for (s1, e1, r1), (s2, e2, r2) in zip(items, items[1:]):
+        for (s1, e1, r1), (s2, _e2, r2) in zip(items, items[1:]):
             if s2 < e1:
                 err = {
                     "Check ID": "QA2",
@@ -133,7 +134,7 @@ def run_post_solve_qa_suite(dataset: DashboardDataset) -> dict[str, object]:
 
     # 3. Duplicate Assignment Check
     seen_assignment_ids: set[str] = set()
-    dup_errors: list[dict[str, object]] = []
+    dup_errors: list[dict[str, Any]] = []
     for r in dataset.roster_rows:
         aid = r.get("Assignment ID", "").strip()
         uid = r.get("Optimised User Id", "").strip()
@@ -202,7 +203,7 @@ def run_post_solve_qa_suite(dataset: DashboardDataset) -> dict[str, object]:
         if act_id:
             eligible_map[act_id] = users
 
-    elig_errors: list[dict[str, object]] = []
+    elig_errors: list[dict[str, Any]] = []
     demand_checked = 0
     for r in dataset.roster_rows:
         if r.get("In Horizon", "Yes").strip() not in ("", "Yes", "True", "true"):
@@ -259,7 +260,7 @@ def run_post_solve_qa_suite(dataset: DashboardDataset) -> dict[str, object]:
 
     # 6. Demand Reconciliation Check
     slots = build_demand_slot_records(dataset)
-    reconcile_errors: list[dict[str, object]] = []
+    reconcile_errors: list[dict[str, Any]] = []
     for s in slots:
         td = int(s["Total Demand"])
         ad = int(s["Assigned Demand"])

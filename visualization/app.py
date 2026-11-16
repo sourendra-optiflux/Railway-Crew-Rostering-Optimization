@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 
@@ -180,7 +181,7 @@ def _cached_load_dataset(
 def _cached_demand_slots(
     _dataset: DashboardDataset,
     _mtime_sig: tuple[tuple[str, float], ...],
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     return build_demand_slot_records(_dataset)
 
 
@@ -188,7 +189,7 @@ def _cached_demand_slots(
 def _cached_workload(
     _dataset: DashboardDataset,
     _mtime_sig: tuple[tuple[str, float], ...],
-) -> dict[str, object]:
+) -> dict[str, Any]:
     return compute_crew_workload_analytics(_dataset)
 
 
@@ -196,7 +197,7 @@ def _cached_workload(
 def _cached_resilience(
     _dataset: DashboardDataset,
     _mtime_sig: tuple[tuple[str, float], ...],
-) -> dict[str, object]:
+) -> dict[str, Any]:
     return compute_resilience_and_pool_analytics(_dataset)
 
 
@@ -204,7 +205,7 @@ def _cached_resilience(
 def _cached_radar(
     _dataset: DashboardDataset,
     _mtime_sig: tuple[tuple[str, float], ...],
-) -> dict[str, object]:
+) -> dict[str, Any]:
     return compute_skill_and_currency_radar(_dataset)
 
 

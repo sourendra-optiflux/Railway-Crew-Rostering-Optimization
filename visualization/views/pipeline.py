@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Any
 
 import streamlit as st
 
@@ -25,7 +26,7 @@ from visualization.views.solver_log_viewer import render_solver_log_visualizer
 
 def render_pipeline_and_exports(
     dataset: DashboardDataset,
-    all_slots: list[dict[str, object]],
+    all_slots: list[dict[str, Any]],
     preset: str,
 ) -> None:
     """Render Section 10: Pipeline, Test Suite, Edge-Case Demo & Export Center."""

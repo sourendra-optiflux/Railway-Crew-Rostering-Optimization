@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 from visualization.data_loader import (
     DEFAULT_CONFIG_PATH,
@@ -98,7 +99,7 @@ def compute_extended_kpis(
     shift_filter: set[str] | None = None,
     depot_filter: set[str] | None = None,
     priority_filter: set[int] | None = None,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """Compute comprehensive Page 1 KPIs with exact source reconciliation."""
     base_kpis = compute_summary_kpis(
         dataset,
@@ -249,8 +250,8 @@ def compute_extended_kpis(
 
 def generate_operational_brief(
     dataset: DashboardDataset,
-    slot_records: list[dict[str, object]] | None = None,
-) -> dict[str, object]:
+    slot_records: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Generate a data-driven Executive Operational Brief synthesizing Priority 1 coverage and top bottlenecks."""
     slots = slot_records if slot_records is not None else build_demand_slot_records(dataset)
     activity_depot = _build_activity_depot_map(dataset)
@@ -317,8 +318,8 @@ def generate_operational_brief(
 
 def aggregate_by_depot(
     dataset: DashboardDataset,
-    slot_records: list[dict[str, object]] | None = None,
-) -> list[dict[str, object]]:
+    slot_records: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """Aggregate Demand, Assigned, Remaining Gap, Coverage %, and Resident/FIFO by Start Depot."""
     slots = slot_records if slot_records is not None else build_demand_slot_records(dataset)
     activity_depot = _build_activity_depot_map(dataset)
@@ -342,7 +343,7 @@ def aggregate_by_depot(
         item["Resident Assigned"] += int(s["Resident Assigned"])
         item["FIFO Assigned"] += int(s["FIFO Assigned"])
 
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, Any]] = []
     for depot, vals in sorted(by_depot.items()):
         td = vals["Total Demand"]
         ad = vals["Assigned Demand"]
@@ -362,8 +363,8 @@ def aggregate_by_depot(
 
 def aggregate_by_depot_and_head(
     dataset: DashboardDataset,
-    slot_records: list[dict[str, object]] | None = None,
-) -> list[dict[str, object]]:
+    slot_records: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     """Aggregate Demand, Assigned, Remaining Gap, and Coverage % across `Activity Head x Depot`."""
     slots = slot_records if slot_records is not None else build_demand_slot_records(dataset)
     activity_depot = _build_activity_depot_map(dataset)
@@ -381,7 +382,7 @@ def aggregate_by_depot_and_head(
         item["Remaining Gap"] += int(s["Remaining Gap"])
         item["Priority"] = int(s.get("Priority", 999))
 
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, Any]] = []
     for (head, depot), vals in sorted(grouped.items(), key=lambda x: (x[1]["Priority"], x[0][0], x[0][1])):
         td = vals["Total Demand"]
         ad = vals["Assigned Demand"]
@@ -399,9 +400,9 @@ def aggregate_by_depot_and_head(
     return rows
 
 
-def aggregate_by_priority_tier(slot_records: list[dict[str, object]]) -> list[dict[str, object]]:
+def aggregate_by_priority_tier(slot_records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Aggregate Demand, Filled, Unfilled, Fill Rate %, and Cumulative Coverage % ordered by Priority tier."""
-    by_prio: dict[int, dict[str, object]] = {}
+    by_prio: dict[int, dict[str, Any]] = {}
     for s in slot_records:
         p = int(s["Priority"])
         head = str(s["Activity Head"])
@@ -424,7 +425,7 @@ def aggregate_by_priority_tier(slot_records: list[dict[str, object]]) -> list[di
         entry["Resident Assigned"] = int(entry["Resident Assigned"]) + int(s["Resident Assigned"])
         entry["FIFO Assigned"] = int(entry["FIFO Assigned"]) + int(s["FIFO Assigned"])
 
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, Any]] = []
     cum_demand = 0
     cum_assigned = 0
     for p in sorted(by_prio):
@@ -452,7 +453,7 @@ def aggregate_by_priority_tier(slot_records: list[dict[str, object]]) -> list[di
 def compute_cross_run_deltas(
     active_ds: DashboardDataset,
     baseline_ds: DashboardDataset,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """Compute delta metrics between `active_ds` and `baseline_ds`."""
     active_kpis = compute_extended_kpis(active_ds)
     base_kpis = compute_extended_kpis(baseline_ds)

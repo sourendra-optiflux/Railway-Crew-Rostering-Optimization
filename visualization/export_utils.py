@@ -52,7 +52,7 @@ def datasets_to_excel_bytes(sheets: dict[str, list[dict[str, Any]]]) -> bytes:
 def crew_schedule_to_html(
     user_id: str,
     crew_info: dict[str, str],
-    schedule_rows: list[dict[str, object]],
+    schedule_rows: list[dict[str, Any]],
 ) -> bytes:
     """Generate a clean, printable HTML roster card for an individual crew member."""
     classification = html.escape(crew_info.get("Classification", "Unknown"))

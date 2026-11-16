@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from typing import Any
 
 from visualization.data_loader import DashboardDataset
 from visualization.metrics import (
@@ -32,7 +33,7 @@ def _parse_shift_interval(row: dict[str, str]) -> tuple[datetime, datetime] | No
         return None
 
 
-def check_swing_home_depot(dataset: DashboardDataset) -> dict[str, object]:
+def check_swing_home_depot(dataset: DashboardDataset) -> dict[str, Any]:
     """Check whether every crew member's assigned swing starts and ends at their Home Depot."""
     per_user_work: dict[str, list[tuple[datetime, datetime, dict[str, str]]]] = defaultdict(list)
     for r in dataset.roster_rows:
@@ -49,7 +50,7 @@ def check_swing_home_depot(dataset: DashboardDataset) -> dict[str, object]:
             continue
         per_user_work[uid].append((interval[0], interval[1], r))
 
-    swing_rows: list[dict[str, object]] = []
+    swing_rows: list[dict[str, Any]] = []
     passed = 0
     failed = 0
     failed_start = 0
@@ -109,7 +110,7 @@ def build_unfilled_gap_records(
     dataset: DashboardDataset,
     head_filter: set[str] | None = None,
     swing_filter: set[str] | None = None,
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     """Build detailed records for every demand slot that has `Remaining Gap > 0`."""
     slots = build_demand_slot_records(
         dataset,
@@ -147,7 +148,7 @@ def build_unfilled_gap_records(
     has_layer1_diagnostics = bool(dataset.gap_options or dataset.rejections or dataset.seats)
     solver_start = dataset.constraints.get("Solver Start Date", ("2026-11-06", "Active"))[0]
 
-    unfilled_records: list[dict[str, object]] = []
+    unfilled_records: list[dict[str, Any]] = []
     for s in slots:
         rem_gap = int(s["Remaining Gap"])
         if rem_gap <= 0:
@@ -215,9 +216,9 @@ def build_unfilled_gap_records(
     return unfilled_records
 
 
-def summarize_gaps(unfilled_records: list[dict[str, object]]) -> dict[str, list[dict[str, object]]]:
+def summarize_gaps(unfilled_records: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     """Summarize remaining gaps by Activity Head, by Shift, and by Priority."""
-    by_head: dict[str, dict[str, object]] = {}
+    by_head: dict[str, dict[str, Any]] = {}
     by_shift: dict[str, int] = defaultdict(int)
     by_date: dict[str, int] = defaultdict(int)
     by_priority: dict[int, int] = defaultdict(int)
@@ -258,7 +259,7 @@ def summarize_gaps(unfilled_records: list[dict[str, object]]) -> dict[str, list[
     }
 
 
-def build_constraint_diagnostics(dataset: DashboardDataset) -> dict[str, object]:
+def build_constraint_diagnostics(dataset: DashboardDataset) -> dict[str, Any]:
     """Compile evidence-based diagnostics for constraints, swing availability, and per-swing shift limits."""
     # 1. Configured constraint switches & rule parameters
     max_shifts_status = dataset.constraints.get("Activity Head Max Shifts", ("", "Active"))[1]
@@ -376,7 +377,7 @@ def build_constraint_diagnostics(dataset: DashboardDataset) -> dict[str, object]
         if head in dataset.limits_by_head:
             per_swing_head_counts[(uid, cls, sw, head)] += 1
 
-    limit_utilization_rows: list[dict[str, object]] = []
+    limit_utilization_rows: list[dict[str, Any]] = []
     max_observed_by_head: dict[str, dict[str, int]] = defaultdict(lambda: {"Residential": 0, "FIFO": 0})
     at_limit_by_head: dict[str, dict[str, int]] = defaultdict(lambda: {"Residential": 0, "FIFO": 0})
 
@@ -401,7 +402,7 @@ def build_constraint_diagnostics(dataset: DashboardDataset) -> dict[str, object]
             }
         )
 
-    head_limits_table: list[dict[str, object]] = []
+    head_limits_table: list[dict[str, Any]] = []
     for head, prio in sorted(dataset.priority_by_head.items(), key=lambda x: (x[1], x[0])):
         res_lim, fifo_lim = dataset.limits_by_head.get(head, (None, None))
         head_limits_table.append(
@@ -426,7 +427,7 @@ def build_constraint_diagnostics(dataset: DashboardDataset) -> dict[str, object]
     }
 
 
-def inspect_seat_candidates(dataset: DashboardDataset, seat_key: str) -> dict[str, list[dict[str, object]]]:
+def inspect_seat_candidates(dataset: DashboardDataset, seat_key: str) -> dict[str, list[dict[str, Any]]]:
     """Trace what happened in the final solver output to every Layer-1 candidate for a given Seat Key.
 
     Uses only factual records from `gap_options.csv`, `rejections.csv`, `reassignments.csv`, and `roster_full.csv`.
@@ -469,7 +470,7 @@ def inspect_seat_candidates(dataset: DashboardDataset, seat_key: str) -> dict[st
                 target_head = d.get("Activity Head", "").strip()
                 break
 
-    candidate_rows: list[dict[str, object]] = []
+    candidate_rows: list[dict[str, Any]] = []
     for c in dataset.gap_options:
         if c.get("Seat Key", "").strip() != seat_key:
             continue
@@ -523,7 +524,7 @@ def inspect_seat_candidates(dataset: DashboardDataset, seat_key: str) -> dict[st
             }
         )
 
-    rejection_rows: list[dict[str, object]] = []
+    rejection_rows: list[dict[str, Any]] = []
     for r in dataset.rejections:
         if r.get("Seat Key", "").strip() == seat_key:
             rejection_rows.append(
@@ -540,7 +541,7 @@ def inspect_seat_candidates(dataset: DashboardDataset, seat_key: str) -> dict[st
     }
 
 
-def parse_summary_and_validation(dataset: DashboardDataset) -> dict[str, object]:
+def parse_summary_and_validation(dataset: DashboardDataset) -> dict[str, Any]:
     """Parse CP-SAT objective stage statuses from `summary.md` and rule checks from `validation.md`."""
     stages: list[dict[str, str]] = []
     summary_items: dict[str, str] = {}

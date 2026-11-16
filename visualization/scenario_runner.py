@@ -124,10 +124,21 @@ def _apply_rule_overrides_to_dir(
     solver_start_date: str | None = None,
     assignment_type_priority_map: dict[str, int] | None = None,
     activity_priority_overrides: list[dict[str, str]] | None = None,
+    constraints_table_overrides: list[dict[str, str]] | None = None,
 ) -> None:
     """Apply rule, constraint, and objective overrides to data_dir and config_path."""
     cons_path = data_dir / "constraints_df.csv"
     fieldnames, cons_rows = _read_csv_rows(cons_path)
+    if constraints_table_overrides:
+        cons_rows = [
+            {
+                "Constraint": str(r.get("Constraint", "")).strip(),
+                "Value": str(r.get("Value", "")).strip(),
+                "Status": str(r.get("Status", "Active")).strip() or "Active",
+            }
+            for r in constraints_table_overrides
+            if str(r.get("Constraint", "")).strip()
+        ]
     seen_names: set[str] = set()
     offsets_val = "-60;0;60" if allow_start_time_offsets else "0"
 
@@ -210,6 +221,7 @@ def save_active_config_and_constraints(
     solver_start_date: str | None = None,
     assignment_type_priority_map: dict[str, int] | None = None,
     activity_priority_overrides: list[dict[str, str]] | None = None,
+    constraints_table_overrides: list[dict[str, str]] | None = None,
 ) -> None:
     """Persist rule, constraint, and objective overrides to the active config/data files."""
     _apply_rule_overrides_to_dir(
@@ -229,6 +241,7 @@ def save_active_config_and_constraints(
         solver_start_date=solver_start_date,
         assignment_type_priority_map=assignment_type_priority_map,
         activity_priority_overrides=activity_priority_overrides,
+        constraints_table_overrides=constraints_table_overrides,
     )
 
 
@@ -250,6 +263,10 @@ def run_what_if_scenario(
     solver_start_date: str | None = None,
     assignment_type_priority_map: dict[str, int] | None = None,
     activity_priority_overrides: list[dict[str, str]] | None = None,
+    constraints_table_overrides: list[dict[str, str]] | None = None,
+    include_gap_generation: bool = False,
+    gap_seed: int = 2026,
+    persist_output_name: str | None = None,
     time_limit: int = 30,
     log_callback: Callable[[str], None] | None = None,
 ) -> tuple[DashboardDataset | None, str]:
@@ -257,6 +274,7 @@ def run_what_if_scenario(
     with tempfile.TemporaryDirectory(prefix="rostering_whatif_") as tmp:
         tmp_path = Path(tmp)
         data_dir = tmp_path / "data"
+        gap_dir = tmp_path / "gaps"
         opts_dir = tmp_path / "options"
         out_dir = tmp_path / "cpsat"
         cfg_path = tmp_path / "config.yml"
@@ -282,7 +300,31 @@ def run_what_if_scenario(
             solver_start_date=solver_start_date,
             assignment_type_priority_map=assignment_type_priority_map,
             activity_priority_overrides=activity_priority_overrides,
+            constraints_table_overrides=constraints_table_overrides,
         )
+
+        gap_logs = ""
+        if include_gap_generation:
+            if log_callback:
+                log_callback(f"=== Layer 0: Gap Generation (make_gaps.py, seed={gap_seed}) ===")
+            rc0, out0 = stream_command(
+                [
+                    sys.executable,
+                    str(ROOT / "gap_generation" / "make_gaps.py"),
+                    "--data-dir",
+                    str(data_dir),
+                    "--output-dir",
+                    str(gap_dir),
+                    "--seed",
+                    str(int(gap_seed)),
+                ],
+                cwd=ROOT,
+                log_callback=log_callback,
+            )
+            gap_logs = f"=== Layer 0: Gap Generation (seed={gap_seed}) ===\n{out0}\n"
+            if rc0 != 0 or not (gap_dir / "roster_full.csv").exists():
+                return None, gap_logs
+            roster_in = gap_dir / "roster_full.csv"
 
         ok, logs = _run_layer1_and_layer2(
             data_dir,
@@ -293,8 +335,20 @@ def run_what_if_scenario(
             time_limit=time_limit,
             log_callback=log_callback,
         )
+        full_logs = (gap_logs + logs) if gap_logs else logs
         if not ok:
-            return None, logs
+            return None, full_logs
+
+        if persist_output_name and persist_output_name.strip():
+            safe_name = "".join(
+                ch if (ch.isalnum() or ch in {"_", "-"}) else "_"
+                for ch in persist_output_name.strip()
+            )
+            target_persist_dir = ROOT / "CP-SAT" / "outputs" / safe_name
+            if target_persist_dir.exists():
+                shutil.rmtree(target_persist_dir)
+            shutil.copytree(out_dir, target_persist_dir)
+            (target_persist_dir / "solver.log").write_text(full_logs, encoding="utf-8")
 
         ds = load_dashboard_dataset(
             data_dir=data_dir,
@@ -303,7 +357,7 @@ def run_what_if_scenario(
             config_path=cfg_path,
             name="What-If Scenario",
         )
-        return ds, logs
+        return ds, full_logs
 
 
 def run_disruption_simulation(

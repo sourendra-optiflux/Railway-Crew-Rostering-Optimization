@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from visualization.analytics import (
@@ -52,8 +54,8 @@ def _select_set(values: list[str]) -> set[str] | None:
 
 def render_overview(
     dataset: DashboardDataset,
-    all_slots: list[dict[str, object]],
-    parsed_meta: dict[str, object],
+    all_slots: list[dict[str, Any]],
+    parsed_meta: dict[str, Any],
     baseline_dataset: DashboardDataset | None = None,
 ) -> None:
     """Render Page 1: Executive Overview, Automated Operational Brief, KPIs & Reconciled Summaries."""

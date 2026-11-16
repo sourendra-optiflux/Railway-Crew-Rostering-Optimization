@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import streamlit as st
 
@@ -39,8 +39,8 @@ from visualization.validators import run_post_solve_qa_suite
 
 def render_priority_and_telemetry(
     dataset: DashboardDataset,
-    all_slots: list[dict[str, object]],
-    parsed_meta: dict[str, object],
+    all_slots: list[dict[str, Any]],
+    parsed_meta: dict[str, Any],
     base_root: Path = ROOT,
 ) -> None:
     """Render Page 5: Priority Hierarchy, Multi-Stage Telemetry & Cross-Run Comparison."""
@@ -113,7 +113,7 @@ def render_priority_and_telemetry(
 
 def render_constraint_diagnostics(
     dataset: DashboardDataset,
-    parsed_meta: dict[str, object],
+    parsed_meta: dict[str, Any],
 ) -> None:
     """Render Page 6: Automated Post-Solve QA Engine & Constraint Diagnostics."""
     st.subheader("Automated Post-Solve QA Scorecard & Constraint Diagnostics")
@@ -258,10 +258,10 @@ def render_strategy_comparison(base_root: Path = ROOT) -> None:
 
 def render_workload_chains_depots(
     dataset: DashboardDataset,
-    parsed_meta: dict[str, object],
+    parsed_meta: dict[str, Any],
     *,
-    workload_fn: Callable[[DashboardDataset], dict[str, object]],
-    resilience_fn: Callable[[DashboardDataset], dict[str, object]],
+    workload_fn: Callable[[DashboardDataset], dict[str, Any]],
+    resilience_fn: Callable[[DashboardDataset], dict[str, Any]],
 ) -> None:
     """Render Section 7: Crew Fairness, Reassignment Chains, Rest Margins & Depot Balance."""
     st.subheader("Crew Fairness, Reassignment Chains, Rest Margins & Depot Balance")
@@ -352,7 +352,7 @@ def render_workload_chains_depots(
 def render_skill_currency_radar(
     dataset: DashboardDataset,
     *,
-    radar_fn: Callable[[DashboardDataset], dict[str, object]],
+    radar_fn: Callable[[DashboardDataset], dict[str, Any]],
 ) -> None:
     """Render Section 8: Skill & Currency Radar."""
     st.subheader("Certification Supply, Depot Readiness & Currency Expiry Radar")

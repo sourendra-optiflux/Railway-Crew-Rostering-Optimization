@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from typing import Any
 
 from visualization.data_loader import DashboardDataset
 from visualization.metrics import WORK_ASSIGNMENT_TYPES, classify_user
@@ -64,7 +65,7 @@ def _swing_work_caps(dataset: DashboardDataset) -> tuple[int, int]:
     )
 
 
-def compute_crew_workload_analytics(dataset: DashboardDataset) -> dict[str, object]:
+def compute_crew_workload_analytics(dataset: DashboardDataset) -> dict[str, Any]:
     """Compute per-crew fairness, day/night split, weekend duties, standby conversion, and fatigue indicators."""
     day_from, day_to = _day_window_minutes(dataset)
     res_cap, fifo_cap = _swing_work_caps(dataset)
@@ -78,7 +79,7 @@ def compute_crew_workload_analytics(dataset: DashboardDataset) -> dict[str, obje
         if r.get("From Row", "").strip()
     }
 
-    per_user_shifts: dict[str, list[dict[str, object]]] = defaultdict(list)
+    per_user_shifts: dict[str, list[dict[str, Any]]] = defaultdict(list)
     user_meta: dict[str, dict[str, str]] = {}
 
     for uid, info in dataset.crew_by_id.items():
@@ -135,7 +136,7 @@ def compute_crew_workload_analytics(dataset: DashboardDataset) -> dict[str, obje
         )
 
     # Also account for Relief standby rows converted in reassignments where roster row might reflect Demand
-    crew_rows: list[dict[str, object]] = []
+    crew_rows: list[dict[str, Any]] = []
     total_worked_shifts = 0
     total_day_shifts = 0
     total_night_shifts = 0
@@ -223,7 +224,7 @@ def compute_crew_workload_analytics(dataset: DashboardDataset) -> dict[str, obje
     }
 
 
-def build_reassignment_chains(dataset: DashboardDataset) -> dict[str, object]:
+def build_reassignment_chains(dataset: DashboardDataset) -> dict[str, Any]:
     """Trace reassignment moves and multi-hop Demand->Demand chains from reassignments.csv."""
     reassignments = dataset.reassignments
     if not reassignments:
@@ -248,7 +249,7 @@ def build_reassignment_chains(dataset: DashboardDataset) -> dict[str, object]:
 
     # Link Sankey flows: Source Type -> Target Activity Name
     flow_counts: Counter[tuple[str, str]] = Counter()
-    moves: list[dict[str, object]] = []
+    moves: list[dict[str, Any]] = []
     for r in reassignments:
         src = r.get("Source", "").strip() or "Unknown"
         from_act = r.get("From Activity", "").strip() or src
@@ -274,7 +275,7 @@ def build_reassignment_chains(dataset: DashboardDataset) -> dict[str, object]:
         )
 
     # Reconstruct multi-step chains where Filled Row == From Row of another move
-    chains: list[dict[str, object]] = []
+    chains: list[dict[str, Any]] = []
     for r in reassignments:
         if r.get("Was Gap", "").strip() != "True":
             continue
@@ -331,7 +332,7 @@ def build_reassignment_chains(dataset: DashboardDataset) -> dict[str, object]:
     }
 
 
-def compute_depot_and_travel_analytics(dataset: DashboardDataset) -> dict[str, object]:
+def compute_depot_and_travel_analytics(dataset: DashboardDataset) -> dict[str, Any]:
     """Compute depot inflow/outflow balance and FIFO deadheading/travel hours."""
     depot_starts: Counter[str] = Counter()
     depot_ends: Counter[str] = Counter()
@@ -340,7 +341,7 @@ def compute_depot_and_travel_analytics(dataset: DashboardDataset) -> dict[str, o
     travel_in_count = 0
     travel_out_count = 0
     total_travel_hours = 0.0
-    travel_by_user: dict[str, dict[str, object]] = {}
+    travel_by_user: dict[str, dict[str, Any]] = {}
 
     for r in dataset.roster_rows:
         if r.get("In Horizon", "Yes").strip() not in ("", "Yes", "True", "true"):
@@ -423,9 +424,9 @@ def compute_depot_and_travel_analytics(dataset: DashboardDataset) -> dict[str, o
     }
 
 
-def build_individual_crew_schedule(dataset: DashboardDataset, user_id: str) -> list[dict[str, object]]:
+def build_individual_crew_schedule(dataset: DashboardDataset, user_id: str) -> list[dict[str, Any]]:
     """Return chronological roster timeline (shifts, travel, off, leave) for a specific crew member."""
-    entries: list[tuple[datetime, dict[str, object]]] = []
+    entries: list[tuple[datetime, dict[str, Any]]] = []
 
     for r in dataset.roster_rows:
         opt_uid = r.get("Optimised User Id", "").strip()
@@ -473,7 +474,7 @@ def build_individual_crew_schedule(dataset: DashboardDataset, user_id: str) -> l
         )
 
     entries.sort(key=lambda x: x[0])
-    schedule: list[dict[str, object]] = []
+    schedule: list[dict[str, Any]] = []
     prev_work_end: datetime | None = None
 
     for _, row in entries:
@@ -577,7 +578,7 @@ def build_executive_insights(dataset: DashboardDataset) -> list[dict[str, str]]:
     return insights
 
 
-def compute_solver_cost_and_offset_analytics(dataset: DashboardDataset) -> dict[str, object]:
+def compute_solver_cost_and_offset_analytics(dataset: DashboardDataset) -> dict[str, Any]:
     """Break down reassignment costs by source type & activity head, plus F1/F3 start-time offsets."""
     cost_by_source: Counter[str] = Counter()
     count_by_source: Counter[str] = Counter()
@@ -635,7 +636,7 @@ def compute_solver_cost_and_offset_analytics(dataset: DashboardDataset) -> dict[
     }
 
 
-def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, object]:
+def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, Any]:
     """Analyze certification supply vs demand, depot x head matrix, and currency expiry risk."""
     # Daily demand per Activity Head
     daily_demand_by_head: Counter[str] = Counter()
@@ -662,7 +663,7 @@ def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, obj
                 eligible_users_by_head[head].add(u)
 
     all_heads = sorted(set(daily_demand_by_head.keys()) | set(eligible_users_by_head.keys()))
-    supply_rows: list[dict[str, object]] = []
+    supply_rows: list[dict[str, Any]] = []
     depot_head_counts: Counter[tuple[str, str]] = Counter()
     all_depots: set[str] = set()
 
@@ -692,7 +693,7 @@ def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, obj
             all_depots.add(depot)
             depot_head_counts[(depot, head)] += 1
 
-    matrix_rows: list[dict[str, object]] = []
+    matrix_rows: list[dict[str, Any]] = []
     for dep in sorted(all_depots):
         for head in all_heads:
             matrix_rows.append({
@@ -724,7 +725,7 @@ def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, obj
         h_end = h_start + timedelta(days=30)
 
     # Track assigned work dates during the horizon so currency refreshes are accounted for
-    performed_dates: dict[tuple[str, str], list[datetime.date]] = defaultdict(list)
+    performed_dates: dict[tuple[str, str], list[date]] = defaultdict(list)
     for r in dataset.roster_rows:
         if r.get("Assignment Type", "").strip() not in WORK_ASSIGNMENT_TYPES:
             continue
@@ -739,7 +740,7 @@ def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, obj
     for key in performed_dates:
         performed_dates[key].sort()
 
-    currency_watchlist: list[dict[str, object]] = []
+    currency_watchlist: list[dict[str, Any]] = []
     for c in dataset.currency_rows:
         uid = c.get("User Id", "").strip()
         head = c.get("Activity Head", "").strip()
@@ -776,7 +777,7 @@ def compute_skill_and_currency_radar(dataset: DashboardDataset) -> dict[str, obj
     }
 
 
-def compute_resilience_and_pool_analytics(dataset: DashboardDataset) -> dict[str, object]:
+def compute_resilience_and_pool_analytics(dataset: DashboardDataset) -> dict[str, Any]:
     """Compute rest-hour margins between consecutive work shifts and daily crew pool states."""
     per_user_work: dict[str, list[tuple[datetime, datetime, str]]] = defaultdict(list)
     daily_pool: dict[str, Counter[str]] = defaultdict(Counter)
@@ -808,7 +809,7 @@ def compute_resilience_and_pool_analytics(dataset: DashboardDataset) -> dict[str
             if interval:
                 per_user_work[opt_uid].append((interval[0], interval[1], r.get("Activity Head", "").strip()))
 
-    rest_margins: list[dict[str, object]] = []
+    rest_margins: list[dict[str, Any]] = []
     bucket_counts: Counter[str] = Counter()
     tight_rest_count = 0
 
@@ -850,7 +851,7 @@ def compute_resilience_and_pool_analytics(dataset: DashboardDataset) -> dict[str
     ]
     rest_buckets = [{"Category": b, "Transitions": bucket_counts.get(b, 0)} for b in bucket_order]
 
-    pool_rows: list[dict[str, object]] = []
+    pool_rows: list[dict[str, Any]] = []
     for dt in sorted(daily_pool.keys()):
         c = daily_pool[dt]
         pool_rows.append({
@@ -871,12 +872,12 @@ def compute_resilience_and_pool_analytics(dataset: DashboardDataset) -> dict[str
     }
 
 
-def compute_run_diff(ds_a: DashboardDataset, ds_b: DashboardDataset) -> list[dict[str, object]]:
+def compute_run_diff(ds_a: DashboardDataset, ds_b: DashboardDataset) -> list[dict[str, Any]]:
     """Compare two solver runs row-by-row by Assignment ID and return changed assignments."""
     by_id_a = {r.get("Assignment ID", "").strip(): r for r in ds_a.roster_rows if r.get("Assignment ID", "").strip()}
     by_id_b = {r.get("Assignment ID", "").strip(): r for r in ds_b.roster_rows if r.get("Assignment ID", "").strip()}
 
-    diffs: list[dict[str, object]] = []
+    diffs: list[dict[str, Any]] = []
     for aid in sorted(set(by_id_a.keys()) & set(by_id_b.keys())):
         ra = by_id_a[aid]
         rb = by_id_b[aid]
@@ -899,7 +900,7 @@ def compute_run_diff(ds_a: DashboardDataset, ds_b: DashboardDataset) -> list[dic
     return diffs
 
 
-def compute_input_readiness_analytics(dataset: DashboardDataset) -> dict[str, object]:
+def compute_input_readiness_analytics(dataset: DashboardDataset) -> dict[str, Any]:
     """Analyze pre-solver input data: competencies, restrictions, exclusions, onsite checks, and baseline supply."""
     # 1. Competency & Compliance Matrix
     req_by_head: dict[str, set[str]] = defaultdict(set)
@@ -934,7 +935,7 @@ def compute_input_readiness_analytics(dataset: DashboardDataset) -> dict[str, ob
             })
 
     total_crew = len(dataset.crew_by_id)
-    competency_matrix_rows: list[dict[str, object]] = []
+    competency_matrix_rows: list[dict[str, Any]] = []
     for head in sorted(req_by_head.keys()):
         reqs = sorted(req_by_head[head])
         compliant = 0
@@ -1009,7 +1010,7 @@ def compute_input_readiness_analytics(dataset: DashboardDataset) -> dict[str, ob
     }
 
 
-def compute_lifecycle_waterfall(dataset: DashboardDataset) -> dict[str, object]:
+def compute_lifecycle_waterfall(dataset: DashboardDataset) -> dict[str, Any]:
     """Compute 3-stage lifecycle metrics: Baseline -> Leave Gaps -> Solver Recovery."""
     demand_rows = [r for r in dataset.roster_rows if r.get("Assignment Type", "").strip() == "Demand"]
     total_demand = len(demand_rows)
@@ -1060,7 +1061,7 @@ def compute_lifecycle_waterfall(dataset: DashboardDataset) -> dict[str, object]:
     }
 
 
-def compute_option_density_vs_fill(dataset: DashboardDataset) -> list[dict[str, object]]:
+def compute_option_density_vs_fill(dataset: DashboardDataset) -> list[dict[str, Any]]:
     """Join seats.csv, gap_options.csv, and roster_rows to inspect option count vs fill outcome."""
     opts_by_seat: dict[str, int] = defaultdict(int)
     for opt in dataset.gap_options:
@@ -1071,7 +1072,7 @@ def compute_option_density_vs_fill(dataset: DashboardDataset) -> list[dict[str, 
     unfilled_aids = {u.get("Assignment ID", "").strip() for u in dataset.unfilled_gaps if u.get("Assignment ID", "").strip()}
     roster_by_aid = {r.get("Assignment ID", "").strip(): r for r in dataset.roster_rows if r.get("Assignment ID", "").strip()}
 
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, Any]] = []
     for seat in dataset.seats:
         sk = seat.get("Seat Key", "").strip()
         aid = seat.get("Assignment ID", "").strip()
@@ -1095,7 +1096,7 @@ def compute_option_density_vs_fill(dataset: DashboardDataset) -> list[dict[str, 
     return rows
 
 
-def compute_slot_diff_matrix(ds_a: DashboardDataset, ds_b: DashboardDataset) -> list[dict[str, object]]:
+def compute_slot_diff_matrix(ds_a: DashboardDataset, ds_b: DashboardDataset) -> list[dict[str, Any]]:
     """Compare slot coverage between two runs by (Date, Shift, Activity Head)."""
     from visualization.metrics import build_demand_slot_records
 
@@ -1104,7 +1105,7 @@ def compute_slot_diff_matrix(ds_a: DashboardDataset, ds_b: DashboardDataset) -> 
     map_a = {(str(s["Date"]), str(s["Shift"]), str(s["Activity Head"])): s for s in slots_a}
     map_b = {(str(s["Date"]), str(s["Shift"]), str(s["Activity Head"])): s for s in slots_b}
 
-    diffs: list[dict[str, object]] = []
+    diffs: list[dict[str, Any]] = []
     for key in sorted(set(map_a.keys()) | set(map_b.keys())):
         sa = map_a.get(key, {})
         sb = map_b.get(key, {})
@@ -1124,16 +1125,16 @@ def compute_slot_diff_matrix(ds_a: DashboardDataset, ds_b: DashboardDataset) -> 
     return diffs
 
 
-def parse_solver_log_metrics(log_text: str) -> dict[str, object]:
+def parse_solver_log_metrics(log_text: str) -> dict[str, Any]:
     """Parse Layer-1 / CP-SAT log text into structured stage summaries, severity counts, and filtered lines."""
     import re
 
     lines = [ln for ln in log_text.splitlines() if ln.strip()]
-    stages: list[dict[str, object]] = []
+    stages: list[dict[str, Any]] = []
     cur_stage = "General"
     stage_line_counts: dict[str, int] = defaultdict(int)
     severity_counts = {"INFO": 0, "STAGE": 0, "WARNING": 0, "ERROR": 0}
-    parsed_lines: list[dict[str, object]] = []
+    parsed_lines: list[dict[str, Any]] = []
 
     stage_re = re.compile(r"^===\s*(.+?)\s*===$")
     time_re = re.compile(r"(\d+(?:\.\d+)?)\s*(?:s|sec|seconds)\b", re.IGNORECASE)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import Any
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -36,7 +37,7 @@ def _apply_chart_theme(fig: go.Figure) -> go.Figure:
 
 
 def create_demand_coverage_heatmap(
-    slot_records: list[dict[str, object]],
+    slot_records: list[dict[str, Any]],
     column_mode: str = "Date",
 ) -> go.Figure:
     """Build an interactive Demand vs Coverage Heatmap.
@@ -275,8 +276,8 @@ def create_crew_gantt_chart(
 
 
 def create_gap_summary_charts(
-    gap_summaries: dict[str, list[dict[str, object]]],
-    head_aggregates: list[dict[str, object]],
+    gap_summaries: dict[str, list[dict[str, Any]]],
+    head_aggregates: list[dict[str, Any]],
 ) -> dict[str, go.Figure]:
     """Build bar charts for Gap-Filling Analysis (by Activity Head, Shift, Priority, and Resident vs FIFO)."""
     by_head = gap_summaries.get("by_head", [])
@@ -347,7 +348,7 @@ def create_gap_summary_charts(
     }
 
 
-def create_strategy_comparison_charts(comparison: dict[str, object]) -> dict[str, go.Figure]:
+def create_strategy_comparison_charts(comparison: dict[str, Any]) -> dict[str, go.Figure]:
     """Build grouped bar charts comparing None, Weighted, and Lexicographic strategies."""
     by_head = list(comparison.get("by_head", []))
     by_priority = list(comparison.get("by_priority", []))
@@ -387,7 +388,7 @@ def create_strategy_comparison_charts(comparison: dict[str, object]) -> dict[str
     }
 
 
-def create_shift_limit_utilization_chart(head_limits_table: list[dict[str, object]]) -> go.Figure:
+def create_shift_limit_utilization_chart(head_limits_table: list[dict[str, Any]]) -> go.Figure:
     """Build a grouped bar chart comparing Max Observed Shifts/Swing vs Configured Max Resident/FIFO Shifts."""
     if not head_limits_table:
         fig = go.Figure()
@@ -419,7 +420,7 @@ def create_shift_limit_utilization_chart(head_limits_table: list[dict[str, objec
     return fig
 
 
-def create_workload_distribution_chart(crew_rows: list[dict[str, object]], top_n: int = 30) -> go.Figure:
+def create_workload_distribution_chart(crew_rows: list[dict[str, Any]], top_n: int = 30) -> go.Figure:
     """Stacked bar chart of Day vs Night shifts for top crew members by total worked shifts."""
     if not crew_rows:
         fig = go.Figure()
@@ -448,7 +449,7 @@ def create_workload_distribution_chart(crew_rows: list[dict[str, object]], top_n
     return fig
 
 
-def create_reassignment_sankey_chart(sankey_links: list[dict[str, object]]) -> go.Figure:
+def create_reassignment_sankey_chart(sankey_links: list[dict[str, Any]]) -> go.Figure:
     """Sankey flow diagram showing gap-fill sources flowing into target activities."""
     if not sankey_links:
         fig = go.Figure()
@@ -488,7 +489,7 @@ def create_reassignment_sankey_chart(sankey_links: list[dict[str, object]]) -> g
     return fig
 
 
-def create_depot_balance_chart(depot_rows: list[dict[str, object]]) -> go.Figure:
+def create_depot_balance_chart(depot_rows: list[dict[str, Any]]) -> go.Figure:
     """Grouped bar chart of Shift Starts vs Shift Ends per Depot."""
     if not depot_rows:
         fig = go.Figure()
@@ -516,7 +517,7 @@ def create_depot_balance_chart(depot_rows: list[dict[str, object]]) -> go.Figure
     return fig
 
 
-def create_cost_and_offset_charts(cost_analytics: dict[str, object]) -> dict[str, go.Figure]:
+def create_cost_and_offset_charts(cost_analytics: dict[str, Any]) -> dict[str, go.Figure]:
     """Build cost-by-source and start-time offset (F1/F3) distribution charts."""
     source_rows = cost_analytics.get("source_rows", [])
     offset_rows = cost_analytics.get("offset_rows", [])
@@ -570,7 +571,7 @@ def create_cost_and_offset_charts(cost_analytics: dict[str, object]) -> dict[str
     return {"cost_by_source": fig_cost, "offsets": fig_off}
 
 
-def create_skill_supply_chart(supply_rows: list[dict[str, object]]) -> go.Figure:
+def create_skill_supply_chart(supply_rows: list[dict[str, Any]]) -> go.Figure:
     """Grouped bar chart comparing Eligible Certified Crew vs Daily Demand per Activity Head."""
     if not supply_rows:
         fig = go.Figure()
@@ -598,7 +599,7 @@ def create_skill_supply_chart(supply_rows: list[dict[str, object]]) -> go.Figure
     return fig
 
 
-def create_depot_head_eligibility_heatmap(matrix_rows: list[dict[str, object]]) -> go.Figure:
+def create_depot_head_eligibility_heatmap(matrix_rows: list[dict[str, Any]]) -> go.Figure:
     """Heatmap of certified crew count by Home Depot x Activity Head."""
     if not matrix_rows:
         fig = go.Figure()
@@ -631,7 +632,7 @@ def create_depot_head_eligibility_heatmap(matrix_rows: list[dict[str, object]]) 
     return fig
 
 
-def create_rest_margin_histogram(rest_buckets: list[dict[str, object]]) -> go.Figure:
+def create_rest_margin_histogram(rest_buckets: list[dict[str, Any]]) -> go.Figure:
     """Bar chart of intra-swing rest-time margin buckets."""
     if not rest_buckets:
         fig = go.Figure()
@@ -663,7 +664,7 @@ def create_rest_margin_histogram(rest_buckets: list[dict[str, object]]) -> go.Fi
     return fig
 
 
-def create_daily_pool_area_chart(daily_pool_rows: list[dict[str, object]]) -> go.Figure:
+def create_daily_pool_area_chart(daily_pool_rows: list[dict[str, Any]]) -> go.Figure:
     """Stacked area chart of daily crew pool allocation across the planning horizon."""
     if not daily_pool_rows:
         fig = go.Figure()
@@ -701,7 +702,7 @@ def create_daily_pool_area_chart(daily_pool_rows: list[dict[str, object]]) -> go
     return fig
 
 
-def create_lifecycle_waterfall_chart(lifecycle: dict[str, object]) -> go.Figure:
+def create_lifecycle_waterfall_chart(lifecycle: dict[str, Any]) -> go.Figure:
     """3-stage waterfall chart from Baseline Demand through Leave Gaps to Solver Recovery."""
     fig = go.Figure(
         go.Waterfall(
@@ -738,7 +739,7 @@ def create_lifecycle_waterfall_chart(lifecycle: dict[str, object]) -> go.Figure:
     return _apply_chart_theme(fig)
 
 
-def create_rejection_pareto_chart(rejection_summary: list[dict[str, object]]) -> go.Figure:
+def create_rejection_pareto_chart(rejection_summary: list[dict[str, Any]]) -> go.Figure:
     """Pareto bar + cumulative % line chart of Layer-1 rejection reasons."""
     if not rejection_summary:
         fig = go.Figure()
@@ -779,7 +780,7 @@ def create_rejection_pareto_chart(rejection_summary: list[dict[str, object]]) ->
     return _apply_chart_theme(fig)
 
 
-def create_unfilled_treemap_chart(unfilled_records: list[dict[str, object]]) -> go.Figure:
+def create_unfilled_treemap_chart(unfilled_records: list[dict[str, Any]]) -> go.Figure:
     """Treemap breaking down unfilled demand by Activity Head -> Priority -> Shift."""
     if not unfilled_records:
         fig = go.Figure()
@@ -798,7 +799,7 @@ def create_unfilled_treemap_chart(unfilled_records: list[dict[str, object]]) -> 
     return fig
 
 
-def create_option_density_scatter_chart(seat_density_rows: list[dict[str, object]]) -> go.Figure:
+def create_option_density_scatter_chart(seat_density_rows: list[dict[str, Any]]) -> go.Figure:
     """Scatter plot of Layer-1 legal option count vs fill outcome per open seat."""
     if not seat_density_rows:
         fig = go.Figure()
@@ -817,9 +818,9 @@ def create_option_density_scatter_chart(seat_density_rows: list[dict[str, object
     return fig
 
 
-def create_individual_crew_calendar_chart(schedule_rows: list[dict[str, object]], user_id: str) -> go.Figure:
+def create_individual_crew_calendar_chart(schedule_rows: list[dict[str, Any]], user_id: str) -> go.Figure:
     """Visual timeline/calendar strip for a single crew member across the horizon."""
-    plot_rows: list[dict[str, object]] = []
+    plot_rows: list[dict[str, Any]] = []
     for r in schedule_rows:
         s_date = str(r.get("Start Date", "")).strip()
         e_date = str(r.get("End Date", "")).strip() or s_date
@@ -867,7 +868,7 @@ def create_individual_crew_calendar_chart(schedule_rows: list[dict[str, object]]
     return _apply_chart_theme(fig)
 
 
-def create_competency_bottleneck_chart(comp_rows: list[dict[str, object]]) -> go.Figure:
+def create_competency_bottleneck_chart(comp_rows: list[dict[str, Any]]) -> go.Figure:
     """Horizontal bar chart showing compliant vs blocked crew per Activity Head."""
     if not comp_rows:
         fig = go.Figure()
@@ -888,7 +889,7 @@ def create_competency_bottleneck_chart(comp_rows: list[dict[str, object]]) -> go
     return fig
 
 
-def create_daily_supply_vs_demand_chart(daily_supply_rows: list[dict[str, object]]) -> go.Figure:
+def create_daily_supply_vs_demand_chart(daily_supply_rows: list[dict[str, Any]]) -> go.Figure:
     """Pre-gap daily demand vs baseline assigned vs relief/excess pool."""
     if not daily_supply_rows:
         fig = go.Figure()
@@ -911,7 +912,7 @@ def create_daily_supply_vs_demand_chart(daily_supply_rows: list[dict[str, object
     return fig
 
 
-def create_slot_diff_heatmap(diff_rows: list[dict[str, object]]) -> go.Figure:
+def create_slot_diff_heatmap(diff_rows: list[dict[str, Any]]) -> go.Figure:
     """Heatmap of coverage delta (Comparison - Baseline) across Activity Head x Date."""
     if not diff_rows:
         fig = go.Figure()
@@ -952,7 +953,7 @@ def create_slot_diff_heatmap(diff_rows: list[dict[str, object]]) -> go.Figure:
     return fig
 
 
-def create_solver_log_timeline_chart(parsed_log: dict[str, object]) -> go.Figure:
+def create_solver_log_timeline_chart(parsed_log: dict[str, Any]) -> go.Figure:
     """Bar chart of solver log stage durations / line volume."""
     stages = parsed_log.get("stages", [])
     if not stages:
@@ -1025,7 +1026,7 @@ def create_fill_rate_gauge_chart(coverage_pct: float, gap_fill_pct: float) -> go
     return _apply_chart_theme(fig)
 
 
-def create_assignment_type_donut_charts(extended_kpis: dict[str, object]) -> dict[str, go.Figure]:
+def create_assignment_type_donut_charts(extended_kpis: dict[str, Any]) -> dict[str, go.Figure]:
     """Create donut charts for Assignment Type (Demand/Relief/Excess) and Crew Classification (Resident/FIFO)."""
     d_cnt = int(extended_kpis.get("demand_assignments", 0))
     r_cnt = int(extended_kpis.get("relief_assignments", 0))
@@ -1071,7 +1072,7 @@ def create_assignment_type_donut_charts(extended_kpis: dict[str, object]) -> dic
     }
 
 
-def create_depot_coverage_chart(depot_rows: list[dict[str, object]]) -> go.Figure:
+def create_depot_coverage_chart(depot_rows: list[dict[str, Any]]) -> go.Figure:
     """Stacked bar chart of Assigned Demand (Residential + FIFO) and Remaining Gap by Depot."""
     depots = [str(r["Depot"]) for r in depot_rows]
     res = [int(r["Resident Assigned"]) for r in depot_rows]
@@ -1093,7 +1094,7 @@ def create_depot_coverage_chart(depot_rows: list[dict[str, object]]) -> go.Figur
     return _apply_chart_theme(fig)
 
 
-def create_head_depot_coverage_heatmap(head_depot_rows: list[dict[str, object]]) -> go.Figure:
+def create_head_depot_coverage_heatmap(head_depot_rows: list[dict[str, Any]]) -> go.Figure:
     """2D heatmap of Coverage % across `Activity Head x Depot`."""
     if not head_depot_rows:
         fig = go.Figure()
@@ -1164,7 +1165,7 @@ def create_head_depot_coverage_heatmap(head_depot_rows: list[dict[str, object]])
     return _apply_chart_theme(fig)
 
 
-def create_priority_adherence_waterfall_chart(prio_rows: list[dict[str, object]]) -> go.Figure:
+def create_priority_adherence_waterfall_chart(prio_rows: list[dict[str, Any]]) -> go.Figure:
     """Stacked bar of Assigned vs Unfilled Demand by Priority tier with Cumulative Coverage % overlay."""
     tiers = [f"P{r['Priority']} ({r['Activity Heads']})" for r in prio_rows]
     assigned = [int(r["Assigned Demand"]) for r in prio_rows]
