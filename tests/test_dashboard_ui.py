@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from streamlit.testing.v1 import AppTest
+import pytest
+
+st_testing = pytest.importorskip("streamlit.testing.v1")
+AppTest = st_testing.AppTest
 
 ROOT = Path(__file__).resolve().parent.parent
 APP_PATH = str(ROOT / "visualization" / "app.py")
