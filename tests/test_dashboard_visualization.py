@@ -1,0 +1,693 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from visualization.charts import (
+    create_crew_gantt_chart,
+    create_demand_coverage_heatmap,
+    create_gap_summary_charts,
+    create_shift_limit_utilization_chart,
+    create_strategy_comparison_charts,
+)
+from visualization.data_loader import (
+    DEFAULT_CONFIG_PATH,
+    DEFAULT_CPSAT_DIR,
+    DEFAULT_DATA_DIR,
+    DEFAULT_OPTIONS_DIR,
+    discover_strategy_datasets,
+    load_dashboard_dataset,
+    read_csv_safe,
+)
+from visualization.gap_analysis import (
+    build_constraint_diagnostics,
+    build_unfilled_gap_records,
+    check_swing_home_depot,
+    inspect_seat_candidates,
+    parse_summary_and_validation,
+    summarize_gaps,
+)
+from visualization.metrics import (
+    aggregate_by_activity_head,
+    aggregate_by_swing,
+    build_crew_timeline_records,
+    build_demand_slot_records,
+    compare_strategy_datasets,
+    compute_summary_kpis,
+)
+
+
+def _write_controlled_dataset(tmp_path: Path, duplicate_roster_row: bool = False) -> tuple[Path, Path, Path, Path]:
+    """Create a small, controlled dataset covering full, partial, and unfilled demand slots."""
+    data_dir = tmp_path / "data"
+    cpsat_dir = tmp_path / "cpsat"
+    opts_dir = tmp_path / "options"
+    cfg_path = tmp_path / "config.yml"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    cpsat_dir.mkdir(parents=True, exist_ok=True)
+    opts_dir.mkdir(parents=True, exist_ok=True)
+
+    cfg_path.write_text(
+        "constraints:\n"
+        "  residential_start_restriction: true\n"
+        "  relief_only_day_night_transition: true\n\n"
+        "optimization:\n"
+        "  priority_strategy: weighted\n",
+        encoding="utf-8",
+    )
+
+    (data_dir / "activity_demand_df.csv").write_text(
+        "Demand ID,Shift,Demand,Is Active,Activity ID,Activity Name,Activity Head\n"
+        "DM001,06:00,2,Yes,A06,Madison Crew,Madison Crew\n"
+        "DM002,08:00,1,Yes,A16,NE Crew,NE Crew\n"
+        "DM003,10:00,1,Yes,A12,BY Ship,BY Ship\n",
+        encoding="utf-8",
+    )
+    (data_dir / "activity_priority.csv").write_text(
+        "Priority,Activity Head,Max Resident Shifts,Max FIFO Shifts\n"
+        "1,Madison Crew,2,4\n"
+        "2,NE Crew,3,5\n"
+        "3,BY Ship,2,4\n",
+        encoding="utf-8",
+    )
+    (data_dir / "crew_master_data_df.csv").write_text(
+        "User Id,Classification,Eligibility,Depot,Role,Is Mentor,Medical,Position\n"
+        "U_RES_1,Residential,A06;A16;A12,Haskett,Driver,No,Fit,L1\n"
+        "U_FIFO_1,FIFO,A06;A16;A12,Haskett,Driver,No,Fit,L2\n"
+        "U_RES_LEAVE,Residential,A06;A16;A12,Haskett,Driver,No,Fit,L3\n",
+        encoding="utf-8",
+    )
+    (data_dir / "constraints_df.csv").write_text(
+        "Constraint,Value,Status\n"
+        "Solver Start Date,2026-11-06,Active\n"
+        "Ordinary Rest Hours,11,Active\n"
+        "Transition Rest Hours,23,Active\n"
+        "Max Start Changes Per Block,1,Active\n"
+        "Max Start Change Minutes,60,Active\n"
+        "Activity Head Max Shifts,,Active\n",
+        encoding="utf-8",
+    )
+
+    roster_lines = [
+        "Assignment ID,User Id,New User Id,Optimised User Id,Start Date,End Date,Shift Start Time,Shift End Time,"
+        "Activity ID,Activity Name,Is Locked,Activity Head,Activity Type,Activity Group,Assignment Type,Demand ID,"
+        "Start Location,End Location,Line ID,Swing,In Horizon,Leave Type,Is Gap,Is_locked_gap,Crew Classification,Optimisation Note",
+        # Slot 1: DM001 on 2026-11-07 06:00 (Demand = 2): 1 filled by Residential, 1 unfilled gap -> Partially Covered!
+        "AS1,U_RES_1,U_RES_1,U_RES_1,2026-11-07,2026-11-07,06:00,18:00,A06,Madison Crew,False,Madison Crew,Crew,Yard,"
+        "Demand,DM001,Haskett,Haskett,L1,1,Yes,,False,False,Residential,",
+        "AS2,U_RES_LEAVE,,,2026-11-07,2026-11-07,06:00,18:00,A06,Madison Crew,False,Madison Crew,Crew,Yard,"
+        "Demand,DM001,Haskett,Haskett,L3,1,Yes,Random,True,False,,",
+        # Slot 2: DM002 on 2026-11-07 08:00 (Demand = 1): 1 filled by FIFO -> Fully Covered!
+        "AS3,U_RES_LEAVE,,U_FIFO_1,2026-11-07,2026-11-07,08:00,20:00,A16,NE Crew,False,NE Crew,Crew,Yard,"
+        "Demand,DM002,Haskett,Haskett,L2,2,Yes,Random,True,False,FIFO,filled by U_FIFO_1",
+        # Slot 3: DM003 on 2026-11-04 10:00 (Demand = 1): 1 locked gap before Solver Start Date -> Completely Unfilled!
+        "AS4,U_RES_LEAVE,,,2026-11-04,2026-11-04,10:00,22:00,A12,BY Ship,False,BY Ship,Shed,Yard,"
+        "Demand,DM003,Haskett,Haskett,L3,1,Yes,Full Swing,True,True,,",
+    ]
+    if duplicate_roster_row:
+        roster_lines.append(roster_lines[1])  # duplicate AS1 row
+
+    (cpsat_dir / "roster_full.csv").write_text("\n".join(roster_lines) + "\n", encoding="utf-8")
+    (cpsat_dir / "unfilled_gaps.csv").write_text(
+        "Assignment ID,Date,Start,Activity ID,Activity Name,Original User Id,Kind,Is_locked_gap,Leave Type\n"
+        "AS2,2026-11-07,06:00,A06,Madison Crew,U_RES_LEAVE,gap,False,Random\n"
+        "AS4,2026-11-04,10:00,A12,BY Ship,U_RES_LEAVE,gap,True,Full Swing\n",
+        encoding="utf-8",
+    )
+    (opts_dir / "gap_options.csv").write_text(
+        "Seat Key,Chain Level,Date,Start,Activity Name,Open Seats,Gap Assignment IDs,Candidate User Id,Source,Candidate Row,Candidate Row Start,Offset Minutes,Cost\n",
+        encoding="utf-8",
+    )
+    (opts_dir / "rejections.csv").write_text(
+        "Seat Key,Reason,Rows Rejected\n"
+        "A06@2026-11-07T06:00,not certified (eligibility matrix),4\n",
+        encoding="utf-8",
+    )
+    (opts_dir / "swings.csv").write_text(
+        "Swing Key,User Id,Swing,Classification,Home Depot,Status,Reason,Earliest Start,Latest End,In Model,Rows,Droppable Rows\n"
+        "U_RES_1|1,U_RES_1,1,Residential,Haskett,movable,,2026-11-07T06:00,2026-11-07T18:00,True,AS1,\n"
+        "U_RES_LEAVE|1,U_RES_LEAVE,1,Residential,Haskett,frozen,swing partly on leave,2026-11-04T10:00,2026-11-07T18:00,False,AS4;AS2,\n",
+        encoding="utf-8",
+    )
+    return data_dir, cpsat_dir, opts_dir, cfg_path
+
+
+def test_demand_assigned_gap_coverage_and_resident_fifo_breakdown(tmp_path: Path):
+    data_dir, cpsat_dir, opts_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, opts_dir, cfg_path)
+    kpis = compute_summary_kpis(ds)
+
+    # Total demand = 2 (DM001) + 1 (DM002) + 1 (DM003) = 4
+    # Assigned = 1 (AS1 Residential) + 1 (AS3 FIFO) = 2
+    # Unfilled = 1 (AS2 open gap) + 1 (AS4 locked gap) = 2
+    # Coverage % = (2 / 4) * 100 = 50.0%
+    assert kpis.total_demand == 4
+    assert kpis.assigned_demand == 2
+    assert kpis.unfilled_demand == 2
+    assert kpis.coverage_pct == 50.0
+    assert kpis.resident_demand_assignments == 1
+    assert kpis.fifo_demand_assignments == 1
+    assert kpis.fully_covered_slots == 1
+    assert kpis.partially_covered_slots == 1
+    assert kpis.unfilled_slots == 1
+    assert kpis.total_gaps == 3
+    assert kpis.locked_gaps == 1
+    assert kpis.open_gaps_to_fill == 2
+    assert kpis.gaps_filled == 1
+    assert kpis.gap_fill_pct == 50.0
+
+
+def test_duplicate_assignment_records_are_deduplicated(tmp_path: Path):
+    data_dir, cpsat_dir, opts_dir, cfg_path = _write_controlled_dataset(tmp_path, duplicate_roster_row=True)
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, opts_dir, cfg_path)
+    kpis = compute_summary_kpis(ds)
+
+    assert len(ds.roster_rows) == 4
+    assert any("Deduplicated 1 duplicate record" in w for w in ds.warnings)
+    assert kpis.total_demand == 4
+    assert kpis.assigned_demand == 2
+    assert kpis.resident_demand_assignments == 1
+
+
+def test_activity_head_and_swing_wise_aggregations(tmp_path: Path):
+    data_dir, cpsat_dir, opts_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, opts_dir, cfg_path)
+
+    slots = build_demand_slot_records(ds)
+    by_head = {r["Activity Head"]: r for r in aggregate_by_activity_head(slots)}
+    assert by_head["Madison Crew"]["Total Demand"] == 2
+    assert by_head["Madison Crew"]["Assigned Demand"] == 1
+    assert by_head["Madison Crew"]["Remaining Gap"] == 1
+    assert by_head["Madison Crew"]["Coverage %"] == 50.0
+    assert by_head["Madison Crew"]["Partially Covered Slots"] == 1
+
+    assert by_head["NE Crew"]["Total Demand"] == 1
+    assert by_head["NE Crew"]["Assigned Demand"] == 1
+    assert by_head["NE Crew"]["Remaining Gap"] == 0
+    assert by_head["NE Crew"]["Coverage %"] == 100.0
+    assert by_head["NE Crew"]["FIFO Assigned"] == 1
+
+    assert by_head["BY Ship"]["Total Demand"] == 1
+    assert by_head["BY Ship"]["Assigned Demand"] == 0
+    assert by_head["BY Ship"]["Remaining Gap"] == 1
+    assert by_head["BY Ship"]["Coverage %"] == 0.0
+    assert by_head["BY Ship"]["Unfilled Slots"] == 1
+
+    by_swing = {r["Swing"]: r for r in aggregate_by_swing(ds)}
+    assert by_swing["1"]["Total Demand"] == 3
+    assert by_swing["1"]["Assigned Demand"] == 1
+    assert by_swing["1"]["Remaining Gap"] == 2
+    assert by_swing["1"]["Resident Assigned"] == 1
+    assert by_swing["2"]["Total Demand"] == 1
+    assert by_swing["2"]["Assigned Demand"] == 1
+    assert by_swing["2"]["FIFO Assigned"] == 1
+
+
+def test_missing_and_empty_outputs_handled_gracefully(tmp_path: Path):
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    ds = load_dashboard_dataset(
+        data_dir=empty_dir,
+        cpsat_dir=empty_dir,
+        options_dir=empty_dir,
+        config_path=empty_dir / "missing.yml",
+    )
+    kpis = compute_summary_kpis(ds)
+    assert kpis.total_demand == 0
+    assert kpis.assigned_demand == 0
+    assert kpis.unfilled_demand == 0
+    assert kpis.coverage_pct == 0.0
+    assert ds.warnings
+
+    # Missing required columns raises a clear ValueError
+    bad_csv = empty_dir / "bad.csv"
+    bad_csv.write_text("WrongCol1,WrongCol2\n1,2\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="missing required column"):
+        read_csv_safe(bad_csv, required_columns={"Assignment ID", "User Id"})
+
+
+def test_gap_diagnostics_use_explicit_evidence_without_guessing(tmp_path: Path):
+    data_dir, cpsat_dir, opts_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, opts_dir, cfg_path)
+    unfilled = {r["Seat Key"]: r for r in build_unfilled_gap_records(ds)}
+
+    # AS4 is before solver_start -> explicitly marked locked
+    assert unfilled["A12@2026-11-04T10:00"]["Diagnostic Category"] == "Locked Gap (Before Solver Start)"
+    assert "Is_locked_gap=True" in str(unfilled["A12@2026-11-04T10:00"]["Diagnostic Evidence"])
+
+    # AS2 has 0 candidates in gap_options.csv and an explicit rejection in rejections.csv
+    assert unfilled["A06@2026-11-07T06:00"]["Diagnostic Category"] == "No Legal Layer-1 Candidate Options"
+    assert "not certified (eligibility matrix) (4)" in str(unfilled["A06@2026-11-07T06:00"]["Diagnostic Evidence"])
+
+    # When options_dir is omitted, diagnostic reason explicitly states "Reason Not Available"
+    ds_no_opts = load_dashboard_dataset(data_dir, cpsat_dir, options_dir=None, config_path=cfg_path)
+    unfilled_no_opts = {r["Seat Key"]: r for r in build_unfilled_gap_records(ds_no_opts)}
+    assert unfilled_no_opts["A06@2026-11-07T06:00"]["Diagnostic Category"] == "Reason Not Available"
+
+
+def test_charts_and_real_solver_outputs_load_cleanly():
+    ds = load_dashboard_dataset(
+        data_dir=DEFAULT_DATA_DIR,
+        cpsat_dir=DEFAULT_CPSAT_DIR,
+        options_dir=DEFAULT_OPTIONS_DIR,
+        config_path=DEFAULT_CONFIG_PATH,
+    )
+    kpis = compute_summary_kpis(ds)
+    assert kpis.total_demand == 5130  # 171 crew-shifts/day * 30 days
+    assert kpis.assigned_demand + kpis.unfilled_demand == kpis.total_demand
+    assert kpis.resident_demand_assignments + kpis.fifo_demand_assignments == kpis.assigned_demand
+
+    slots = build_demand_slot_records(ds)
+    head_agg = aggregate_by_activity_head(slots)
+    unfilled = build_unfilled_gap_records(ds)
+    gap_summaries = summarize_gaps(unfilled)
+    timeline = build_crew_timeline_records(ds, include_off_and_travel=False)
+    diag = build_constraint_diagnostics(ds)
+
+    assert len(head_agg) == 14
+    assert diag["head_limits_table"]
+    assert create_demand_coverage_heatmap(slots, "Date") is not None
+    assert create_crew_gantt_chart(timeline, max_crew=10) is not None
+    assert create_gap_summary_charts(gap_summaries, head_agg)["by_head"] is not None
+    assert create_shift_limit_utilization_chart(diag["head_limits_table"]) is not None
+
+    # Disrupted-only slots filter
+    disrupted_slots = build_demand_slot_records(ds, only_disrupted_gaps=True)
+    assert 0 < len(disrupted_slots) < len(slots)
+
+    # Changed-crew-only timeline filter
+    changed_timeline = build_crew_timeline_records(ds, include_off_and_travel=False, only_changed_crew=True)
+    assert 0 < len(changed_timeline) < len(timeline)
+
+    # Candidate inspector & summary/validation parser
+    if unfilled:
+        trace = inspect_seat_candidates(ds, str(unfilled[0]["Seat Key"]))
+        assert "candidates" in trace and "rejections" in trace
+    parsed_meta = parse_summary_and_validation(ds)
+    assert parsed_meta["stages"]
+    assert parsed_meta["validation_rules"]
+
+    discovered = discover_strategy_datasets()
+    if discovered:
+        comp = compare_strategy_datasets(discovered)
+        assert comp["overall"]
+        assert create_strategy_comparison_charts(comp)["by_head"] is not None
+
+    # Verify that edge-case presets load properly
+    demo_root = Path(__file__).resolve().parents[1] / "CP-SAT" / "outputs" / "edge_case_demo"
+    if (demo_root / "run_4_residential_restriction_off" / "cpsat" / "roster_full.csv").exists():
+        ds_res_off = load_dashboard_dataset(
+            demo_root / "data",
+            demo_root / "run_4_residential_restriction_off" / "cpsat",
+            demo_root / "run_4_residential_restriction_off" / "options",
+            demo_root / "run_4_residential_restriction_off" / "config.yml",
+            name="Edge-Case Demo: Residential Start Restriction Off",
+        )
+        assert ds_res_off.config_flags.get("residential_start_restriction") is False
+        assert len(ds_res_off.roster_rows) > 0
+
+    if (demo_root / "run_5_relief_transition_off" / "cpsat" / "roster_full.csv").exists():
+        ds_rel_off = load_dashboard_dataset(
+            demo_root / "data",
+            demo_root / "run_5_relief_transition_off" / "cpsat",
+            demo_root / "run_5_relief_transition_off" / "options",
+            demo_root / "run_5_relief_transition_off" / "config.yml",
+            name="Edge-Case Demo: Relief Transition Off",
+        )
+        assert ds_rel_off.config_flags.get("relief_only_day_night_transition") is False
+        assert len(ds_rel_off.roster_rows) > 0
+
+
+def test_home_depot_swing_start_and_end_check(tmp_path: Path):
+    data_dir, cpsat_dir, opts_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, opts_dir, cfg_path)
+
+    # In the controlled dataset, both U_RES1 (Haskett -> Haskett) and U_FIFO1 (Nelaway -> Nelaway) start & end at home depot
+    chk = check_swing_home_depot(ds)
+    assert chk["total_swings"] == 2
+    assert chk["passed_swings"] == 2
+    assert chk["failed_swings"] == 0
+    assert chk["pass_pct"] == 100.0
+
+    # Now modify U_RES1's shift End Location to 'Yarmouth' (away from Home Depot 'Haskett')
+    ds.roster_rows[0]["End Location"] = "Yarmouth"
+    chk_fail = check_swing_home_depot(ds)
+    assert chk_fail["total_swings"] == 2
+    assert chk_fail["passed_swings"] == 1
+    assert chk_fail["failed_swings"] == 1
+    assert chk_fail["failed_end_count"] == 1
+    by_user = {r["User Id"]: r for r in chk_fail["swing_rows"]}
+    assert by_user["U_RES_1"]["Status"] == "FAIL"
+    assert by_user["U_RES_1"]["Starts at Home Depot"] is True
+    assert by_user["U_RES_1"]["Ends at Home Depot"] is False
+    assert by_user["U_FIFO_1"]["Status"] == "PASS"
+
+
+def test_workload_chains_depot_and_exports(tmp_path: Path):
+    from visualization.analytics import (
+        build_individual_crew_schedule,
+        build_reassignment_chains,
+        compute_crew_workload_analytics,
+        compute_depot_and_travel_analytics,
+    )
+    from visualization.charts import (
+        create_depot_balance_chart,
+        create_reassignment_sankey_chart,
+        create_workload_distribution_chart,
+    )
+    from visualization.export_utils import (
+        crew_schedule_to_html,
+        datasets_to_excel_bytes,
+        rows_to_csv_bytes,
+    )
+
+    data_dir, cpsat_dir, opts_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, opts_dir, cfg_path)
+
+    workload = compute_crew_workload_analytics(ds)
+    assert workload["summary"]["total_crew"] == 3
+    assert workload["summary"]["total_worked_shifts"] == 2
+    assert create_workload_distribution_chart(workload["crew_rows"]) is not None
+
+    chains = build_reassignment_chains(ds)
+    assert chains["summary"]["total_moves"] == len(ds.reassignments)
+    assert create_reassignment_sankey_chart(chains["sankey_links"]) is not None
+
+    depot_data = compute_depot_and_travel_analytics(ds)
+    assert depot_data["summary"]["depots_count"] >= 1
+    assert create_depot_balance_chart(depot_data["depot_rows"]) is not None
+
+    sched = build_individual_crew_schedule(ds, "U_RES_1")
+    assert len(sched) >= 1
+
+    csv_bytes = rows_to_csv_bytes(sched)
+    assert b"Start Date" in csv_bytes
+
+    xlsx_bytes = datasets_to_excel_bytes({"Schedule": sched, "Empty": []})
+    assert xlsx_bytes[:2] == b"PK"
+
+    html_bytes = crew_schedule_to_html("U_RES_1", ds.crew_by_id["U_RES_1"], sched)
+    assert b"U_RES_1" in html_bytes
+
+
+def test_what_if_and_disruption_runners_on_edge_demo():
+    from visualization.scenario_runner import run_disruption_simulation, run_what_if_scenario
+
+    demo_root = Path(__file__).resolve().parents[1] / "CP-SAT" / "outputs" / "edge_case_demo"
+    if not (demo_root / "data" / "constraints_df.csv").exists() or not (demo_root / "roster_full_gaps.csv").exists():
+        pytest.skip("edge_case_demo outputs not generated")
+
+    sc_ds, sc_logs = run_what_if_scenario(
+        base_data_dir=demo_root / "data",
+        base_roster_full=demo_root / "roster_full_gaps.csv",
+        residential_start_restriction=False,
+        relief_only_day_night_transition=True,
+        priority_strategy="none",
+        assignment_type_priority_enabled=True,
+        activity_head_max_shifts_enabled=True,
+        ordinary_rest_hours=11,
+        transition_rest_hours=23,
+        time_limit=10,
+    )
+    assert sc_ds is not None, sc_logs
+    assert sc_ds.config_flags.get("residential_start_restriction") is False
+
+    base_roster = demo_root / "run_1_strategy_none" / "cpsat" / "roster_full.csv"
+    base_cfg = demo_root / "run_1_strategy_none" / "config.yml"
+    if base_roster.exists() and base_cfg.exists():
+        ds_base = load_dashboard_dataset(demo_root / "data", base_roster.parent, demo_root / "run_1_strategy_none" / "options", base_cfg)
+        active_demand = [
+            r["Assignment ID"]
+            for r in ds_base.roster_rows
+            if r.get("Assignment Type") == "Demand" and r.get("Is Gap") != "True" and r.get("Optimised User Id")
+        ]
+        if active_demand:
+            target_id = active_demand[0]
+            orig_row = next(r for r in ds_base.roster_rows if r["Assignment ID"] == target_id)
+            orig_uid = orig_row["Optimised User Id"]
+
+            dis_ds, dis_logs = run_disruption_simulation(
+                base_data_dir=demo_root / "data",
+                base_roster_full=base_roster,
+                base_config_path=base_cfg,
+                disrupted_assignment_ids=[target_id],
+                time_limit=10,
+            )
+            assert dis_ds is not None, dis_logs
+            dis_row = next(r for r in dis_ds.roster_rows if r["Assignment ID"] == target_id)
+            assert dis_row.get("Optimised User Id", "") != orig_uid
+
+        # Also test extended What-If parameters (tier penalty, offset disable, max start changes)
+        sc_ext_ds, sc_ext_logs = run_what_if_scenario(
+            base_data_dir=demo_root / "data",
+            base_roster_full=demo_root / "roster_full_gaps.csv",
+            residential_start_restriction=False,
+            relief_only_day_night_transition=False,
+            priority_strategy="weighted",
+            assignment_type_priority_enabled=True,
+            activity_head_max_shifts_enabled=True,
+            ordinary_rest_hours=11.0,
+            transition_rest_hours=23.0,
+            assignment_type_tier_penalty=500,
+            max_start_changes_per_block=0,
+            max_start_change_minutes=0,
+            allow_start_time_offsets=False,
+            time_limit=10,
+        )
+        assert sc_ext_ds is not None, sc_ext_logs
+        assert sc_ext_ds.constraints["Assignment Type Priority"][0] == "500"
+        assert sc_ext_ds.constraints["Demand Allowed Start Offsets"][0] == "0"
+
+
+def test_executive_insights_cost_skill_resilience_and_run_diff():
+    from visualization.analytics import (
+        build_executive_insights,
+        compute_resilience_and_pool_analytics,
+        compute_run_diff,
+        compute_skill_and_currency_radar,
+        compute_solver_cost_and_offset_analytics,
+    )
+    from visualization.charts import (
+        create_cost_and_offset_charts,
+        create_daily_pool_area_chart,
+        create_depot_head_eligibility_heatmap,
+        create_rest_margin_histogram,
+        create_skill_supply_chart,
+    )
+
+    ds = load_dashboard_dataset(
+        data_dir=DEFAULT_DATA_DIR,
+        cpsat_dir=DEFAULT_CPSAT_DIR,
+        options_dir=DEFAULT_OPTIONS_DIR,
+        config_path=DEFAULT_CONFIG_PATH,
+    )
+
+    insights = build_executive_insights(ds)
+    assert len(insights) >= 2
+
+    cost_data = compute_solver_cost_and_offset_analytics(ds)
+    assert cost_data["total_moves"] == len(ds.reassignments)
+    cost_figs = create_cost_and_offset_charts(cost_data)
+    assert cost_figs["cost_by_source"] is not None
+    assert cost_figs["offsets"] is not None
+
+    radar = compute_skill_and_currency_radar(ds)
+    assert len(radar["supply_rows"]) == 14
+    assert len(radar["matrix_rows"]) > 0
+    assert create_skill_supply_chart(radar["supply_rows"]) is not None
+    assert create_depot_head_eligibility_heatmap(radar["matrix_rows"]) is not None
+
+    resilience = compute_resilience_and_pool_analytics(ds)
+    assert len(resilience["daily_pool_rows"]) > 0
+    assert create_rest_margin_histogram(resilience["rest_buckets"]) is not None
+    assert create_daily_pool_area_chart(resilience["daily_pool_rows"]) is not None
+
+    # Self-diff should return 0 differences
+    assert compute_run_diff(ds, ds) == []
+
+
+def test_before_after_activity_name_and_color_coding():
+    from visualization.charts import build_activity_name_color_map, create_crew_gantt_chart
+    from visualization.metrics import build_crew_timeline_records
+
+    ds = load_dashboard_dataset(
+        data_dir=DEFAULT_DATA_DIR,
+        cpsat_dir=DEFAULT_CPSAT_DIR,
+        options_dir=DEFAULT_OPTIONS_DIR,
+        config_path=DEFAULT_CONFIG_PATH,
+    )
+    records = build_crew_timeline_records(ds, only_changed_crew=True, include_off_and_travel=False)
+    assert len(records) > 0
+
+    required_cols = {
+        "Before Activity Name",
+        "After Activity Name",
+        "Before Activity Head",
+        "After Activity Head",
+        "Before Start Datetime",
+        "After Start Datetime",
+        "Activity Name Changed",
+        "Activity Name Change",
+    }
+    assert required_cols.issubset(records[0].keys())
+
+    changed_act = [r for r in records if r["Activity Name Changed"] == "Yes"]
+    assert len(changed_act) > 0
+    assert all(r["Before Activity Name"] != r["After Activity Name"] for r in changed_act)
+
+    cmap = build_activity_name_color_map([r["Activity Name"] for r in records])
+    assert len(cmap) > 0
+    assert create_crew_gantt_chart(records, color_by="Activity Name") is not None
+    assert create_crew_gantt_chart(records, color_by="Activity Name Change") is not None
+
+
+def test_dynamic_swing_caps_and_currency_refresh(tmp_path):
+    from visualization.analytics import (
+        _swing_work_caps,
+        compute_crew_workload_analytics,
+        compute_skill_and_currency_radar,
+    )
+
+    data_dir, cpsat_dir, options_dir, cfg_path = _write_controlled_dataset(tmp_path)
+    # Override constraints_df.csv with custom Residential 4/4 and FIFO 10/10
+    (data_dir / "constraints_df.csv").write_text(
+        "Constraint,Value,Status\n"
+        "Solver Start Date,2026-11-06,Active\n"
+        "Planning Horizon Start,2026-11-01,Active\n"
+        "Planning Horizon Days,14,Active\n"
+        "Residential Work/Off Days,4/4,Active\n"
+        "FIFO Work/Off Days,10/10,Active\n",
+        encoding="utf-8",
+    )
+    # U_RES_1 and U_FIFO_1 both expire 2026-11-10 (90d from 2026-08-12),
+    # but U_RES_1 works Madison Crew on 2026-11-07 so currency refreshes past 2026-11-15.
+    (data_dir / "crew_currency_df.csv").write_text(
+        "User Id,Activity Head,Last Performed Date\n"
+        "U_RES_1,Madison Crew,2026-08-12\n"
+        "U_FIFO_1,Madison Crew,2026-08-12\n",
+        encoding="utf-8",
+    )
+    (data_dir / "activities_df.csv").write_text(
+        "Activity Head,Currency Threshold\n"
+        "Madison Crew,90\n",
+        encoding="utf-8",
+    )
+    (data_dir / "eligibility_matrix.csv").write_text(
+        "User Id,Activity Head\n"
+        "U_RES_1,Madison Crew\n"
+        "U_FIFO_1,Madison Crew\n",
+        encoding="utf-8",
+    )
+
+    ds = load_dashboard_dataset(data_dir, cpsat_dir, options_dir, cfg_path)
+    res_cap, fifo_cap = _swing_work_caps(ds)
+    assert res_cap == 4
+    assert fifo_cap == 10
+
+    workload = compute_crew_workload_analytics(ds)
+    assert workload["summary"]["total_crew"] == 3
+
+    radar = compute_skill_and_currency_radar(ds)
+    watched_users = {w["User Id"] for w in radar["currency_watchlist"]}
+    assert "U_RES_1" not in watched_users
+    assert "U_FIFO_1" in watched_users
+
+
+def test_run_history_sqlite_crud(tmp_path):
+    from visualization.run_history import clear_runs, init_db, list_runs, record_run
+
+    db_path = tmp_path / "test_history.db"
+    init_db(db_path)
+    row_id = record_run(
+        run_type="What-If",
+        preset="Full v2 Roster",
+        strategy="weighted",
+        rule_toggles={"residential_start_restriction": False},
+        total_demand=100,
+        assigned_demand=98,
+        unfilled_demand=2,
+        coverage_pct=98.0,
+        total_cost=120.5,
+        db_path=db_path,
+    )
+    assert row_id >= 1
+    runs = list_runs(limit=10, db_path=db_path)
+    assert len(runs) == 1
+    assert runs[0]["strategy"] == "weighted"
+    assert runs[0]["rule_toggles"]["residential_start_restriction"] is False
+
+    clear_runs(db_path=db_path)
+    assert list_runs(limit=10, db_path=db_path) == []
+
+
+def test_input_readiness_lifecycle_density_diff_and_log_parser():
+    from visualization.analytics import (
+        compute_input_readiness_analytics,
+        compute_lifecycle_waterfall,
+        compute_option_density_vs_fill,
+        compute_slot_diff_matrix,
+        parse_solver_log_metrics,
+    )
+    from visualization.charts import (
+        create_competency_bottleneck_chart,
+        create_daily_supply_vs_demand_chart,
+        create_lifecycle_waterfall_chart,
+        create_option_density_scatter_chart,
+        create_rejection_pareto_chart,
+        create_slot_diff_heatmap,
+        create_solver_log_timeline_chart,
+        create_unfilled_treemap_chart,
+    )
+    from visualization.gap_analysis import build_constraint_diagnostics, build_unfilled_gap_records
+
+    ds = load_dashboard_dataset(
+        data_dir=DEFAULT_DATA_DIR,
+        cpsat_dir=DEFAULT_CPSAT_DIR,
+        options_dir=DEFAULT_OPTIONS_DIR,
+        config_path=DEFAULT_CONFIG_PATH,
+    )
+
+    readiness = compute_input_readiness_analytics(ds)
+    assert len(readiness["competency_matrix"]) > 0
+    assert len(readiness["daily_supply_rows"]) > 0
+    assert create_competency_bottleneck_chart(readiness["competency_matrix"]) is not None
+    assert create_daily_supply_vs_demand_chart(readiness["daily_supply_rows"]) is not None
+
+    lifecycle = compute_lifecycle_waterfall(ds)
+    assert lifecycle["total_demand"] > 0
+    assert create_lifecycle_waterfall_chart(lifecycle) is not None
+
+    density = compute_option_density_vs_fill(ds)
+    assert len(density) == len(ds.seats)
+    assert create_option_density_scatter_chart(density) is not None
+
+    diag = build_constraint_diagnostics(ds)
+    assert create_rejection_pareto_chart(diag["rejection_summary"]) is not None
+    unfilled = build_unfilled_gap_records(ds)
+    assert create_unfilled_treemap_chart(unfilled) is not None
+
+    sample_uid = next(iter(ds.crew_by_id))
+    from visualization.analytics import build_individual_crew_schedule
+    from visualization.charts import create_individual_crew_calendar_chart
+
+    indiv_sched = build_individual_crew_schedule(ds, sample_uid)
+    assert create_individual_crew_calendar_chart(indiv_sched, sample_uid) is not None
+
+    slot_diffs = compute_slot_diff_matrix(ds, ds)
+    assert all(d["Delta"] == 0 for d in slot_diffs)
+    assert create_slot_diff_heatmap(slot_diffs) is not None
+
+    sample_log = (
+        "=== Layer 1: Option Generation ===\n"
+        "Generated 100 options in 1.5s\n"
+        "=== Layer 2: CP-SAT Solver ===\n"
+        "WARNING: 1 seat had 0 options\n"
+        "Solved in 4.2 seconds\n"
+    )
+    parsed = parse_solver_log_metrics(sample_log)
+    assert parsed["total_lines"] == 5
+    assert parsed["severity_counts"]["STAGE"] == 2
+    assert parsed["severity_counts"]["WARNING"] == 1
+    assert len(parsed["stages"]) == 2
+    assert create_solver_log_timeline_chart(parsed) is not None

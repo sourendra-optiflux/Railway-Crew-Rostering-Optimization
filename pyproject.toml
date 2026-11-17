@@ -11,9 +11,10 @@ requires-python = ">=3.10"
 dependencies = ["ortools>=9.10", "PyYAML>=6.0"]
 
 [project.optional-dependencies]
-dev = ["pytest>=7", "ruff>=0.5", "openpyxl>=3.1"]
+dev = ["pytest>=7", "ruff>=0.5", "openpyxl>=3.1", "plotly>=5.20", "pandas>=2.0", "streamlit>=1.35"]
 excel = ["openpyxl>=3.1"]
 notebooks = ["pandas>=2.0", "matplotlib>=3.7", "jupyter", "nbclient", "nbformat"]
+dashboard = ["streamlit>=1.35", "plotly>=5.20"]
 
 [project.scripts]
 railway-rostering = "railway_rostering.cli:main"
@@ -33,3 +34,7 @@ extend-exclude = ["*.ipynb"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B"]
 ignore = ["E501", "B905"]
+
+[tool.pyright]
+extraPaths = ["src", "CP-SAT", "tests", "."]
+

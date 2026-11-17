@@ -31,12 +31,9 @@ ROOT = HERE.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import option_generation.data  # noqa: E402
 from option_generation.data import (  # noqa: E402
     DEFAULT_DATA_DIR as DEFAULT_DATA,
-    TRAVEL_TYPES as TRAVEL,
-    WORK_TYPES as WORK,
-    read_csv,
-    write_csv,
 )
 
 DEFAULT_OUTPUT = HERE / "output"
@@ -66,9 +63,9 @@ def full_header(roster_columns: list[str]) -> list[str]:
 
 
 def make_leave(data_dir: Path, seed: int) -> dict:
-    cons = {r["Constraint"]: r["Value"] for r in read_csv(data_dir / "constraints_df.csv") if r["Status"] == "Active"}
-    crew = {c["User Id"]: c for c in read_csv(data_dir / "crew_master_data_df.csv")}
-    roster = read_csv(data_dir / "roster_df.csv")
+    cons = {r["Constraint"]: r["Value"] for r in option_generation.data.read_csv(data_dir / "constraints_df.csv") if r["Status"] == "Active"}
+    crew = {c["User Id"]: c for c in option_generation.data.read_csv(data_dir / "crew_master_data_df.csv")}
+    roster = option_generation.data.read_csv(data_dir / "roster_df.csv")
     cutoff = date.fromisoformat(cons["Solver Start Date"])
     day_from, day_to = (int(t[:2]) * 60 + int(t[3:]) for t in cons["Day Shift Window"].split("-"))
     rng = random.Random(seed)
@@ -77,7 +74,7 @@ def make_leave(data_dir: Path, seed: int) -> dict:
     swings: dict[tuple[str, str], list[dict]] = defaultdict(list)
     outside: set[tuple[str, str]] = set()
     for r in roster:
-        if r["Assignment Type"] in WORK:
+        if r["Assignment Type"] in option_generation.data.WORK_TYPES:
             key = (r["User Id"], r["Swing"])
             swings[key].append(r)
             if r["In Horizon"] != "Yes":
@@ -116,9 +113,13 @@ def make_leave(data_dir: Path, seed: int) -> dict:
             if leave_type == FULL:
                 chosen = rows
             elif leave_type == DAY:
-                chosen = split_6day(rows)[0]
+                halves = split_6day(rows)
+                assert halves is not None
+                chosen = halves[0]
             elif leave_type == NIGHT:
-                chosen = split_6day(rows)[1]
+                halves = split_6day(rows)
+                assert halves is not None
+                chosen = halves[1]
             else:
                 length = rng.randint(1, len(rows))
                 first = rng.randint(0, len(rows) - length)
@@ -132,7 +133,7 @@ def make_leave(data_dir: Path, seed: int) -> dict:
     # A full-swing FIFO leave also cancels that swing's travel: the person does not come to site.
     travel_of = defaultdict(list)
     for r in roster:
-        if r["Assignment Type"] in TRAVEL:
+        if r["Assignment Type"] in option_generation.data.TRAVEL_TYPES:
             travel_of[(r["User Id"], r["Swing"])].append(r)
 
     on_leave: dict[str, str] = {}  # Assignment ID -> leave type
@@ -174,7 +175,7 @@ def make_leave(data_dir: Path, seed: int) -> dict:
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     p.add_argument("--data-dir", type=Path, default=DEFAULT_DATA, help="optiflux_v2 tables (default: %(default)s)")
     p.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT, help="where to write (default: %(default)s)")
     p.add_argument("--seed", type=int, default=2026, help="random seed (default: %(default)s)")
@@ -185,8 +186,8 @@ def main(argv: list[str] | None = None) -> None:
     out = args.output_dir
     out.mkdir(parents=True, exist_ok=True)
     roster = result["roster"]
-    write_csv(out / "roster_full.csv", result["columns"], roster)
-    write_csv(out / "leave_plan.csv", LEAVE_PLAN_HEADER, result["plan"])
+    option_generation.data.write_csv(out / "roster_full.csv", result["columns"], roster)
+    option_generation.data.write_csv(out / "leave_plan.csv", LEAVE_PLAN_HEADER, result["plan"])
 
     gaps = [r for r in roster if r["Is Gap"] == "True"]
     locked = sum(r["Is_locked_gap"] == "True" for r in gaps)
