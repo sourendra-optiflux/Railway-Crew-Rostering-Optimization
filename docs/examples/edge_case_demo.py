@@ -138,33 +138,35 @@ def build_demo_dataset() -> None:
 
     # Define demo crew members
     crew_specs = [
-        # (User Id, Classification, Role)
-        ("U_GAP_OWNER", "FIFO", "Driver"),
-        ("U_RES_2100", "Residential", "Driver"),
-        ("U_RES_2200", "Residential", "Driver"),
-        ("U_RES_0100", "Residential", "Driver"),
-        ("U_RES_0200", "Residential", "Driver"),
-        ("U_RES_KEEP", "Residential", "Driver"),
-        ("U_RES_SAME", "Residential", "Driver"),
-        ("U_FIFO_2300", "FIFO", "Driver"),
-        ("U_REL_D2N", "Residential", "Driver"),
-        ("U_DEM_D2N", "Residential", "Driver"),
-        ("U_REL_SHORT", "Residential", "Driver"),
-        ("U_PRIO_DECIDER", "FIFO", "Driver"),
+        # (User Id, Classification, Role, Depot)
+        ("U_GAP_OWNER", "FIFO", "Driver", "Haskett"),
+        ("U_RES_2100", "Residential", "Driver", "Haskett"),
+        ("U_RES_2200", "Residential", "Driver", "Haskett"),
+        ("U_RES_0100", "Residential", "Driver", "Haskett"),
+        ("U_RES_0200", "Residential", "Driver", "Haskett"),
+        ("U_RES_KEEP", "Residential", "Driver", "Haskett"),
+        ("U_RES_SAME", "Residential", "Driver", "Haskett"),
+        ("U_FIFO_2300", "FIFO", "Driver", "Haskett"),
+        ("U_REL_D2N", "Residential", "Driver", "Haskett"),
+        ("U_DEM_D2N", "Residential", "Driver", "Haskett"),
+        ("U_REL_SHORT", "Residential", "Driver", "Haskett"),
+        ("U_PRIO_DECIDER", "FIFO", "Driver", "Haskett"),
+        ("U_RES_LIMIT", "Residential", "Driver", "Nelaway"),
+        ("U_FIFO_LIMIT", "FIFO", "Driver", "Nelaway"),
     ]
-    all_users = [u for u, _, _ in crew_specs]
+    all_users = [u for u, _, _, _ in crew_specs]
     crew_rows = [
         {
             "User Id": uid,
             "Classification": cls,
-            "Eligibility": "A06;A10;A11;A12;A16",
-            "Depot": "Haskett",
+            "Eligibility": "A06;A10;A11;A12;A13;A14;A16",
+            "Depot": depot,
             "Role": role,
             "Is Mentor": "Yes",
             "Medical": "Fit",
             "Position": "L_DEMO",
         }
-        for uid, cls, role in crew_specs
+        for uid, cls, role, depot in crew_specs
     ]
     write_csv(
         DEMO_DATA / "crew_master_data_df.csv",
@@ -205,7 +207,11 @@ def build_demo_dataset() -> None:
     curr_rows = []
     cid = 1
     for uid in all_users:
-        for head in ("Haskett Mainline", "Yarmouth Mainline", "Fuel Train", "Fuel Return", "Madison Crew", "NE Crew", "BY Ship", "Bethway Join/FI Crew"):
+        for head in (
+            "Haskett Mainline", "Yarmouth Mainline", "Fuel Train", "Fuel Return",
+            "Madison Crew", "NE Crew", "BY Ship", "Bethway Join/FI Crew",
+            "Nelaway Driver", "Nelaway Shuttle Driver",
+        ):
             curr_rows.append({
                 "Currency ID": f"CU{cid:04d}",
                 "User Id": uid,
@@ -228,12 +234,12 @@ def build_demo_dataset() -> None:
         rows.append(make_row(aid=f"AS_DEMO_{seq:04d}", **kwargs))
         seq += 1
 
-    def add_gap(day: str, start_hm: str, act_id: str, act_name: str, act_head: str, act_type: str, demand_id: str, swing: str) -> None:
+    def add_gap(day: str, start_hm: str, act_id: str, act_name: str, act_head: str, act_type: str, demand_id: str, swing: str, loc: str = "Haskett") -> None:
         add_row(
             user="U_GAP_OWNER", new_user="", day=day, start_hm=start_hm,
             act_id=act_id, act_name=act_name, act_head=act_head, act_type=act_type,
             act_group="Yard", assign_type="Demand", demand_id=demand_id,
-            swing=swing, leave_type="Random", is_gap="True", is_locked_gap="False",
+            loc=loc, swing=swing, leave_type="Random", is_gap="True", is_locked_gap="False",
         )
 
     # -------------------------------------------------------------------------
@@ -377,6 +383,46 @@ def build_demo_dataset() -> None:
     add_gap(day="2026-11-21", start_hm="09:00", act_id="A12", act_name="BY Ship",
             act_head="BY Ship", act_type="Shed", demand_id="DM104", swing="25")
 
+    # -------------------------------------------------------------------------
+    # GROUP 4: Per-Swing Activity-Head Shift Limits (Max Resident Shifts / Max FIFO Shifts)
+    # Isolated at Nelaway depot using A13 Nelaway Driver and A14 Nelaway Shuttle Driver:
+    #   - U_RES_LIMIT (Residential, Nelaway):
+    #       * Swing 1 (Nov 6, 7, 8 @ 09:00 Relief): faces 3x Nelaway Driver @ 09:00 (cost 10)
+    #         plus 2x Nelaway Shuttle Driver @ 10:00 on Nov 7, 8 (cost 11, <= 60 min jump for F3).
+    #       * Swing 2 (Nov 16 @ 10:00 Relief, after 7.5d >= 6d off): faces 1x Nelaway Driver @ 10:00.
+    #   - U_FIFO_LIMIT (FIFO, Nelaway):
+    #       * Swing 1 (Nov 23, 24, 25 @ 10:00 Relief): faces 3x Nelaway Shuttle Driver @ 10:00.
+    # -------------------------------------------------------------------------
+    for day in ("2026-11-06", "2026-11-07", "2026-11-08"):
+        add_row(user="U_RES_LIMIT", new_user="U_RES_LIMIT", day=day, start_hm="09:00",
+                act_id="A90", act_name="Relief", act_head="Relief", act_type="Relief", act_group="Reserve",
+                assign_type="Relief", loc="Nelaway", swing="1")
+    add_gap(day="2026-11-06", start_hm="09:00", act_id="A13", act_name="Nelaway Driver",
+            act_head="Nelaway Driver", act_type="Driving", demand_id="DM116", swing="30", loc="Nelaway")
+    add_gap(day="2026-11-07", start_hm="09:00", act_id="A13", act_name="Nelaway Driver",
+            act_head="Nelaway Driver", act_type="Driving", demand_id="DM116", swing="31", loc="Nelaway")
+    add_gap(day="2026-11-08", start_hm="09:00", act_id="A13", act_name="Nelaway Driver",
+            act_head="Nelaway Driver", act_type="Driving", demand_id="DM116", swing="32", loc="Nelaway")
+    add_gap(day="2026-11-07", start_hm="10:00", act_id="A14", act_name="Nelaway Shuttle Driver",
+            act_head="Nelaway Shuttle Driver", act_type="Driving", demand_id="DM134", swing="33", loc="Nelaway")
+    add_gap(day="2026-11-08", start_hm="10:00", act_id="A14", act_name="Nelaway Shuttle Driver",
+            act_head="Nelaway Shuttle Driver", act_type="Driving", demand_id="DM134", swing="34", loc="Nelaway")
+
+    # U_RES_LIMIT Swing 2 (Nov 16 @ 10:00, independent swing)
+    add_row(user="U_RES_LIMIT", new_user="U_RES_LIMIT", day="2026-11-16", start_hm="10:00",
+            act_id="A90", act_name="Relief", act_head="Relief", act_type="Relief", act_group="Reserve",
+            assign_type="Relief", loc="Nelaway", swing="2")
+    add_gap(day="2026-11-16", start_hm="10:00", act_id="A13", act_name="Nelaway Driver",
+            act_head="Nelaway Driver", act_type="Driving", demand_id="DM117", swing="35", loc="Nelaway")
+
+    # U_FIFO_LIMIT Swing 1 (Nov 23, 24, 25 @ 10:00)
+    for day, sw_gap in (("2026-11-23", "36"), ("2026-11-24", "37"), ("2026-11-25", "38")):
+        add_row(user="U_FIFO_LIMIT", new_user="U_FIFO_LIMIT", day=day, start_hm="10:00",
+                act_id="A90", act_name="Relief", act_head="Relief", act_type="Relief", act_group="Reserve",
+                assign_type="Relief", loc="Nelaway", swing="1")
+        add_gap(day=day, start_hm="10:00", act_id="A14", act_name="Nelaway Shuttle Driver",
+                act_head="Nelaway Shuttle Driver", act_type="Driving", demand_id="DM134", swing=sw_gap, loc="Nelaway")
+
     write_csv(GAPS_CSV, ROSTER_FULL_HEADER, rows)
     roster_df_cols = [
         c for c in ROSTER_FULL_HEADER
@@ -385,12 +431,46 @@ def build_demo_dataset() -> None:
     write_csv(DEMO_DATA / "roster_df.csv", roster_df_cols, rows)
 
 
-def run_mode(name: str, res_restrict: bool, relief_trans: bool, strategy: str) -> dict:
+def run_mode(
+    name: str,
+    res_restrict: bool,
+    relief_trans: bool,
+    strategy: str,
+    limit_overrides: dict[str, tuple[int, int]] | None = None,
+    max_shifts_enabled: bool = True,
+) -> dict:
     mode_dir = DEMO_ROOT / f"run_{name}"
     opts_dir = mode_dir / "options"
     out_dir = mode_dir / "cpsat"
     cfg_path = mode_dir / "config.yml"
     mode_dir.mkdir(parents=True, exist_ok=True)
+    data_dir = DEMO_DATA
+    if limit_overrides or not max_shifts_enabled:
+        data_dir = mode_dir / "data"
+        if data_dir.exists():
+            shutil.rmtree(data_dir)
+        shutil.copytree(DEMO_DATA, data_dir)
+        if limit_overrides:
+            prio_rows = read_csv(data_dir / "activity_priority.csv")
+            for r in prio_rows:
+                if r["Activity Head"] in limit_overrides:
+                    res_lim, fifo_lim = limit_overrides[r["Activity Head"]]
+                    r["Max Resident Shifts"] = str(res_lim)
+                    r["Max FIFO Shifts"] = str(fifo_lim)
+            write_csv(
+                data_dir / "activity_priority.csv",
+                ["Priority", "Activity Head", "Max Resident Shifts", "Max FIFO Shifts"],
+                prio_rows,
+            )
+        cons_rows = read_csv(data_dir / "constraints_df.csv")
+        for r in cons_rows:
+            if r["Constraint"] == "Activity Head Max Shifts":
+                r["Status"] = "Active" if max_shifts_enabled else "Inactive"
+        write_csv(
+            data_dir / "constraints_df.csv",
+            ["Constraint", "Value", "Status"],
+            cons_rows,
+        )
     cfg_path.write_text(
         "constraints:\n"
         f"  residential_start_restriction: {str(res_restrict).lower()}\n"
@@ -403,7 +483,7 @@ def run_mode(name: str, res_restrict: bool, relief_trans: bool, strategy: str) -
     subprocess.run(
         [
             sys.executable, "option_generation/generate_options.py",
-            "--data-dir", str(DEMO_DATA),
+            "--data-dir", str(data_dir),
             "--roster-full", str(GAPS_CSV),
             "--output-dir", str(opts_dir),
             "--config", str(cfg_path),
@@ -413,7 +493,7 @@ def run_mode(name: str, res_restrict: bool, relief_trans: bool, strategy: str) -
     subprocess.run(
         [
             sys.executable, "CP-SAT/run_gap_filling.py",
-            "--data-dir", str(DEMO_DATA),
+            "--data-dir", str(data_dir),
             "--roster-full", str(GAPS_CSV),
             "--options-dir", str(opts_dir),
             "--output-dir", str(out_dir),
@@ -444,22 +524,30 @@ def main() -> None:
     print("Building edge-case dataset in:", DEMO_ROOT.relative_to(ROOT))
     build_demo_dataset()
 
+    tight_limits = {
+        "Nelaway Driver": (1, 3),          # Max Resident Shifts = 1, Max FIFO Shifts = 3
+        "Nelaway Shuttle Driver": (2, 2),  # Max Resident Shifts = 2, Max FIFO Shifts = 2
+    }
     modes = [
-        ("1_strategy_none", True, True, "none"),
-        ("2_strategy_weighted", True, True, "weighted"),
-        ("3_strategy_lexicographic", True, True, "lexicographic"),
-        ("4_residential_restriction_off", False, True, "none"),
-        ("5_relief_transition_off", True, False, "none"),
+        ("1_strategy_none", True, True, "none", None, True),
+        ("2_strategy_weighted", True, True, "weighted", None, True),
+        ("3_strategy_lexicographic", True, True, "lexicographic", None, True),
+        ("4_residential_restriction_off", False, True, "none", None, True),
+        ("5_relief_transition_off", True, False, "none", None, True),
+        ("6_shift_limits_tight_on", True, True, "none", tight_limits, True),
+        ("7_shift_limits_tight_off", True, True, "none", tight_limits, False),
     ]
     results = {}
-    for name, res, rel, strat in modes:
-        results[name] = run_mode(name, res, rel, strat)
+    for name, res, rel, strat, lim_overrides, max_shifts_on in modes:
+        results[name] = run_mode(name, res, rel, strat, lim_overrides, max_shifts_on)
 
     r_none = results["1_strategy_none"]
     r_weighted = results["2_strategy_weighted"]
     r_lex = results["3_strategy_lexicographic"]
     r_res_off = results["4_residential_restriction_off"]
     r_rel_off = results["5_relief_transition_off"]
+    r_limits = results["6_shift_limits_tight_on"]
+    r_limits_off = results["7_shift_limits_tight_off"]
 
     def status_of(run: dict, user: str) -> str:
         fills = run["by_user_fills"].get(user, [])
@@ -504,6 +592,31 @@ def main() -> None:
         ("priority_strategy: lexicographic", r_lex),
     ]:
         print(f"  {label} -> {status_of(run, 'U_PRIO_DECIDER')}")
+
+    def swing_status_of(run: dict, user: str, dates: set[str]) -> str:
+        fills = [f for f in run["by_user_fills"].get(user, []) if f["Date"] in dates]
+        if not fills:
+            return "BLOCKED / UNFILLED"
+        return ", ".join(f"FILLED {f['Activity Name']}@{f['Date']} {f['Start']} (cost {f['Cost']})" for f in fills)
+
+    print("\n=== 4. PER-SWING ACTIVITY-HEAD SHIFT LIMITS (Max Resident Shifts / Max FIFO Shifts) ===")
+    print("  U_RES_LIMIT Swing 1 (Nov 6-8, Residential) | faces 3x Nelaway Driver + 2x Nelaway Shuttle Driver")
+    print(f"    default (Res=6, FIFO=14, Status=Active)               : {swing_status_of(r_none, 'U_RES_LIMIT', {'2026-11-06', '2026-11-07', '2026-11-08'})}")
+    print(f"    tight   (Driver Res=1, Shuttle Res=2, Status=Active)  : {swing_status_of(r_limits, 'U_RES_LIMIT', {'2026-11-06', '2026-11-07', '2026-11-08'})}")
+    print(f"    tight   (Driver Res=1, Shuttle Res=2, Status=Inactive): {swing_status_of(r_limits_off, 'U_RES_LIMIT', {'2026-11-06', '2026-11-07', '2026-11-08'})}")
+    print("  U_RES_LIMIT Swing 2 (Nov 16, separate swing) | faces 1x Nelaway Driver (proves per-swing reset)")
+    print(f"    default (Res=6, FIFO=14, Status=Active)               : {swing_status_of(r_none, 'U_RES_LIMIT', {'2026-11-16'})}")
+    print(f"    tight   (Driver Res=1, Shuttle Res=2, Status=Active)  : {swing_status_of(r_limits, 'U_RES_LIMIT', {'2026-11-16'})}")
+    print("  U_FIFO_LIMIT Swing 1 (Nov 23-25, FIFO) | faces 3x Nelaway Shuttle Driver")
+    print(f"    default (Res=6, FIFO=14, Status=Active)               : {swing_status_of(r_none, 'U_FIFO_LIMIT', {'2026-11-23', '2026-11-24', '2026-11-25'})}")
+    print(f"    tight   (Shuttle FIFO=2, Status=Active)               : {swing_status_of(r_limits, 'U_FIFO_LIMIT', {'2026-11-23', '2026-11-24', '2026-11-25'})}")
+    print(f"    tight   (Shuttle FIFO=2, Status=Inactive)             : {swing_status_of(r_limits_off, 'U_FIFO_LIMIT', {'2026-11-23', '2026-11-24', '2026-11-25'})}")
+
+    print("\n=== 5. VALIDATION REPORT SUMMARY ACROSS ALL 7 RUNS ===")
+    for name, run in results.items():
+        val_lines = [line.strip() for line in run["validation"].splitlines() if "unexpected failure" in line]
+        verdict = val_lines[-1] if val_lines else "OK"
+        print(f"  {name:30s} -> {verdict}")
 
 
 if __name__ == "__main__":

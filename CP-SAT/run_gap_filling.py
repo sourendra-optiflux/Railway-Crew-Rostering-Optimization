@@ -50,12 +50,15 @@ def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
 
     data = load(args.data_dir, args.roster_full, args.config)
-    seats, swings = load_options(args.options_dir, data.priority)
+    seats, swings = load_options(args.options_dir, data.priority, data.max_shifts)
     frozen = {(s["User Id"], s["Swing"]) for s in read_csv(args.options_dir / "swings.csv") if s["Status"] == "frozen"}
     print(f"Seats {len(seats)}, swings in the model {len(swings)}, "
           f"options {sum(len(o) for sw in swings for o in sw.options)}")  # fmt: skip
 
-    solved = solve(data.rules, seats, swings, Costs(), args.time_limit, args.workers, args.seed, args.log)
+    solved = solve(
+        data.rules, seats, swings, Costs(), args.time_limit, args.workers, args.seed, args.log,
+        activity_head_limits=data.max_shifts,
+    )
     if not solved.chosen:
         print(f"error: no solution ({solved.status})", file=sys.stderr)
         return 1

@@ -15,7 +15,12 @@ from utils.load_options import load_options  # noqa: E402
 
 from option_generation.data import DEFAULT_DATA_DIR, read_csv  # noqa: E402
 from option_generation.options import Costs, Option  # noqa: E402
-from option_generation.priority import load_activity_head_priorities, priority_weights_for  # noqa: E402
+from option_generation.priority import (  # noqa: E402
+    ActivityHeadLimits,
+    load_activity_head_limits,
+    load_activity_head_priorities,
+    priority_weights_for,
+)
 from option_generation.rules import Rules  # noqa: E402
 
 
@@ -457,3 +462,274 @@ def test_lexicographic_priority_level_without_in_model_seats_is_solved_as_zero()
         "coverage": "OPTIMAL", "priority_1": "OPTIMAL", "priority_2": "OPTIMAL", "cost": "OPTIMAL",
     }
     assert result.stage_values == {"coverage": 1, "priority_1": 0, "priority_2": 1, "cost": 3}
+
+
+def write_limit_inputs(tmp_path: Path, demand_heads: str, rows: str) -> tuple[Path, Path]:
+    demand = tmp_path / "activity_demand_df.csv"
+    priority = tmp_path / "activity_priority.csv"
+    demand.write_text(f"Activity Head\n{demand_heads}", encoding="utf-8")
+    priority.write_text(
+        f"Priority,Activity Head,Max Resident Shifts,Max FIFO Shifts\n{rows}",
+        encoding="utf-8",
+    )
+    return demand, priority
+
+
+def _test_rules() -> Rules:
+    rules = Rules.from_table(read_csv(DEFAULT_DATA_DIR / "constraints_df.csv"))
+    return replace(
+        rules,
+        rest=timedelta(hours=8),
+        transition_rest=timedelta(hours=8),
+        day_from=6 * 60,
+        day_to=18 * 60,
+    )
+
+
+def test_default_activity_head_limits_cover_every_project_demand_head():
+    limits = load_activity_head_limits(DEFAULT_DATA_DIR / "activity_demand_df.csv")
+
+    assert len(limits) == 14
+    assert all(
+        limit == ActivityHeadLimits(max_resident_shifts=6, max_fifo_shifts=14)
+        for limit in limits.values()
+    )
+
+
+def test_activity_head_limits_accept_non_negative_integers_including_zero(tmp_path: Path):
+    demand, priority = write_limit_inputs(tmp_path, "High\nLow\n", "1,High,0,4\n2,Low,3,0\n")
+
+    assert load_activity_head_limits(demand, priority) == {
+        "High": ActivityHeadLimits(max_resident_shifts=0, max_fifo_shifts=4),
+        "Low": ActivityHeadLimits(max_resident_shifts=3, max_fifo_shifts=0),
+    }
+
+
+def test_activity_head_limits_reject_missing_columns(tmp_path: Path):
+    demand, priority = write_priority_inputs(tmp_path, "High\n", "High,1\n")
+
+    with pytest.raises(SystemExit, match="must contain columns: Activity Head, Max Resident Shifts, Max FIFO Shifts"):
+        load_activity_head_limits(demand, priority)
+
+
+def test_activity_head_limits_reject_missing_demand_head(tmp_path: Path):
+    demand, priority = write_limit_inputs(tmp_path, "High\nLow\n", "1,High,2,4\n")
+
+    with pytest.raises(SystemExit, match="missing shift limits for demand activity heads: Low"):
+        load_activity_head_limits(demand, priority)
+
+
+def test_activity_head_limits_reject_unexpected_non_demand_head(tmp_path: Path):
+    demand, priority = write_limit_inputs(tmp_path, "High\n", "1,High,2,4\n2,Extra,2,4\n")
+
+    with pytest.raises(SystemExit, match="shift limits configured for non-demand activity heads: Extra"):
+        load_activity_head_limits(demand, priority)
+
+
+def test_activity_head_limits_reject_duplicate_activity_head_entries(tmp_path: Path):
+    demand, priority = write_limit_inputs(tmp_path, "High\n", "1,High,2,4\n2,High,3,5\n")
+
+    with pytest.raises(SystemExit, match="duplicate activity-head priority entries: High"):
+        load_activity_head_limits(demand, priority)
+
+
+@pytest.mark.parametrize(
+    ("res_val", "fifo_val"),
+    [
+        ("-1", "4"),
+        ("2", "-1"),
+        ("", "4"),
+        ("2", ""),
+        ("abc", "4"),
+        ("2", "1.5"),
+        ("+2", "4"),
+    ],
+)
+def test_activity_head_limits_reject_invalid_values(tmp_path: Path, res_val: str, fifo_val: str):
+    demand, priority = write_limit_inputs(tmp_path, "High\n", f"1,High,{res_val},{fifo_val}\n")
+
+    with pytest.raises(SystemExit, match="Max Resident Shifts and Max FIFO Shifts must be non-negative integers"):
+        load_activity_head_limits(demand, priority)
+
+
+def test_resident_crew_within_max_shift_limit_is_feasible():
+    rules = _test_rules()
+    d1, d2 = datetime(2026, 11, 1, 6), datetime(2026, 11, 2, 6)
+    opt1 = Option(0, "fill", d1, d1 + timedelta(hours=8), "A", "A", "A06", seat="s1", activity_head="Madison Crew")
+    opt2 = Option(1, "fill", d2, d2 + timedelta(hours=8), "A", "A", "A06", seat="s2", activity_head="Madison Crew")
+    swing = SimpleNamespace(
+        key="U_RES|1", user="U_RES", home="A", classification="Residential",
+        earliest_start=None, latest_end=None, row_ids=["R1", "R2"], droppable=[False, False],
+        options=[[opt1], [opt2]],
+    )
+    seats = {
+        "s1": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew"),
+        "s2": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew"),
+    }
+    limits = {"Madison Crew": ActivityHeadLimits(max_resident_shifts=2, max_fifo_shifts=1)}
+
+    result = solve(rules, seats, [swing], Costs(), 5, 1, 0, activity_head_limits=limits)
+
+    assert result.status == "OPTIMAL"
+    assert result.places_filled == 2
+
+
+def test_resident_crew_above_max_shift_limit_is_infeasible_or_prevented():
+    rules = _test_rules()
+    d1, d2 = datetime(2026, 11, 1, 6), datetime(2026, 11, 2, 6)
+    opt1 = Option(0, "fill", d1, d1 + timedelta(hours=8), "A", "A", "A06", seat="s1", activity_head="Madison Crew")
+    opt2 = Option(1, "fill", d2, d2 + timedelta(hours=8), "A", "A", "A06", seat="s2", activity_head="Madison Crew")
+    swing_forced = SimpleNamespace(
+        key="U_RES|forced", user="U_RES", home="A", classification="Residential",
+        earliest_start=None, latest_end=None, row_ids=["R1", "R2"], droppable=[False, False],
+        options=[[opt1], [opt2]],
+    )
+    seats = {
+        "s1": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew"),
+        "s2": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew"),
+    }
+    limits = {"Madison Crew": ActivityHeadLimits(max_resident_shifts=1, max_fifo_shifts=4)}
+
+    infeasible = solve(rules, seats, [swing_forced], Costs(), 5, 1, 0, activity_head_limits=limits)
+    assert infeasible.status == "INFEASIBLE"
+    assert infeasible.chosen == {}
+
+    keep2 = Option(1, "keep", d2, d2 + timedelta(hours=8), "A", "A", "A90", standby=True, source="Relief")
+    swing_with_standby = replace_swing_options(swing_forced, [[opt1], [keep2, opt2]])
+    prevented = solve(rules, seats, [swing_with_standby], Costs(), 5, 1, 0, activity_head_limits=limits)
+    assert prevented.status == "OPTIMAL"
+    assert prevented.places_filled == 1
+    assert prevented.chosen[swing_with_standby.key] == [opt1, keep2]
+
+
+def replace_swing_options(swing: SimpleNamespace, options: list[list[Option]]) -> SimpleNamespace:
+    return SimpleNamespace(**{**swing.__dict__, "options": options})
+
+
+def test_fifo_crew_within_and_above_max_shift_limit():
+    rules = _test_rules()
+    d1, d2, d3 = datetime(2026, 11, 1, 6), datetime(2026, 11, 2, 6), datetime(2026, 11, 3, 6)
+    o1 = Option(0, "fill", d1, d1 + timedelta(hours=8), "A", "A", "A16", seat="s1", activity_head="NE Crew")
+    o2 = Option(1, "fill", d2, d2 + timedelta(hours=8), "A", "A", "A16", seat="s2", activity_head="NE Crew")
+    o3 = Option(2, "fill", d3, d3 + timedelta(hours=8), "A", "A", "A16", seat="s3", activity_head="NE Crew")
+    swing = SimpleNamespace(
+        key="U_FIFO|1", user="U_FIFO", home="A", classification="FIFO",
+        earliest_start=None, latest_end=None, row_ids=["R1", "R2", "R3"], droppable=[False, False, False],
+        options=[[o1], [o2], [o3]],
+    )
+    seats = {
+        "s1": SimpleNamespace(capacity=1, priority=1, activity_head="NE Crew"),
+        "s2": SimpleNamespace(capacity=1, priority=1, activity_head="NE Crew"),
+        "s3": SimpleNamespace(capacity=1, priority=1, activity_head="NE Crew"),
+    }
+
+    feasible = solve(
+        rules, seats, [swing], Costs(), 5, 1, 0,
+        activity_head_limits={"NE Crew": ActivityHeadLimits(max_resident_shifts=1, max_fifo_shifts=3)},
+    )
+    assert feasible.status == "OPTIMAL"
+    assert feasible.places_filled == 3
+
+    infeasible = solve(
+        rules, seats, [swing], Costs(), 5, 1, 0,
+        activity_head_limits={"NE Crew": ActivityHeadLimits(max_resident_shifts=6, max_fifo_shifts=2)},
+    )
+    assert infeasible.status == "INFEASIBLE"
+    assert infeasible.chosen == {}
+
+
+def test_different_activity_heads_have_independent_limits_and_alternative_options_not_double_counted():
+    rules = _test_rules()
+    d1, d2, d3 = datetime(2026, 11, 1, 6), datetime(2026, 11, 2, 6), datetime(2026, 11, 3, 6)
+    # Row 0 has two alternative options on HeadA (06:00 and 07:00); only one can be selected.
+    h1_a = Option(0, "fill", d1, d1 + timedelta(hours=8), "A", "A", "A1", seat="s1a", activity_head="HeadA", cost=5)
+    h1_b = Option(
+        0, "fill", d1 + timedelta(hours=1), d1 + timedelta(hours=9), "A", "A", "A1",
+        seat="s1b", activity_head="HeadA", cost=2,
+    )
+    # Row 1 can take HeadA or HeadB; since HeadA limit for Residential is 1, Row 1 must take HeadB.
+    h2_a = Option(1, "fill", d2, d2 + timedelta(hours=8), "A", "A", "A1", seat="s2a", activity_head="HeadA", cost=1)
+    h2_b = Option(1, "fill", d2, d2 + timedelta(hours=8), "A", "A", "B1", seat="s2b", activity_head="HeadB", cost=4)
+    # Row 2 takes a second shift on HeadB (HeadB allows up to 2 shifts for Residential).
+    h3_b = Option(2, "fill", d3, d3 + timedelta(hours=8), "A", "A", "B1", seat="s3b", activity_head="HeadB", cost=3)
+
+    swing = SimpleNamespace(
+        key="U_RES|mix", user="U_RES", home="A", classification="Residential",
+        earliest_start=None, latest_end=None, row_ids=["R1", "R2", "R3"], droppable=[False, False, False],
+        options=[[h1_a, h1_b], [h2_a, h2_b], [h3_b]],
+    )
+    seats = {
+        "s1a": SimpleNamespace(capacity=1, priority=1, activity_head="HeadA"),
+        "s1b": SimpleNamespace(capacity=1, priority=1, activity_head="HeadA"),
+        "s2a": SimpleNamespace(capacity=1, priority=1, activity_head="HeadA"),
+        "s2b": SimpleNamespace(capacity=1, priority=2, activity_head="HeadB"),
+        "s3b": SimpleNamespace(capacity=1, priority=2, activity_head="HeadB"),
+    }
+    limits = {
+        "HeadA": ActivityHeadLimits(max_resident_shifts=1, max_fifo_shifts=5),
+        "HeadB": ActivityHeadLimits(max_resident_shifts=2, max_fifo_shifts=5),
+    }
+
+    result = solve(rules, seats, [swing], Costs(), 5, 1, 0, activity_head_limits=limits)
+
+    assert result.status == "OPTIMAL"
+    assert result.places_filled == 3
+    assert result.chosen[swing.key] == [h1_b, h2_b, h3_b]
+
+
+def test_limits_enforced_independently_across_swings_and_crew_members():
+    rules = _test_rules()
+    d1, d2 = datetime(2026, 11, 1, 6), datetime(2026, 11, 10, 6)
+    s1_opt = Option(0, "fill", d1, d1 + timedelta(hours=8), "A", "A", "A06", seat="seat1", activity_head="Madison Crew")
+    s2_opt = Option(0, "fill", d2, d2 + timedelta(hours=8), "A", "A", "A06", seat="seat2", activity_head="Madison Crew")
+    other_crew_opt = Option(
+        0, "fill", d1, d1 + timedelta(hours=8), "A", "A", "A06", seat="seat3", activity_head="Madison Crew"
+    )
+    # Same crew member U1 in two separate swings (U1|1 and U1|2), plus a second crew member U2 in U2|1.
+    sw1 = SimpleNamespace(
+        key="U1|1", user="U1", home="A", classification="Residential",
+        earliest_start=None, latest_end=None, row_ids=["R1"], droppable=[False], options=[[s1_opt]],
+    )
+    sw2 = SimpleNamespace(
+        key="U1|2", user="U1", home="A", classification="Residential",
+        earliest_start=None, latest_end=None, row_ids=["R2"], droppable=[False], options=[[s2_opt]],
+    )
+    sw3 = SimpleNamespace(
+        key="U2|1", user="U2", home="A", classification="Residential",
+        earliest_start=None, latest_end=None, row_ids=["R3"], droppable=[False], options=[[other_crew_opt]],
+    )
+    seats = {
+        "seat1": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew"),
+        "seat2": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew"),
+        "seat3": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew"),
+    }
+    limits = {"Madison Crew": ActivityHeadLimits(max_resident_shifts=1, max_fifo_shifts=1)}
+
+    result = solve(rules, seats, [sw1, sw2, sw3], Costs(), 5, 1, 0, activity_head_limits=limits)
+
+    assert result.status == "OPTIMAL"
+    assert result.places_filled == 3
+    assert result.chosen["U1|1"] == [s1_opt]
+    assert result.chosen["U1|2"] == [s2_opt]
+    assert result.chosen["U2|1"] == [other_crew_opt]
+
+
+def test_solve_rejects_missing_or_untyped_activity_head_limits():
+    rules = _test_rules()
+    d1 = datetime(2026, 11, 1, 6)
+    opt = Option(0, "fill", d1, d1 + timedelta(hours=8), "A", "A", "A06", seat="s1", activity_head="Madison Crew")
+    swing = SimpleNamespace(
+        key="U_RES|1", user="U_RES", home="A", classification="Residential",
+        earliest_start=None, latest_end=None, row_ids=["R1"], droppable=[False],
+        options=[[opt]],
+    )
+    seats = {"s1": SimpleNamespace(capacity=1, priority=1, activity_head="Madison Crew")}
+
+    with pytest.raises(TypeError, match="ActivityHeadLimits"):
+        solve(rules, seats, [swing], Costs(), 5, 1, 0, activity_head_limits={"Madison Crew": (1, 1)})
+
+    with pytest.raises(ValueError, match="missing activity-head shift limits"):
+        solve(
+            rules, seats, [swing], Costs(), 5, 1, 0,
+            activity_head_limits={"Other Head": ActivityHeadLimits(max_resident_shifts=1, max_fifo_shifts=1)},
+        )

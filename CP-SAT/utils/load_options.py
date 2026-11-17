@@ -12,6 +12,7 @@ from pathlib import Path
 
 from option_generation.data import read_csv
 from option_generation.options import Option
+from option_generation.priority import ActivityHeadLimits
 
 
 @dataclass
@@ -24,6 +25,9 @@ class SeatInfo:
     priority: int
     level: int  # -1 = not a target seat
     gap_rows: list[str]
+    activity_head: str = ""
+    max_resident_shifts: int | None = None
+    max_fifo_shifts: int | None = None
 
     @property
     def capacity(self) -> int:
@@ -49,25 +53,41 @@ def _dt(text: str) -> datetime | None:
 
 
 def load_options(
-    folder: Path, activity_head_priorities: dict[str, int] | None = None
+    folder: Path,
+    activity_head_priorities: dict[str, int] | None = None,
+    activity_head_limits: dict[str, ActivityHeadLimits] | None = None,
 ) -> tuple[dict[str, SeatInfo], list[ModelSwing]]:
+    if activity_head_limits is not None and (
+        not isinstance(activity_head_limits, dict)
+        or any(not isinstance(limit, ActivityHeadLimits) for limit in activity_head_limits.values())
+    ):
+        raise SystemExit("error: activity_head_limits must map each activity head to ActivityHeadLimits")
     for name in ("seats.csv", "swings.csv", "options.csv"):
         if not (folder / name).exists():
             raise SystemExit(f"error: {folder / name} not found; run option_generation/generate_options.py first")
     seats = {}
+    head_by_activity: dict[str, str] = {}
     for s in read_csv(folder / "seats.csv"):
         activity_head = s.get("Activity Head", "").strip()
+        if activity_head:
+            head_by_activity[s["Activity ID"]] = activity_head
         if activity_head_priorities is not None and activity_head not in activity_head_priorities:
             raise SystemExit(f"error: no configured priority for activity head {activity_head or '<empty>'!r}")
+        if activity_head_limits is not None and activity_head not in activity_head_limits:
+            raise SystemExit(f"error: no configured shift limits for activity head {activity_head or '<empty>'!r}")
         priority = (
             activity_head_priorities[activity_head]
             if activity_head_priorities is not None
             else int(s["Priority"] or 99)
         )
+        limits = activity_head_limits[activity_head] if activity_head_limits is not None else None
         seats[s["Seat Key"]] = SeatInfo(
             s["Seat Key"], s["Activity ID"], datetime.fromisoformat(f"{s['Date']}T{s['Start']}"), int(s["Demand"]),
             int(s["Fixed Occupants"]), priority, int(s["Chain Level"]) if s["Chain Level"] else -1,
             [g for g in s["Gap Assignment IDs"].split(";") if g],
+            activity_head=activity_head,
+            max_resident_shifts=limits.max_resident_shifts if limits is not None else None,
+            max_fifo_shifts=limits.max_fifo_shifts if limits is not None else None,
         )  # fmt: skip
     swings: dict[str, ModelSwing] = {}
     for s in read_csv(folder / "swings.csv"):
@@ -92,6 +112,7 @@ def load_options(
                     o["Demand ID"], o["Seat Key"], o["Excess Seat Key"], o["Standby"] == "True", o["Row Type"],
                     int(o["Offset Minutes"]), int(o["Cost"]), int(o["Chain Level"]) if o["Chain Level"] else -1,
                     o.get("Unchanged", "False") == "True",
+                    activity_head=o.get("Activity Head", "").strip() or head_by_activity.get(o["Activity ID"], ""),
                 )  # fmt: skip
             )
     return seats, list(swings.values())

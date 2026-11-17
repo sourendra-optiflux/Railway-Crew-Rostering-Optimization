@@ -139,6 +139,7 @@ def write_summary(path, data: Data, seats, solved, result: dict, validation: dic
         f"| Solver start (rows before it never change) | {data.rules.solver_start} |",
         f"| Residential start restriction | {'on' if data.rules.residential_start_restriction else 'off'} |",
         f"| Relief-only day/night transition | {'on' if data.rules.relief_only_day_night_transition else 'off'} |",
+        f"| Activity-head max shifts | {'on' if data.rules.activity_head_max_shifts else 'off'} |",
         f"| Priority strategy | {data.rules.priority_strategy} |",
         f"| Gaps (Demand rows on leave) | {len(gaps)} |",
         f"| Locked gaps (before the solver start) | {len(locked)} |",

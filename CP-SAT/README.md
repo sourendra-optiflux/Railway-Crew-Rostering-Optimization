@@ -21,11 +21,11 @@ python scripts/run_pipeline.py
 | `--workers` | 8 | CP-SAT threads |
 | `--config` | `config.yml` | Shared constraint switches; use the same file as option generation |
 
-Demand filling priorities are configured in
+Demand filling priorities and per-swing shift limits are configured in
 [`data/optiflux_v2/activity_priority.csv`](../data/optiflux_v2/activity_priority.csv) (or `activity_priority.csv` inside `--data-dir`). It must contain exactly one
-priority per demand activity head. Each priority must have a weight in `PRIORITY_WEIGHTS` in
-`CP-SAT/utils/activity_head_priority.py`; lower numbers indicate higher priority. Missing, duplicate,
-invalid, unweighted, and non-demand activity-head entries are rejected before solving.
+row per demand activity head with columns `Priority`, `Activity Head`, `Max Resident Shifts`, and `Max FIFO Shifts`. Each priority must have a weight in `PRIORITY_WEIGHTS` in
+`CP-SAT/utils/activity_head_priority.py` (lower numbers indicate higher priority), and `Max Resident Shifts` / `Max FIFO Shifts` must be non-negative integers bounding the number of shifts a Residential or FIFO crew member may work on that activity head within a single swing. Missing, duplicate,
+invalid, unweighted, and non-demand activity-head entries are rejected before solving. Whether the per-swing shift limits are enforced is controlled by the `Activity Head Max Shifts` row (`Status`: `Active` / `Inactive`) in [`data/optiflux_v2/constraints_df.csv`](../data/optiflux_v2/constraints_df.csv).
 
 `config.yml` selects how those priorities affect optimization:
 

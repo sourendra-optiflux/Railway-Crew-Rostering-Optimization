@@ -28,7 +28,7 @@ from ortools.sat.python import cp_model
 from utils.load_options import ModelSwing, SeatInfo
 
 from option_generation.options import Costs, Option, can_close, can_open, skippable
-from option_generation.priority import priority_weights_for
+from option_generation.priority import ActivityHeadLimits, priority_weights_for
 from option_generation.rules import Rules
 
 
@@ -47,13 +47,40 @@ class Result:
     stage_bounds: dict[str, float] = field(default_factory=dict)  # CP-SAT best objective bound of each stage
 
 
+def _validate_head_limits(activity_head_limits: dict[str, ActivityHeadLimits]) -> None:
+    if not isinstance(activity_head_limits, dict) or any(
+        not isinstance(limit, ActivityHeadLimits) for limit in activity_head_limits.values()
+    ):
+        raise TypeError("activity_head_limits must be a dict[str, ActivityHeadLimits]")
+
+
+def _option_activity_head(o: Option, seats: dict[str, SeatInfo], head_by_activity: dict[str, str]) -> str:
+    if o.activity_head:
+        return o.activity_head
+    if o.seat and o.seat in seats and getattr(seats[o.seat], "activity_head", ""):
+        return seats[o.seat].activity_head
+    if o.excess_seat and o.excess_seat in seats and getattr(seats[o.excess_seat], "activity_head", ""):
+        return seats[o.excess_seat].activity_head
+    if o.activity_id in head_by_activity:
+        return head_by_activity[o.activity_id]
+    return o.activity_id
+
+
 def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], costs: Costs, time_limit: float,
-          workers: int, seed: int, log: bool = False, priority_strategy: str | None = None) -> Result:  # fmt: skip
+          workers: int, seed: int, log: bool = False, priority_strategy: str | None = None,
+          activity_head_limits: dict[str, ActivityHeadLimits] | None = None) -> Result:  # fmt: skip
     if rules.max_changes not in (0, 1):
         raise SystemExit("error: the model supports Max Start Changes Per Block of 0 or 1")
     priority_strategy = rules.priority_strategy if priority_strategy is None else priority_strategy
     if not isinstance(priority_strategy, str) or priority_strategy not in ("none", "weighted", "lexicographic"):
         raise ValueError("priority_strategy must be one of: none, weighted, lexicographic")
+    if activity_head_limits is not None:
+        _validate_head_limits(activity_head_limits)
+    head_by_activity = {
+        s.activity_id: s.activity_head
+        for s in seats.values()
+        if getattr(s, "activity_id", "") and getattr(s, "activity_head", "")
+    }
     model = cp_model.CpModel()
     tracked: list = []
     picks: list[tuple[ModelSwing, list[tuple[Option, object]], list[object | None]]] = []
@@ -131,6 +158,17 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
                 m = rules.block_minute(o.start)
                 model.add(base == m).only_enforce_if([lit, after[o.row_index].Not()])
                 model.add(new == m).only_enforce_if([lit, after[o.row_index]])
+        if rules.activity_head_max_shifts and activity_head_limits is not None:
+            by_head: dict[str, list] = defaultdict(list)
+            for o, lit in nodes:
+                if o.standby:
+                    continue
+                head = _option_activity_head(o, seats, head_by_activity)
+                if head not in activity_head_limits:
+                    raise ValueError(f"missing activity-head shift limits for {head or '<empty>'!r}")
+                by_head[head].append(lit)
+            for head, head_lits in by_head.items():
+                model.add(sum(head_lits) <= activity_head_limits[head].limit_for(sw.classification))
         picks.append((sw, nodes, dropped))
 
     # Seat capacity bounds the number of demand positions credited to the objective.
