@@ -1,0 +1,15 @@
+Activity Head,Total Daily Demand,Min Crew,Source
+BY Ship,4,2,default
+Bethway Join/FI Crew,8,4,default
+CAM LOT,8,4,default
+Fuel Return,1,1,default
+Fuel Train,1,1,default
+Haskett Mainline,25,13,default
+Madison Crew,24,12,default
+Madison Yard,8,4,default
+NE Crew,28,14,default
+NE Ship,4,2,default
+Nelaway Driver,24,12,default
+Nelaway Shuttle Driver,8,4,default
+Work Train,2,1,default
+Yarmouth Mainline,26,13,default
