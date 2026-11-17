@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
 
     solved = solve(
         data.rules, seats, swings, Costs(), args.time_limit, args.workers, args.seed, args.log,
-        activity_head_limits=data.max_shifts,
+        activity_head_limits=data.max_shifts, co_pairs=data.co_pairs,
     )
     if not solved.chosen:
         print(f"error: no solution ({solved.status})", file=sys.stderr)

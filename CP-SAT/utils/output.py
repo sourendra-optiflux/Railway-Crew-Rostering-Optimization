@@ -13,6 +13,8 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 
 from option_generation.data import PERSON, Data, write_csv
+from option_generation.min_crew import min_crew_table
+from option_generation.onsite import below_minimum, onsite_crew_df, seat_start_times
 from option_generation.options import Option, seat_key
 
 NOTE = "Optimisation Note"
@@ -108,6 +110,43 @@ def apply(data: Data, swings, chosen: dict[str, list[Option | None]], seats) -> 
     return {"roster": roster, "fills": records, "rides": rides, "dropped": dropped, "unfilled": unfilled}
 
 
+def co_pairing_report(data: Data, roster: list[dict]) -> list[dict]:
+    """One row per reverse-lane CO pair and start time from the solver start on, counted from the final roster.
+
+    Independent of the CP-SAT variables: a seat is filled by every Demand row of it with an `Optimised User Id`.
+    `Mismatch` is 0 when both CO seats are equally filled, so a pair with both seats empty is not a violation.
+    """
+    filled: Counter = Counter()
+    demand: dict[str, int] = {}
+    for r in roster:
+        if r["Assignment Type"] == "Demand" and data.rules.solvable(r["_s"].date()):
+            key = seat_key(r["Activity ID"], r["_s"])
+            demand[key] = demand.get(key, 0) + 1
+            filled[key] += bool(r["Optimised User Id"])
+    starts: dict[str, dict] = defaultdict(dict)
+    for key in demand:
+        activity_id, _, start = key.partition("@")
+        starts[activity_id][start] = key
+    rows = []
+    for a, b in data.co_pairs:
+        for start in sorted(starts[a].keys() & starts[b].keys()):
+            ka, kb = starts[a][start], starts[b][start]
+            rows.append({
+                "Start": start.replace("T", " "),
+                "CO A": data.activities[a]["Activity Name"], "A Filled": filled[ka], "A Demand": demand[ka],
+                "CO B": data.activities[b]["Activity Name"], "B Filled": filled[kb], "B Demand": demand[kb],
+                "Mismatch": abs(filled[ka] - filled[kb]),
+            })  # fmt: skip
+    return rows
+
+
+def onsite_tables(data: Data, roster: list[dict]):
+    """The on-site crew dataframe (from the optimised roster) and the heads below their minimum crew."""
+    starts = seat_start_times(data.demand, data.activities, data.rules.horizon_start, data.rules.horizon_days)
+    df = onsite_crew_df(roster, starts, data.rules.shift_hours, data.min_crew, person_column="Optimised User Id")
+    return df, below_minimum(df)
+
+
 def write_outputs(out, data: Data, result: dict) -> None:
     columns = data.columns + [
         column for column in (CREW_CLASSIFICATION, NOTE) if column not in data.columns
@@ -117,6 +156,14 @@ def write_outputs(out, data: Data, result: dict) -> None:
     unfilled_cols = ["Assignment ID", "Date", "Start", "Activity ID", "Activity Name", "Original User Id", "Kind",
                      "Is_locked_gap", "Leave Type"]  # fmt: skip
     write_csv(out / "unfilled_gaps.csv", unfilled_cols, result["unfilled"])
+    co_rows = co_pairing_report(data, result["roster"])
+    write_csv(out / "co_pairing.csv", ["Start", "CO A", "A Filled", "A Demand", "CO B", "B Filled", "B Demand",
+                                       "Mismatch"], co_rows)  # fmt: skip
+    write_csv(out / "min_crew.csv", ["Activity Head", "Total Daily Demand", "Min Crew", "Source"],
+              min_crew_table(data.demand_path, data.min_crew))  # fmt: skip
+    onsite, short = onsite_tables(data, result["roster"])
+    onsite.to_csv(out / "onsite_crew.csv", index=False, date_format="%Y-%m-%d %H:%M")
+    short.to_csv(out / "below_min_crew.csv", index=False, date_format="%Y-%m-%d %H:%M")
 
 
 def write_summary(path, data: Data, seats, solved, result: dict, validation: dict, args) -> None:
@@ -129,6 +176,8 @@ def write_summary(path, data: Data, seats, solved, result: dict, validation: dic
     source = Counter(f["Source"] for f in result["fills"])
     moved = {f["Optimised User Id"] for f in result["fills"]}
     chains = Counter(f["Chain Level"] for f in result["fills"])
+    co_mismatch = sum(r["Mismatch"] for r in co_pairing_report(data, roster))
+    below = onsite_tables(data, roster)[1]
     lines = [
         "# CP-SAT gap filling result",
         "",
@@ -141,6 +190,7 @@ def write_summary(path, data: Data, seats, solved, result: dict, validation: dic
         f"| Relief-only day/night transition | {'on' if data.rules.relief_only_day_night_transition else 'off'} |",
         f"| Activity-head max shifts | {'on' if data.rules.activity_head_max_shifts else 'off'} |",
         f"| Priority strategy | {data.rules.priority_strategy} |",
+        f"| CO pairing penalty (per unmatched CO) | {data.rules.co_pairing_penalty} |",
         f"| Gaps (Demand rows on leave) | {len(gaps)} |",
         f"| Locked gaps (before the solver start) | {len(locked)} |",
         f"| Gaps to fill | {len(to_fill)} |",
@@ -153,7 +203,11 @@ def write_summary(path, data: Data, seats, solved, result: dict, validation: dic
             + " |"
             for name, status in solved.stage_statuses.items()
         ],
-        (f"| Assignment cost | {solved.cost} (lower bound {solved.cost_bound}) |" if solved.cost is not None
+        f"| Unmatched CO seats on reverse lanes (model) | "
+        f"{'not modelled' if solved.co_violations is None else solved.co_violations} |",
+        f"| Unmatched CO seats on reverse lanes (checked on the roster) | {co_mismatch} |",
+        f"| Start times below the head's minimum crew | {len(below)} |",
+        (f"| Assignment cost | {solved.cost} |" if solved.cost is not None
          else f"| Assignment cost | not minimized ({solved.cost_status}) |"),
         f"| Seats filled by Excess / Relief / Demand | {source['Excess']} / {source['Relief']} / {source['Demand']} |",
         f"| Fills by chain level (0 = gap seat) | {', '.join(f'{k}: {v}' for k, v in sorted(chains.items()))} |",

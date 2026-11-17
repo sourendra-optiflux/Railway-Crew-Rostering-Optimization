@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
+from .co_pairs import reverse_co_pairs
+from .min_crew import load_min_crew
 from .priority import load_activity_head_limits, load_activity_head_priorities
 from .rules import DEFAULT_CONFIG, Rules
 
@@ -48,6 +50,9 @@ class Data:
     last_done: dict[tuple[str, str], date]  # (User Id, Activity Head) -> last performed
     priority: dict[str, int]  # Activity Head -> priority, 1 = highest
     max_shifts: dict = field(default_factory=dict)  # Activity Head -> ActivityHeadLimits
+    demand_path: Path = Path("activity_demand_df.csv")
+    min_crew: dict[str, int] = field(default_factory=dict)  # Activity Head -> minimum crew required
+    co_pairs: list[tuple[str, str]] = field(default_factory=list)  # CO activities on reverse lanes
 
 
 def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) -> Data:
@@ -68,9 +73,10 @@ def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) 
 
     demand_path = data_dir / "activity_demand_df.csv"
     priority_path = data_dir / "activity_priority.csv"
+    activities = {a["Activity ID"]: a for a in read_csv(data_dir / "activities_df.csv")}
     return Data(
         rules=Rules.from_table(read_csv(data_dir / "constraints_df.csv"), config_path),
-        activities={a["Activity ID"]: a for a in read_csv(data_dir / "activities_df.csv")},
+        activities=activities,
         demand={
             (d["Activity ID"], d["Shift"]): d
             for d in read_csv(demand_path)
@@ -86,6 +92,9 @@ def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) 
         },
         priority=load_activity_head_priorities(demand_path, priority_path),
         max_shifts=load_activity_head_limits(demand_path, priority_path),
+        demand_path=demand_path,
+        min_crew=load_min_crew(demand_path, priority_path),
+        co_pairs=reverse_co_pairs(activities),
     )
 
 

@@ -39,12 +39,36 @@ Every strategy first maximizes total demand fulfilment. `none` then minimizes as
 fulfilment for each priority in ascending order, one stage at a time. Each stage's optimum is fixed
 before the next stage runs, and the next stage is skipped unless the previous stage is proven `OPTIMAL`.
 
+### CO reverse-lane pairing (soft)
+
+Every Change Over (CO) should happen together with the CO on the reverse lane at the same start time
+(Haskett Mainline CO <-> Yarmouth Mainline CO). The pairs are derived from `activities_df.csv`
+(`option_generation/co_pairs.py`): two `Crew On` activities whose mainline lanes have swapped depots.
+
+It is a **soft** constraint. For each pair of CO seats that start together the model adds
+`mismatch = |filled(A) - filled(B)|` and charges `co_pairing_penalty` per unit in the final cost stage, after
+coverage is fixed. So coverage is never traded away for pairing, violations are allowed, and they are kept as
+few as the costs allow. A CO with no reverse-lane seat at its start time (Yarmouth Mainline CO at 05:00) has
+nothing to pair with and is not counted.
+
+```yaml
+optimization:
+  co_pairing_penalty: 50   # cost per unmatched CO; 0 switches pairing off
+```
+
+The scale is that of `Costs`: a Relief fill costs 10, a moved Demand person 40+. A penalty below the cost of
+putting someone on a CO will not force the pair.
+
 ## Output (`CP-SAT/outputs/roster_full/`)
 
 | File | Content |
 |---|---|
 | `roster_full.csv` | The roster with `User Id`, `New User Id` and **`Optimised User Id`** side by side, plus `Optimisation Note` on every changed row |
 | `reassignments.csv` | One row per filled seat: the row, who had it, who has it now, where they came from, the start change and the chain level |
+| `co_pairing.csv` | One row per reverse-lane CO pair and start time: how many of each are filled, and the mismatch (counted from the final roster, independent of the model) |
+| `onsite_crew.csv` | The on-site crew dataframe: people available per site, activity head and start datetime (see below) |
+| `min_crew.csv` | Total daily demand and minimum crew per activity head |
+| `below_min_crew.csv` | Start datetimes where an activity head has fewer people than its minimum, summed over sites |
 | `unfilled_gaps.csv` | Demand rows still empty: locked gaps, gaps with no legal filler, and seats left by a move (if any) |
 | `validation.md` | The rule checks (see below) |
 | `summary.md` | The headline numbers |
@@ -54,6 +78,19 @@ In `roster_full.csv`, `Optimised User Id` starts as `New User Id` and changes on
 
 - the row they left becomes blank: a standby row, an Excess row, or their own Demand seat;
 - the row of the seat they took gets their id: a gap row, or a row its holder left.
+
+## On-site crew and minimum crew
+
+`option_generation/onsite.py` builds `onsite_crew_df(...)`, one row per `Site x Activity Head x Start Datetime`
+(every demand start time of the head over the horizon), from the optimised roster. A person counts at their
+site from the shift start for the shift length (12 h), end exclusive: a crew starting at 11:00 is available from
+11:00 until 23:00. Columns: `Demand Crew`, `Excess Crew`, `Relief Crew`, `Crew Available` (distinct people), `Min Crew`.
+The site is the `Start Location` of the roster row and the head is the row's `Activity Head`. Leave rows are not counted.
+
+`option_generation/min_crew.py` defines the minimum crew per activity head: `ceil(total daily demand / 2)`,
+where the total daily demand is the sum of `Demand` over the head's active rows in `activity_demand_df.csv`
+(its COs included). To override a head, add a `Min Crew` column to `activity_priority.csv` and fill that head's
+cell; a blank cell keeps the default. These are reported, not enforced: they do not constrain the solver.
 
 ## The model
 
