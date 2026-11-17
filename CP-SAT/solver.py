@@ -17,6 +17,12 @@ Stage 1 maximises total demand coverage. Depending on `priority_strategy` (`none
 `lexicographic`), optional intermediate stages maximise weighted or per-priority activity-head
 coverage after fixing each preceding proven optimum. The final stage fixes all preceding optimal
 objectives and minimises assignment cost (from `option_generation.options.Costs`).
+
+CO pairing (soft): every Change Over should happen together with the CO on the reverse lane at the same start
+time. For each pair of CO seats that start together, `mismatch = |filled(a) - filled(b)|` is penalised by
+`rules.co_pairing_penalty` in the final stage. Violations are allowed, but they cost, so the solver keeps them
+as few as it can once coverage is fixed. A CO seat with no reverse-lane seat at its start time has nothing to
+pair with and is not penalised.
 """
 
 from __future__ import annotations
@@ -45,6 +51,7 @@ class Result:
     stage_statuses: dict[str, str] = field(default_factory=dict)
     stage_values: dict[str, int] = field(default_factory=dict)  # objective value of each stage that ran
     stage_bounds: dict[str, float] = field(default_factory=dict)  # CP-SAT best objective bound of each stage
+    co_violations: int | None = None  # unmatched CO seats over all reverse-lane pairs; None = pairing not modelled
 
 
 def _validate_head_limits(activity_head_limits: dict[str, ActivityHeadLimits]) -> None:
@@ -68,7 +75,8 @@ def _option_activity_head(o: Option, seats: dict[str, SeatInfo], head_by_activit
 
 def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], costs: Costs, time_limit: float,
           workers: int, seed: int, log: bool = False, priority_strategy: str | None = None,
-          activity_head_limits: dict[str, ActivityHeadLimits] | None = None) -> Result:  # fmt: skip
+          activity_head_limits: dict[str, ActivityHeadLimits] | None = None,
+          co_pairs: list[tuple[str, str]] | None = None) -> Result:  # fmt: skip
     if rules.max_changes not in (0, 1):
         raise SystemExit("error: the model supports Max Start Changes Per Block of 0 or 1")
     priority_strategy = rules.priority_strategy if priority_strategy is None else priority_strategy
@@ -182,6 +190,23 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
             continue
         model.add(sum(at_seat.get(key, [])) >= seat.capacity).only_enforce_if(lit)
 
+    # Soft CO pairing: mismatch between the two reverse-lane CO seats that start at the same time.
+    co_mismatch: list = []
+    if co_pairs and rules.co_pairing_penalty > 0:
+        starts: dict[str, dict] = defaultdict(dict)  # Activity ID -> {start: seat key}
+        for key, seat in seats.items():
+            starts[seat.activity_id][seat.start] = key
+        for a, b in co_pairs:
+            for start in sorted(starts[a].keys() & starts[b].keys()):
+                seat_a, seat_b = seats[starts[a][start]], seats[starts[b][start]]
+                filled_a = seat_a.fixed + sum(at_seat.get(seat_a.key, []))
+                filled_b = seat_b.fixed + sum(at_seat.get(seat_b.key, []))
+                mismatch = model.new_int_var(0, max(seat_a.demand, seat_b.demand), f"co_mismatch_{a}_{b}_{start:%d%H%M}")
+                tracked.append(mismatch)
+                model.add(mismatch >= filled_a - filled_b)
+                model.add(mismatch >= filled_b - filled_a)
+                co_mismatch.append(mismatch)
+
     def run(limit: float):
         solver = cp_model.CpSolver()
         solver.parameters.max_time_in_seconds = limit
@@ -211,7 +236,10 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
                 for lit in lits_for_seat
             )
             stages.append((f"priority_{priority}", objective, True, f"priority {priority} demand fulfilment"))
-    stages.append(("cost", sum(c * v for c, v in spend), False, "assignment cost"))
+    assignment_cost = sum(c * v for c, v in spend)
+    co_cost = rules.co_pairing_penalty * sum(co_mismatch) if co_mismatch else 0
+    stages.append(("cost", assignment_cost + co_cost, False,
+                   "assignment cost + CO pairing penalty" if co_mismatch else "assignment cost"))
 
     stage_statuses = {}
     stage_values = {}
@@ -274,8 +302,12 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
     best = sum(first_solver.value(lit) for lit in coverage)
     best_bound = first_solver.best_objective_bound
     cost_solver = stage_solvers.get("cost")
-    cost_value = round(cost_solver.objective_value) if cost_solver else None
+    # The reported cost is the assignment cost alone; the CO penalty is reported through `co_violations`.
+    penalty = rules.co_pairing_penalty if co_mismatch else 0
+    cost_value = round(cost_solver.objective_value - penalty * sum(cost_solver.value(m) for m in co_mismatch)) \
+        if cost_solver else None
     cost_bound = cost_solver.best_objective_bound if cost_solver else None
+    co_violations = sum(final.value(m) for m in co_mismatch) if co_mismatch else None
 
     chosen = {}
     for sw, nodes, _dropped in picks:
@@ -296,4 +328,5 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
         stage_statuses=stage_statuses,
         stage_values=stage_values,
         stage_bounds=stage_bounds,
+        co_violations=co_violations,
     )
