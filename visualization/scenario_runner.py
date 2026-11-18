@@ -12,6 +12,9 @@ from typing import Callable
 
 from visualization.data_loader import ROOT, DashboardDataset, load_dashboard_dataset
 
+WORKING_DATA_DIR = ROOT / "outputs" / "working_data"
+WHATIF_OUTPUTS_DIR = ROOT / "CP-SAT" / "outputs" / "whatif"
+
 
 def _read_csv_rows(path: Path) -> tuple[list[str], list[dict[str, str]]]:
     with path.open(newline="", encoding="utf-8-sig") as fh:
@@ -24,6 +27,48 @@ def _write_csv_rows(path: Path, fieldnames: list[str], rows: list[dict[str, str]
         writer = csv.DictWriter(fh, fieldnames=fieldnames, lineterminator="\n", extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def ensure_working_data_dir(
+    base_data_dir: Path,
+    working_dir: Path = WORKING_DATA_DIR,
+    *,
+    reset: bool = False,
+) -> Path:
+    """Create/populate a non-tracked working copy of input CSVs under `outputs/working_data/`."""
+    working_dir.mkdir(parents=True, exist_ok=True)
+    if base_data_dir.exists():
+        for src_csv in sorted(base_data_dir.glob("*.csv")):
+            dst_csv = working_dir / src_csv.name
+            if reset or not dst_csv.exists():
+                shutil.copy2(src_csv, dst_csv)
+    base_cfg = ROOT / "config.yml"
+    dst_cfg = working_dir / "config.yml"
+    if base_cfg.exists() and (reset or not dst_cfg.exists()):
+        shutil.copy2(base_cfg, dst_cfg)
+    return working_dir
+
+
+def save_working_csv_with_backup(
+    working_csv_path: Path,
+    fieldnames: list[str],
+    rows: list[dict[str, str]],
+    *,
+    working_root: Path = WORKING_DATA_DIR,
+) -> Path:
+    """Write a `.bak` copy first and save CSV rows strictly inside the non-tracked working copy directory."""
+    resolved_target = working_csv_path.resolve()
+    resolved_root = working_root.resolve()
+    if resolved_root not in resolved_target.parents:
+        raise ValueError(
+            f"Refusing to overwrite tracked file '{working_csv_path}'; edits must target '{working_root}'."
+        )
+    working_csv_path.parent.mkdir(parents=True, exist_ok=True)
+    bak_path = working_csv_path.with_suffix(working_csv_path.suffix + ".bak")
+    if working_csv_path.exists():
+        shutil.copy2(working_csv_path, bak_path)
+    _write_csv_rows(working_csv_path, fieldnames, rows)
+    return bak_path
 
 
 def _format_num(value: float) -> str:
@@ -223,10 +268,16 @@ def save_active_config_and_constraints(
     activity_priority_overrides: list[dict[str, str]] | None = None,
     constraints_table_overrides: list[dict[str, str]] | None = None,
 ) -> None:
-    """Persist rule, constraint, and objective overrides to the active config/data files."""
+    """Persist rule, constraint, and objective overrides to the working copy config/data files."""
+    tracked_data_dir = (ROOT / "data" / "optiflux_v2").resolve()
+    target_data_dir = data_dir
+    target_config_path = config_path
+    if data_dir.resolve() == tracked_data_dir:
+        target_data_dir = ensure_working_data_dir(data_dir)
+        target_config_path = target_data_dir / "config.yml"
     _apply_rule_overrides_to_dir(
-        data_dir,
-        config_path,
+        target_data_dir,
+        target_config_path,
         residential_start_restriction=residential_start_restriction,
         relief_only_day_night_transition=relief_only_day_night_transition,
         priority_strategy=priority_strategy,
@@ -271,6 +322,24 @@ def run_what_if_scenario(
     log_callback: Callable[[str], None] | None = None,
 ) -> tuple[DashboardDataset | None, str]:
     """Run an isolated What-If scenario with custom rule/strategy settings in a temp workspace."""
+    target_persist_dir: Path | None = None
+    if persist_output_name and persist_output_name.strip():
+        safe_name = "".join(
+            ch if (ch.isalnum() or ch in {"_", "-"}) else "_"
+            for ch in persist_output_name.strip()
+        ).strip("_-")
+        if not safe_name:
+            return None, "Invalid scenario output name."
+        top_level_collision = ROOT / "CP-SAT" / "outputs" / safe_name
+        candidate_persist_dir = WHATIF_OUTPUTS_DIR / safe_name
+        if top_level_collision.exists() or candidate_persist_dir.exists():
+            return (
+                None,
+                f"Refusing to overwrite existing output folder '{safe_name}'. "
+                "Please choose a new unique scenario name.",
+            )
+        target_persist_dir = candidate_persist_dir
+
     with tempfile.TemporaryDirectory(prefix="rostering_whatif_") as tmp:
         tmp_path = Path(tmp)
         data_dir = tmp_path / "data"
@@ -281,6 +350,9 @@ def run_what_if_scenario(
         roster_in = tmp_path / "roster_full_input.csv"
 
         shutil.copytree(base_data_dir, data_dir)
+        if WORKING_DATA_DIR.exists() and base_data_dir.resolve() == (ROOT / "data" / "optiflux_v2").resolve():
+            for working_csv in sorted(WORKING_DATA_DIR.glob("*.csv")):
+                shutil.copy2(working_csv, data_dir / working_csv.name)
         shutil.copy2(base_roster_full, roster_in)
 
         _apply_rule_overrides_to_dir(
@@ -339,14 +411,13 @@ def run_what_if_scenario(
         if not ok:
             return None, full_logs
 
-        if persist_output_name and persist_output_name.strip():
-            safe_name = "".join(
-                ch if (ch.isalnum() or ch in {"_", "-"}) else "_"
-                for ch in persist_output_name.strip()
-            )
-            target_persist_dir = ROOT / "CP-SAT" / "outputs" / safe_name
+        if target_persist_dir is not None:
             if target_persist_dir.exists():
-                shutil.rmtree(target_persist_dir)
+                return (
+                    None,
+                    f"Refusing to overwrite existing output folder '{target_persist_dir}'.",
+                )
+            target_persist_dir.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(out_dir, target_persist_dir)
             (target_persist_dir / "solver.log").write_text(full_logs, encoding="utf-8")
 

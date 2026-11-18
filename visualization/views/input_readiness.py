@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
+import shutil
 from pathlib import Path
 
 import streamlit as st
@@ -15,6 +16,11 @@ from visualization.charts import (
 )
 from visualization.data_loader import ROOT, DashboardDataset
 from visualization.export_utils import rows_to_csv_bytes
+from visualization.scenario_runner import (
+    WORKING_DATA_DIR,
+    ensure_working_data_dir,
+    save_working_csv_with_backup,
+)
 
 
 def _discover_stage_files(dataset: DashboardDataset) -> dict[str, dict[str, Path]]:
@@ -58,14 +64,6 @@ def _read_csv_with_headers(path: Path) -> tuple[list[str], list[dict[str, str]]]
     with path.open("r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         return list(reader.fieldnames or []), list(reader)
-
-
-def _write_csv_with_headers(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
-    with path.open("w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        for r in rows:
-            writer.writerow({k: r.get(k, "") for k in fieldnames})
 
 
 def render_input_readiness(dataset: DashboardDataset) -> None:
@@ -230,28 +228,48 @@ def render_input_readiness(dataset: DashboardDataset) -> None:
                 )
 
     with tab_importer:
-        st.markdown("#### CSV Input Table Importer & In-Place Editor (`data/optiflux_v2/`)")
+        st.markdown("#### CSV Input Table Importer & Working-Copy Editor (`outputs/working_data/`)")
         st.caption(
-            "Edit any pre-solver input table directly in the browser or upload a replacement CSV file before running "
-            "Gap Generation, Option Generation, or the CP-SAT Solver."
+            "Edits and CSV uploads are saved to an isolated working copy (`outputs/working_data/`) with automatic `.bak` "
+            "backups so committed files in `data/optiflux_v2/` are never overwritten. The What-If runner automatically "
+            "uses this working copy."
         )
-        input_csvs = sorted(dataset.data_dir.glob("*.csv")) if dataset.data_dir.exists() else []
+        working_dir = ensure_working_data_dir(dataset.data_dir)
+        input_csvs = sorted(working_dir.glob("*.csv")) if working_dir.exists() else []
         csv_map = {p.name: p for p in input_csvs}
-        selected_csv_name = st.selectbox(
-            "Select Input Table to Edit or Replace",
-            list(csv_map.keys()),
-            index=list(csv_map.keys()).index("constraints_df.csv") if "constraints_df.csv" in csv_map else 0,
-            key="imp_table_select",
-        )
+        top_bar1, top_bar2 = st.columns([3, 1])
+        with top_bar1:
+            selected_csv_name = st.selectbox(
+                "Select Working-Copy Input Table to Edit or Replace",
+                list(csv_map.keys()),
+                index=list(csv_map.keys()).index("constraints_df.csv") if "constraints_df.csv" in csv_map else 0,
+                key="imp_table_select",
+            )
+        with top_bar2:
+            if st.button("Reset Working Copy from Repo", type="secondary", key="reset_working_copy_btn"):
+                ensure_working_data_dir(dataset.data_dir, reset=True)
+                st.cache_data.clear()
+                st.success("Reset `outputs/working_data/` from committed `data/optiflux_v2/` tables.")
         selected_csv_path = csv_map.get(selected_csv_name or "")
 
         if selected_csv_path and selected_csv_path.exists():
+            bak_candidate = selected_csv_path.with_suffix(selected_csv_path.suffix + ".bak")
+            st.caption(
+                f"**Working Copy File:** `{selected_csv_path}` "
+                f"(Tracked source `{dataset.data_dir / selected_csv_path.name}` is read-only)"
+            )
+            if bak_candidate.exists():
+                if st.button(f"Restore `{selected_csv_name}` from `{bak_candidate.name}`", key=f"restore_bak_{selected_csv_name}"):
+                    shutil.copy2(bak_candidate, selected_csv_path)
+                    st.cache_data.clear()
+                    st.success(f"Restored `{selected_csv_name}` from `{bak_candidate.name}`.")
+
             headers, current_rows = _read_csv_with_headers(selected_csv_path)
             col_up, col_ed = st.columns([1, 2])
             with col_up:
                 st.markdown("##### Option A: Upload / Import CSV")
                 uploaded = st.file_uploader(
-                    f"Upload replacement for `{selected_csv_name}`",
+                    f"Upload replacement for `{selected_csv_name}` (Working Copy)",
                     type=["csv"],
                     key=f"upload_{selected_csv_name}",
                 )
@@ -265,10 +283,28 @@ def render_input_readiness(dataset: DashboardDataset) -> None:
                         st.error(f"Uploaded CSV is missing required columns: {', '.join(missing_cols)}")
                     else:
                         st.success(f"Validated `{uploaded.name}`: {len(up_rows):,} rows, {len(up_headers)} columns.")
-                        if st.button(f"Apply Uploaded CSV to `{selected_csv_name}`", type="primary", key="apply_upload_btn"):
-                            _write_csv_with_headers(selected_csv_path, up_headers, up_rows)
+                        confirm_up = st.checkbox(
+                            f"Confirm saving `{uploaded.name}` to working copy (`{selected_csv_path.name}.bak` will be written first)",
+                            value=False,
+                            key=f"confirm_up_{selected_csv_name}",
+                        )
+                        if st.button(
+                            f"Apply Uploaded CSV to Working Copy (`{selected_csv_name}`)",
+                            type="primary",
+                            disabled=not confirm_up,
+                            key="apply_upload_btn",
+                        ):
+                            bak_file = save_working_csv_with_backup(
+                                selected_csv_path,
+                                up_headers,
+                                up_rows,
+                                working_root=WORKING_DATA_DIR,
+                            )
                             st.cache_data.clear()
-                            st.success(f"Saved `{selected_csv_name}` ({len(up_rows):,} rows)!")
+                            st.success(
+                                f"Saved `{selected_csv_name}` ({len(up_rows):,} rows) to working copy! "
+                                f"Backup written to `{bak_file.name}`."
+                            )
 
             with col_ed:
                 st.markdown(f"##### Option B: Interactive Table Editor (`{selected_csv_name}`)")
@@ -279,10 +315,27 @@ def render_input_readiness(dataset: DashboardDataset) -> None:
                         use_container_width=True,
                         key=f"editor_{selected_csv_name}",
                     )
-                    if st.button(f"Save Edits to `{selected_csv_name}`", type="primary", key=f"save_ed_{selected_csv_name}"):
-                        _write_csv_with_headers(selected_csv_path, headers, list(edited_rows))
+                    confirm_ed = st.checkbox(
+                        f"Confirm saving edits to working copy `outputs/working_data/{selected_csv_name}` (creates `.bak` backup)",
+                        value=False,
+                        key=f"confirm_ed_{selected_csv_name}",
+                    )
+                    if st.button(
+                        f"Save Edits to Working Copy (`{selected_csv_name}`)",
+                        type="primary",
+                        disabled=not confirm_ed,
+                        key=f"save_ed_{selected_csv_name}",
+                    ):
+                        bak_file = save_working_csv_with_backup(
+                            selected_csv_path,
+                            headers,
+                            list(edited_rows),
+                            working_root=WORKING_DATA_DIR,
+                        )
                         st.cache_data.clear()
-                        st.success(f"Saved {len(edited_rows):,} rows to `{selected_csv_path}`.")
+                        st.success(
+                            f"Saved {len(edited_rows):,} rows to `{selected_csv_path}` (backup: `{bak_file.name}`)."
+                        )
                 else:
                     st.info(
                         f"`{selected_csv_name}` has {len(current_rows):,} rows. Use Option A (CSV Upload) or the "

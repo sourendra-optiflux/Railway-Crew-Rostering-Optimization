@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+import pytest
+
 from visualization.charts import (
     create_assignment_type_donut_charts,
     create_depot_coverage_chart,
@@ -32,6 +34,11 @@ from visualization.metrics import (
     build_crew_timeline_records,
     build_demand_slot_records,
     compute_summary_kpis,
+)
+from visualization.scenario_runner import (
+    ensure_working_data_dir,
+    run_what_if_scenario,
+    save_working_csv_with_backup,
 )
 from visualization.schema import (
     DEMAND_COLUMNS,
@@ -174,3 +181,45 @@ def test_extended_kpis_brief_and_new_charts_deterministic():
     assert create_depot_coverage_chart(depot_rows) is not None
     assert create_head_depot_coverage_heatmap(head_depot_rows) is not None
     assert create_priority_adherence_waterfall_chart(prio_rows) is not None
+
+
+def test_working_copy_backup_and_persist_output_guard(tmp_path):
+    working_dir = ensure_working_data_dir(DEFAULT_DATA_DIR, working_dir=tmp_path / "working_data")
+    target_csv = working_dir / "constraints_df.csv"
+    assert target_csv.exists()
+
+    bak_path = save_working_csv_with_backup(
+        target_csv,
+        ["Constraint", "Value", "Status"],
+        [{"Constraint": "Ordinary Rest Hours", "Value": "12", "Status": "Active"}],
+        working_root=working_dir,
+    )
+    assert bak_path.exists()
+
+    # Attempting to overwrite a tracked file outside working_dir must raise ValueError
+    with pytest.raises(ValueError, match="Refusing to overwrite tracked file"):
+        save_working_csv_with_backup(
+            DEFAULT_DATA_DIR / "constraints_df.csv",
+            ["Constraint", "Value", "Status"],
+            [],
+            working_root=working_dir,
+        )
+
+    # Attempting to persist a What-If scenario with an existing committed folder name ('roster_full') must refuse
+    sc_ds, msg = run_what_if_scenario(
+        base_data_dir=DEFAULT_DATA_DIR,
+        base_roster_full=DEFAULT_CPSAT_DIR / "roster_full.csv",
+        residential_start_restriction=True,
+        relief_only_day_night_transition=True,
+        priority_strategy="weighted",
+        assignment_type_priority_enabled=True,
+        activity_head_max_shifts_enabled=True,
+        ordinary_rest_hours=11.0,
+        transition_rest_hours=23.0,
+        persist_output_name="roster_full",
+        time_limit=5,
+    )
+    assert sc_ds is None
+    assert "Refusing to overwrite existing output folder" in msg
+    assert (DEFAULT_CPSAT_DIR / "roster_full.csv").exists()
+

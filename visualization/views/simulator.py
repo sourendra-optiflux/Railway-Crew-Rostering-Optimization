@@ -186,10 +186,10 @@ def render_simulator(
                 )
             with g_col3:
                 persist_out_name = st.text_input(
-                    "Optional: Save Scenario to `CP-SAT/outputs/<name>`",
+                    "Optional: Save Scenario to `CP-SAT/outputs/whatif/<name>`",
                     value="",
-                    placeholder="e.g. whatif_relaxed_rest",
-                    help="If set, saves the solved scenario output folder under CP-SAT/outputs/ so you can select it in the sidebar Baseline Run comparison.",
+                    placeholder="e.g. relaxed_rest_run1",
+                    help="If set, saves the solved scenario output folder under CP-SAT/outputs/whatif/<name> (refuses existing names so committed outputs are never overwritten).",
                 )
 
             raw_cons_rows = _read_csv_dict_rows(dataset.data_dir / "constraints_df.csv")
@@ -217,7 +217,7 @@ def render_simulator(
         with btn_col1:
             run_wi_btn = st.button("Solve What-If Scenario (Isolated Temp Run)", type="primary")
         with btn_col2:
-            apply_cfg_btn = st.button("Apply to Active Config & Constraints", type="secondary")
+            apply_cfg_btn = st.button("Save Overrides to Working Copy (outputs/working_data/)", type="secondary")
 
         if apply_cfg_btn:
             save_active_config_and_constraints(
@@ -240,7 +240,7 @@ def render_simulator(
                 constraints_table_overrides=edited_cons_rows,
             )
             st.cache_data.clear()
-            st.success(f"Saved rule & constraint settings to `{config_path.name}` and `{dataset.data_dir.name}/`!")
+            st.success("Saved rule & constraint settings to working copy (`outputs/working_data/`) without modifying committed repo files!")
 
         if run_wi_btn:
             live_wi_box = st.empty()
@@ -275,7 +275,7 @@ def render_simulator(
                 log_callback=_append_wi_line,
             )
             if sc_ds is None:
-                st.error("Scenario solve failed.")
+                st.error(f"Scenario solve failed: {sc_logs.splitlines()[0] if sc_logs.strip() else 'unknown error'}")
             else:
                 sc_kpis = compute_summary_kpis(sc_ds)
                 sc_cost = compute_solver_cost_and_offset_analytics(sc_ds)
@@ -306,7 +306,7 @@ def render_simulator(
                 st.success("Scenario solved! Before vs After Comparison:")
                 if persist_out_name.strip():
                     st.info(
-                        f"Saved scenario outputs to `CP-SAT/outputs/{persist_out_name.strip()}` — "
+                        f"Saved scenario outputs to `CP-SAT/outputs/whatif/{persist_out_name.strip()}` — "
                         "you can now select it in the sidebar **Baseline Run** or **Dataset Preset** selector!"
                     )
                 base_reass_cnt = len(dataset.reassignments)

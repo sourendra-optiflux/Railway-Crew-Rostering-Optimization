@@ -51,6 +51,19 @@ def discover_solver_runs(base_root: Path = ROOT) -> dict[str, dict[str, Path]]:
                 "options_dir": options_dir if options_dir.exists() else DEFAULT_OPTIONS_DIR,
                 "config_path": config_path,
             }
+        whatif_root = outputs_root / "whatif"
+        if whatif_root.exists():
+            whatif_candidates = sorted(
+                [p for p in whatif_root.iterdir() if p.is_dir() and (p / "roster_full.csv").exists()],
+                key=lambda p: (-p.stat().st_mtime, p.name),
+            )
+            for folder in whatif_candidates:
+                runs[f"What-If: {folder.name}"] = {
+                    "data_dir": data_dir,
+                    "cpsat_dir": folder,
+                    "options_dir": options_dir if options_dir.exists() else DEFAULT_OPTIONS_DIR,
+                    "config_path": config_path,
+                }
 
     if v1_data.exists() and (outputs_root / "roster_full" / "roster_full.csv").exists():
         runs["OptiFlux v1 (08_05_2026)"] = {
