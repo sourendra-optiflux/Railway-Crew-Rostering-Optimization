@@ -31,13 +31,10 @@ ROOT = HERE.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from option_generation.data import (  # noqa: E402
-    DEFAULT_DATA_DIR as DEFAULT_DATA,
-    TRAVEL_TYPES as TRAVEL,
-    WORK_TYPES as WORK,
-    read_csv,
-    write_csv,
-)
+from option_generation.data import DEFAULT_DATA_DIR as DEFAULT_DATA  # noqa: E402
+from option_generation.data import TRAVEL_TYPES as TRAVEL  # noqa: E402
+from option_generation.data import WORK_TYPES as WORK  # noqa: E402
+from option_generation.data import read_csv, write_csv  # noqa: E402
 
 DEFAULT_OUTPUT = HERE / "output"
 FULL, DAY, NIGHT, RANDOM = "Full Swing", "Day Shifts", "Night Shifts", "Random"

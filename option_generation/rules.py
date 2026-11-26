@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 SWING_BREAK = timedelta(hours=48)  # a longer gap starts a new swing (same as scripts/check_roster.py)
+DEFAULT_CO_PAIRING_PENALTY = 50  # same scale as `Costs`: a Relief fill costs 10, a moved Demand person 40
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.yml"
 
 
@@ -29,6 +30,7 @@ class Rules:
     relief_only_day_night_transition: bool = True
     activity_head_max_shifts: bool = True
     priority_strategy: str = "none"
+    co_pairing_penalty: int = DEFAULT_CO_PAIRING_PENALTY  # cost per unmatched CO on a reverse-lane pair; 0 = off
 
     @classmethod
     def from_table(cls, rows: list[dict[str, str]], config_path: Path = DEFAULT_CONFIG) -> "Rules":
@@ -64,7 +66,7 @@ class Rules:
         optimization = config.get("optimization", {}) if isinstance(config, dict) else {}
         if not isinstance(optimization, dict):
             raise SystemExit(f"error: optimization in {config_path} must be a mapping")
-        unknown_optimization = set(optimization) - {"priority_strategy"}
+        unknown_optimization = set(optimization) - {"priority_strategy", "co_pairing_penalty"}
         if unknown_optimization:
             raise SystemExit(
                 f"error: unknown optimization settings in {config_path}: {', '.join(sorted(unknown_optimization))}"
@@ -73,6 +75,11 @@ class Rules:
         if not isinstance(priority_strategy, str) or priority_strategy not in ("none", "weighted", "lexicographic"):
             raise SystemExit(
                 f"error: optimization.priority_strategy in {config_path} must be none, weighted, or lexicographic"
+            )
+        co_pairing_penalty = optimization.get("co_pairing_penalty", DEFAULT_CO_PAIRING_PENALTY)
+        if type(co_pairing_penalty) is not int or co_pairing_penalty < 0:
+            raise SystemExit(
+                f"error: optimization.co_pairing_penalty in {config_path} must be a non-negative integer"
             )
         allowed = {"residential_start_restriction", "relief_only_day_night_transition"}
         unknown = set(constraints) - allowed
@@ -107,6 +114,7 @@ class Rules:
             **defaults,
             activity_head_max_shifts=activity_head_max_shifts,
             priority_strategy=priority_strategy,
+            co_pairing_penalty=co_pairing_penalty,
         )
 
     @property

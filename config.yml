@@ -4,3 +4,7 @@ constraints:
 
 optimization:
   priority_strategy: none  # none / weighted / lexicographic
+  # Soft constraint: every Change Over (CO) should have a CO on the reverse lane at the same start time.
+  # Cost per unmatched CO pair, added to the final cost stage (same scale as the assignment costs).
+  # 0 switches the pairing off; a larger value makes the solver work harder to keep the pairs together.
+  co_pairing_penalty: 50
