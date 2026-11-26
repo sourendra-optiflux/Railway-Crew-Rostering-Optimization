@@ -14,7 +14,7 @@ from collections import Counter, defaultdict
 
 from option_generation.data import PERSON, Data, write_csv
 from option_generation.min_crew import min_crew_table
-from option_generation.onsite import below_minimum, onsite_crew_df, seat_start_times
+from option_generation.onsite import below_minimum, onsite_crew_df, relief_heads_by_user, seat_start_times
 from option_generation.options import Option, seat_key
 
 NOTE = "Optimisation Note"
@@ -143,8 +143,12 @@ def co_pairing_report(data: Data, roster: list[dict]) -> list[dict]:
 def onsite_tables(data: Data, roster: list[dict]):
     """The on-site crew dataframe (from the optimised roster) and the heads below their minimum crew."""
     starts = seat_start_times(data.demand, data.activities, data.rules.horizon_start, data.rules.horizon_days)
-    df = onsite_crew_df(roster, starts, data.rules.shift_hours, data.min_crew, person_column="Optimised User Id")
-    return df, below_minimum(df)
+    df = onsite_crew_df(roster, starts, data.rules.shift_hours, data.min_crew, person_column="Optimised User Id",
+                        relief_heads=relief_heads_by_user(data.eligible, data.activities))  # fmt: skip
+    short = below_minimum(df)
+    # Only solvable dates: earlier days are locked history, and the first day misses shifts from before the horizon.
+    solvable = short["Start Datetime"].dt.date.map(data.rules.solvable)
+    return df, short[solvable].reset_index(drop=True)
 
 
 def write_outputs(out, data: Data, result: dict) -> None:

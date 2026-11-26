@@ -16,7 +16,7 @@ from solver import solve  # noqa: E402
 from option_generation.co_pairs import reverse_co_pairs  # noqa: E402
 from option_generation.data import DEFAULT_DATA_DIR, read_csv  # noqa: E402
 from option_generation.min_crew import default_min_crew, load_min_crew, total_daily_demand  # noqa: E402
-from option_generation.onsite import below_minimum, onsite_crew_df  # noqa: E402
+from option_generation.onsite import below_minimum, onsite_crew_df, relief_heads_by_user  # noqa: E402
 from option_generation.options import Costs, Option  # noqa: E402
 from option_generation.rules import Rules  # noqa: E402
 
@@ -30,6 +30,18 @@ def test_reverse_co_pairs_from_project_data():
     activities = {a["Activity ID"]: a for a in read_csv(DEFAULT_DATA_DIR / "activities_df.csv")}
 
     assert reverse_co_pairs(activities) == [("A02", "A04")]  # Haskett Mainline CO <-> Yarmouth Mainline CO
+
+
+def test_reverse_co_pairs_keeps_every_head_sharing_a_lane():
+    def act(head, typ, a, b):
+        return {"Activity Head": head, "Activity Type": typ, "Start Depot": a, "End Depot": b}
+
+    shared = {
+        "M1": act("Main", "Driving", "X", "Y"), "C1": act("Main", "Crew On", "X", "X"),
+        "M2": act("Work", "Driving", "X", "Y"), "C2": act("Work", "Crew On", "X", "X"),
+        "M3": act("Back", "Driving", "Y", "X"), "C3": act("Back", "Crew On", "Y", "Y"),
+    }  # fmt: skip
+    assert reverse_co_pairs(shared) == [("C1", "C3"), ("C2", "C3")]
 
 
 def test_reverse_co_pairs_ignores_lane_without_reverse():
@@ -225,3 +237,16 @@ def test_below_minimum_sums_the_sites_of_a_head():
 
     assert short["Start Datetime"].dt.hour.tolist() == [23]  # 2 people at 12:00 meet the minimum, 0 at 23:00
     assert short["Shortfall"].tolist() == [2]
+
+
+def test_standby_relief_crew_counts_under_the_heads_they_are_eligible_for():
+    roster = [_row("U1", "2026-11-06 11:00", head="Relief", kind="Relief"),
+              _row("U2", "2026-11-06 11:00", head="Relief", kind="Relief")]  # fmt: skip
+    eligible = {"A1": {"U1"}, "A2": {"U1", "U2"}}
+    activities = {"A1": {"Activity Head": "Main"}, "A2": {"Activity Head": "Shed"}}
+    starts = {"Main": [datetime(2026, 11, 6, 12)], "Shed": [datetime(2026, 11, 6, 12)]}
+
+    df = onsite_crew_df(roster, starts, 12, relief_heads=relief_heads_by_user(eligible, activities))
+    got = df.set_index("Activity Head")["Relief Crew"].to_dict()
+
+    assert got == {"Main": 1, "Shed": 2}

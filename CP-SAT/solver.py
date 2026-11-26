@@ -45,7 +45,7 @@ class Result:
     places_filled: int  # in-model places taken, keeps included
     bound: float
     cost: int | None
-    cost_bound: float | None
+    cost_bound: float | None  # CP-SAT bound of the cost stage objective: assignment cost + CO pairing penalty
     seconds: float
     chosen: dict[str, list[Option | None]] = field(default_factory=dict)  # swing key -> option per row (None = dropped)
     stage_statuses: dict[str, str] = field(default_factory=dict)

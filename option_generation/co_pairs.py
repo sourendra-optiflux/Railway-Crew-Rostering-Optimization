@@ -26,15 +26,19 @@ def reverse_co_pairs(activities: dict[str, dict[str, str]]) -> list[tuple[str, s
             co_of_head[head].append(aid)
         elif a["Start Depot"] and a["End Depot"] and a["Start Depot"] != a["End Depot"]:
             lane_of_head.setdefault(head, (a["Start Depot"], a["End Depot"]))
-    head_of_lane = {lane: head for head, lane in lane_of_head.items()}
+    heads_of_lane: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for head, lane in lane_of_head.items():
+        heads_of_lane[lane].append(head)  # several heads can share one depot lane
 
     pairs: set[tuple[str, str]] = set()
     for head, cos in co_of_head.items():
         lane = lane_of_head.get(head)
-        reverse = head_of_lane.get((lane[1], lane[0])) if lane else None
-        if reverse is None or reverse == head:
+        if lane is None:
             continue
-        for a in cos:
-            for b in co_of_head.get(reverse, []):
-                pairs.add(tuple(sorted((a, b))))
+        for reverse in heads_of_lane.get((lane[1], lane[0]), []):
+            if reverse == head:
+                continue
+            for a in cos:
+                for b in co_of_head.get(reverse, []):
+                    pairs.add(tuple(sorted((a, b))))
     return sorted(pairs)

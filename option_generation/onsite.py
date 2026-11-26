@@ -42,9 +42,25 @@ def seat_start_times(demand: dict[tuple[str, str], dict[str, str]], activities: 
     return {head: sorted(ts) for head, ts in times.items()}
 
 
+def relief_heads_by_user(eligible: dict[str, set[str]], activities: dict[str, dict[str, str]]) -> dict[str, set[str]]:
+    """User Id -> activity heads the user is eligible for (from the eligibility matrix)."""
+    heads: dict[str, set[str]] = defaultdict(set)
+    for activity_id, users in eligible.items():
+        head = activities.get(activity_id, {}).get("Activity Head")
+        if head:
+            for user in users:
+                heads[user].add(head)
+    return heads
+
+
 def onsite_crew_df(roster: list[dict], starts: dict[str, list[datetime]], shift_hours: int,
-                   min_crew: dict[str, int] | None = None, person_column: str = PERSON) -> pd.DataFrame:  # fmt: skip
-    """One row per (Site, Activity Head, Start Datetime) with the people on site, split by assignment type."""
+                   min_crew: dict[str, int] | None = None, person_column: str = PERSON,
+                   relief_heads: dict[str, set[str]] | None = None) -> pd.DataFrame:  # fmt: skip
+    """One row per (Site, Activity Head, Start Datetime) with the people on site, split by assignment type.
+
+    A Relief row has `Activity Head = "Relief"`, not a demand head, so standby Relief crew is counted under
+    every demand head the person is eligible for (`relief_heads`, User Id -> heads).
+    """
     window = timedelta(hours=shift_hours)
     people: dict[tuple[str, str, datetime], dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
     sites: set[str] = set()
@@ -52,14 +68,21 @@ def onsite_crew_df(roster: list[dict], starts: dict[str, list[datetime]], shift_
         user = r.get(person_column)
         if not user or r["Assignment Type"] not in WORK_TYPES:
             continue
-        head, site = r["Activity Head"], r["Start Location"]
-        if head not in starts or not site:
+        site = r["Start Location"]
+        if not site:
+            continue
+        if r["Assignment Type"] == "Relief" and r["Activity Head"] not in starts:
+            heads = (relief_heads or {}).get(user, set()) & starts.keys()
+        else:
+            heads = {r["Activity Head"]} & starts.keys()
+        if not heads:
             continue
         sites.add(site)
         begin = datetime.fromisoformat(f"{r['Start Date']}T{r['Shift Start Time']}")
-        for t in starts[head]:
-            if begin <= t < begin + window:
-                people[(site, head, t)][r["Assignment Type"]].add(user)
+        for head in heads:
+            for t in starts[head]:
+                if begin <= t < begin + window:
+                    people[(site, head, t)][r["Assignment Type"]].add(user)
 
     rows = []
     for head in sorted(starts):

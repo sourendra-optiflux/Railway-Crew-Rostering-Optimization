@@ -3,7 +3,7 @@
 `scripts/check_roster.py` on the optimised roster, compared with the roster after leave, plus recovery
 checks V1-V6. `fails after leave too` means leave alone already breaks that rule (for example open seats).
 
-**38 of 44 pass; 0 unexpected failure(s).**
+**37 of 43 pass; 0 unexpected failure(s).**
 
 | Rule | Check | Result | Detail |
 |---|---|---|---|
@@ -12,10 +12,10 @@ checks V1-V6. `fails after leave too` means leave alone already breaks that rule
 | — | `In Horizon` matches the start date | PASS |  |
 | D1 | Demand `Shift` holds a start time only (HH:MM) | PASS |  |
 | D3/D4 | NE Task and BY Shed are renamed (NE Crew, BY Ship) | PASS |  |
-| G1 | Every demand slot on every horizon day has exactly its demand (171 crew-shifts/day x 30 days) | fails after leave too | DM004 Haskett Mainline 2026-11-02 03:00: 0/1; DM004 Haskett Mainline 2026-11-04 03:00: 0/1; DM004 Haskett Mainline 2026-11-06 03:00: 0/1 (+68 more) |
+| G1 | Every demand slot on every horizon day has exactly its demand (171 crew-shifts/day x 30 days) | fails after leave too | DM004 Haskett Mainline 2026-11-02 03:00: 0/1; DM004 Haskett Mainline 2026-11-04 03:00: 0/1; DM004 Haskett Mainline 2026-11-06 03:00: 0/1 (+51 more) |
 | G1 | Demand rows carry the Demand ID of their activity and start time | PASS |  |
 | G1 | No slot (in or outside the horizon) has more Demand rows than its demand | PASS |  |
-| G5 | Excess rows are on work activities whose slot is already fully covered (surplus) | fails after leave too | AS0001627; AS0001628; AS0001629 (+21 more) |
+| G5 | Excess rows are on work activities whose slot is already fully covered (surplus) | fails after leave too | AS0001627; AS0001628; AS0001629 (+11 more) |
 | G6 | Relief rows: Activity Name = Activity Head = Relief, no Demand ID | PASS |  |
 | G6 | Only Relief rows use the Relief activity | PASS |  |
 | G9 | Initial roster has no leave (crew_restrictions empty, everyone Fit) | PASS |  |
@@ -49,5 +49,4 @@ checks V1-V6. `fails after leave too` means leave alone already breaks that rule
 | V2 | No seat has more people than its demand | PASS |  |
 | V3 | Everyone placed on a new seat is certified (matrix), fit, in role and current | PASS |  |
 | V5 | Swings that started before the solver start or are on leave lose no rows (F4) | PASS |  |
-| V6 | Changed people: rest, Relief-only day/night transition, one shift a day, location, one start change per block | PASS |  |
-| V7 | Changed Residential assignments do not start from 22:00 to 02:00 | PASS |  |
+| V6 | Changed people: rest, day/night rest, one shift a day, location, one start change per block | PASS |  |
