@@ -217,34 +217,55 @@ def main() -> None:
     st.markdown(
         """
         <style>
+        /* Clean page container spacing */
+        .block-container {
+            padding-top: 1.4rem !important;
+            padding-bottom: 2rem !important;
+            max-width: 100% !important;
+        }
+        /* Hero header */
         .main-hero {
-            padding: 14px 20px;
+            padding: 16px 22px;
             border-radius: 12px;
-            background: linear-gradient(135deg, #1e3a8a 0%, #0f766e 55%, #059669 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 52%, #0f766e 100%);
             color: #ffffff;
-            margin-bottom: 12px;
-            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+            margin-bottom: 14px;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
         }
         .main-hero h1 {
             margin: 0;
-            font-size: 1.65rem;
+            font-size: 1.55rem;
             font-weight: 700;
-            letter-spacing: -0.01em;
+            letter-spacing: -0.015em;
             color: #ffffff;
         }
         .main-hero p {
             margin: 4px 0 0 0;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             color: rgba(255, 255, 255, 0.88);
+        }
+        /* Uniform aligned KPI metric cards */
+        div[data-testid="stHorizontalBlock"] {
+            align-items: stretch;
         }
         div[data-testid="stMetric"] {
             background: #ffffff !important;
             background-color: #ffffff !important;
-            border: 1px solid #cbd5e1 !important;
+            border: 1px solid #e2e8f0 !important;
             border-left: 4px solid #2563eb !important;
             border-radius: 10px !important;
-            padding: 12px 15px !important;
-            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08) !important;
+            padding: 14px 16px !important;
+            min-height: 108px !important;
+            height: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06) !important;
+            transition: box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+        div[data-testid="stMetric"]:hover {
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10) !important;
+            border-color: #cbd5e1 !important;
         }
         div[data-testid="stMetric"] *,
         div[data-testid="stMetricLabel"] *,
@@ -258,28 +279,35 @@ def main() -> None:
         }
         div[data-testid="stMetricLabel"] p,
         div[data-testid="stMetricLabel"] label {
-            color: #334155 !important;
+            color: #475569 !important;
+            font-size: 0.82rem !important;
             font-weight: 600 !important;
+            line-height: 1.25 !important;
+            margin-bottom: 4px !important;
         }
         div[data-testid="stMetricValue"] {
             color: #0f172a !important;
+            font-size: 1.48rem !important;
             font-weight: 700 !important;
+            line-height: 1.2 !important;
         }
         div[data-testid="stMetricDelta"] {
             color: #0f172a !important;
             background: #f1f5f9 !important;
-            font-size: 0.95rem !important;
-            line-height: 1.45 !important;
+            font-size: 0.80rem !important;
+            line-height: 1.35 !important;
             font-weight: 600 !important;
-            padding: 4px 8px !important;
+            padding: 3px 8px !important;
             border-radius: 6px !important;
             margin-top: 6px !important;
             display: inline-block !important;
+            width: fit-content !important;
         }
         div[data-testid="stMetric"] svg {
             color: #475569 !important;
             fill: #475569 !important;
         }
+        /* Status banner */
         .exec-banner {
             display: flex;
             flex-wrap: wrap;
@@ -287,26 +315,51 @@ def main() -> None:
             align-items: center;
             padding: 10px 14px;
             border-radius: 10px;
-            background: linear-gradient(90deg, rgba(37,99,235,0.08), rgba(16,185,129,0.08));
-            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(148, 163, 184, 0.10);
+            border: 1px solid rgba(148, 163, 184, 0.30);
             border-left: 4px solid #2563eb;
             margin-bottom: 16px;
-            font-size: 0.88rem;
+            font-size: 0.85rem;
         }
         .status-pill {
-            display: inline-block;
-            padding: 2px 9px;
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
             border-radius: 999px;
             font-weight: 600;
-            font-size: 0.8rem;
+            font-size: 0.78rem;
+            line-height: 1.3;
         }
-        .pill-blue { background: rgba(37, 99, 235, 0.14); color: #1d4ed8; }
-        .pill-green { background: rgba(16, 185, 129, 0.16); color: #047857; }
-        .pill-amber { background: rgba(245, 158, 11, 0.18); color: #b45309; }
-        .pill-purple { background: rgba(139, 92, 246, 0.15); color: #6d28d9; }
+        .pill-blue { background: #dbeafe; color: #1e40af; }
+        .pill-green { background: #d1fae5; color: #065f46; }
+        .pill-amber { background: #fef3c7; color: #92400e; }
+        .pill-purple { background: #ede9fe; color: #5b21b6; }
+        /* Bordered chart / filter cards (theme-adaptive for Light & Dark mode) */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            border-radius: 12px !important;
+            border-color: rgba(148, 163, 184, 0.35) !important;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
+        }
+        /* Crisp white canvas behind every Plotly chart so dark titles & axes always have high contrast */
+        div[data-testid="stPlotlyChart"] {
+            background-color: #ffffff !important;
+            border-radius: 10px !important;
+            padding: 8px 6px 4px 6px !important;
+        }
+        /* Tabs & section headers (inherit theme text color for Light & Dark mode) */
         button[data-baseweb="tab"] {
             font-weight: 600;
+            padding: 8px 16px !important;
             border-radius: 8px 8px 0 0;
+        }
+        h2, h3 {
+            letter-spacing: -0.01em;
+        }
+        h4 {
+            margin-top: 0.5rem !important;
+            margin-bottom: 0.5rem !important;
+            font-size: 1.02rem !important;
+            font-weight: 700 !important;
         }
         </style>
         <div class="main-hero">

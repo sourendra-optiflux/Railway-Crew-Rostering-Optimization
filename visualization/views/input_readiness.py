@@ -95,7 +95,7 @@ def render_input_readiness(dataset: DashboardDataset) -> None:
     with tab_supply:
         st.plotly_chart(
             create_daily_supply_vs_demand_chart(readiness["daily_supply_rows"]),
-            use_container_width=True,
+            use_container_width=True, theme=None,
             key="ir_daily_supply_chart",
         )
         st.dataframe(readiness["daily_supply_rows"], use_container_width=True, hide_index=True)
@@ -103,7 +103,7 @@ def render_input_readiness(dataset: DashboardDataset) -> None:
     with tab_comp:
         st.plotly_chart(
             create_competency_bottleneck_chart(readiness["competency_matrix"]),
-            use_container_width=True,
+            use_container_width=True, theme=None,
             key="ir_comp_bottleneck_chart",
         )
         st.markdown("#### Activity Head Competency Compliance Summary")

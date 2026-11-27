@@ -52,7 +52,7 @@ def render_solver_log_visualizer(
         )
 
     if parsed["stages"]:
-        st.plotly_chart(create_solver_log_timeline_chart(parsed), use_container_width=True)
+        st.plotly_chart(create_solver_log_timeline_chart(parsed), use_container_width=True, theme=None)
         st.dataframe(parsed["stages"], use_container_width=True, hide_index=True)
 
     f1, f2 = st.columns([2, 1])

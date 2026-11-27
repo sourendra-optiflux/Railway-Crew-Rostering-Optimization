@@ -21,18 +21,43 @@ VIBRANT_PALETTE = [
 px.defaults.color_discrete_sequence = VIBRANT_PALETTE
 
 
-def _apply_chart_theme(fig: go.Figure) -> go.Figure:
-    """Apply consistent typography, gridlines, and high-contrast hover styling."""
-    fig.update_layout(
-        template="plotly_white",
-        font={"family": "Inter, Segoe UI, sans-serif", "size": 12, "color": "#1e293b"},
-        title_font={"size": 15, "color": "#0f172a"},
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(248, 250, 252, 0.55)",
-        hoverlabel={"bgcolor": "#0f172a", "font_color": "#f8fafc", "font_size": 12},
+def _apply_chart_theme(fig: go.Figure, horizontal_legend: bool = False) -> go.Figure:
+    """Apply consistent typography, automargins, gridlines, and high-contrast hover styling."""
+    layout_kwargs: dict[str, Any] = {
+        "template": "plotly_white",
+        "font": {"family": "Inter, Segoe UI, sans-serif", "size": 12, "color": "#1e293b"},
+        "title": {"x": 0.01, "xanchor": "left", "font": {"size": 15, "color": "#0f172a"}},
+        "paper_bgcolor": "#ffffff",
+        "plot_bgcolor": "#f8fafc",
+        "hoverlabel": {"bgcolor": "#0f172a", "font_color": "#f8fafc", "font_size": 12},
+    }
+    if horizontal_legend:
+        layout_kwargs["legend"] = {
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "left",
+            "x": 0.0,
+            "title_text": "",
+            "font": {"color": "#1e293b"},
+        }
+    fig.update_layout(**layout_kwargs)
+    fig.update_xaxes(
+        showgrid=True,
+        gridcolor="rgba(203, 213, 225, 0.55)",
+        zeroline=False,
+        automargin=True,
+        tickfont={"color": "#1e293b"},
+        title_font={"color": "#0f172a"},
     )
-    fig.update_xaxes(showgrid=True, gridcolor="rgba(203, 213, 225, 0.45)", zeroline=False)
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(203, 213, 225, 0.45)", zeroline=False)
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor="rgba(203, 213, 225, 0.55)",
+        zeroline=False,
+        automargin=True,
+        tickfont={"color": "#1e293b"},
+        title_font={"color": "#0f172a"},
+    )
     return fig
 
 
@@ -53,7 +78,7 @@ def create_demand_coverage_heatmap(
     if not slot_records:
         fig = go.Figure()
         fig.update_layout(title="No demand slot records match the selected filters.")
-        return fig
+        return _apply_chart_theme(fig)
 
     col_key = column_mode if column_mode in ("Date", "Shift", "Date_Shift") else "Date"
 
@@ -153,11 +178,12 @@ def create_demand_coverage_heatmap(
         title=f"Demand vs Assigned vs Gap Heatmap (by {col_key}; Cell = Demand/Assigned/Gap)",
         xaxis_title=col_key,
         yaxis_title="Activity Head (Ordered by Priority)",
-        yaxis={"autorange": "reversed"},
-        height=max(420, 38 * len(heads_sorted) + 140),
-        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+        yaxis={"autorange": "reversed", "automargin": True},
+        xaxis={"tickangle": -30 if len(cols_sorted) > 8 else 0, "automargin": True},
+        height=max(440, 38 * len(heads_sorted) + 150),
+        margin={"l": 16, "r": 24, "t": 56, "b": 48},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 ACTIVITY_NAME_PALETTE = [
@@ -194,7 +220,7 @@ def create_crew_gantt_chart(
     if not timeline_records:
         fig = go.Figure()
         fig.update_layout(title="No crew assignment records match the selected filters.")
-        return fig
+        return _apply_chart_theme(fig)
 
     unique_users: list[str] = []
     seen: set[str] = set()
@@ -266,13 +292,14 @@ def create_crew_gantt_chart(
         },
         title=f"Selected Crew Assignments Timeline (Showing {len(allowed_users)} of {len(unique_users)} Crew Members)",
     )
-    fig.update_yaxes(autorange="reversed", title="Crew Member (Classification)")
-    fig.update_xaxes(title="Shift Timeline")
+    fig.update_yaxes(autorange="reversed", title="Crew Member (Classification)", automargin=True)
+    fig.update_xaxes(title="Shift Timeline", automargin=True)
     fig.update_layout(
-        height=max(420, 28 * len(allowed_users) + 140),
-        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+        height=max(440, 28 * len(allowed_users) + 150),
+        margin={"l": 16, "r": 20, "t": 56, "b": 44},
+        legend={"title_text": color_field, "orientation": "v", "x": 1.01, "y": 1.0},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_gap_summary_charts(
@@ -340,11 +367,15 @@ def create_gap_summary_charts(
         fig_contrib = go.Figure()
         fig_contrib.update_layout(title="No Activity Head Demand Data")
 
+    for f in (fig_head, fig_shift, fig_prio, fig_contrib):
+        f.update_layout(height=380, margin={"l": 16, "r": 16, "t": 68, "b": 48})
+        f.update_xaxes(tickangle=-25)
+
     return {
-        "by_head": fig_head,
-        "by_shift": fig_shift,
-        "by_priority": fig_prio,
-        "resident_vs_fifo": fig_contrib,
+        "by_head": _apply_chart_theme(fig_head, horizontal_legend=True),
+        "by_shift": _apply_chart_theme(fig_shift),
+        "by_priority": _apply_chart_theme(fig_prio),
+        "resident_vs_fifo": _apply_chart_theme(fig_contrib, horizontal_legend=True),
     }
 
 
@@ -382,9 +413,12 @@ def create_strategy_comparison_charts(comparison: dict[str, Any]) -> dict[str, g
         fig_prio = go.Figure()
         fig_prio.update_layout(title="No Strategy Comparison Data by Priority")
 
+    for f in (fig_head, fig_prio):
+        f.update_layout(height=380, margin={"l": 16, "r": 16, "t": 68, "b": 48})
+
     return {
-        "by_head": fig_head,
-        "by_priority": fig_prio,
+        "by_head": _apply_chart_theme(fig_head, horizontal_legend=True),
+        "by_priority": _apply_chart_theme(fig_prio, horizontal_legend=True),
     }
 
 
@@ -393,7 +427,7 @@ def create_shift_limit_utilization_chart(head_limits_table: list[dict[str, Any]]
     if not head_limits_table:
         fig = go.Figure()
         fig.update_layout(title="No Activity-Head Shift Limit Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     heads = [str(r["Activity Head"]) for r in head_limits_table]
     obs_res = [int(r.get("Max Observed Resident Shifts / Swing") or 0) for r in head_limits_table]
@@ -415,9 +449,9 @@ def create_shift_limit_utilization_chart(head_limits_table: list[dict[str, Any]]
         xaxis_title="Activity Head (Ordered by Priority)",
         yaxis_title="Shifts per Swing",
         height=420,
-        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+        margin={"l": 16, "r": 16, "t": 68, "b": 48},
     )
-    return fig
+    return _apply_chart_theme(fig, horizontal_legend=True)
 
 
 def create_workload_distribution_chart(crew_rows: list[dict[str, Any]], top_n: int = 30) -> go.Figure:
@@ -425,7 +459,7 @@ def create_workload_distribution_chart(crew_rows: list[dict[str, Any]], top_n: i
     if not crew_rows:
         fig = go.Figure()
         fig.update_layout(title="No Crew Workload Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     subset = crew_rows[:top_n]
     users = [str(r["User Id"]) for r in subset]
@@ -446,7 +480,7 @@ def create_workload_distribution_chart(crew_rows: list[dict[str, Any]], top_n: i
         height=400,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_reassignment_sankey_chart(sankey_links: list[dict[str, Any]]) -> go.Figure:
@@ -454,7 +488,7 @@ def create_reassignment_sankey_chart(sankey_links: list[dict[str, Any]]) -> go.F
     if not sankey_links:
         fig = go.Figure()
         fig.update_layout(title="No Reassignment Moves to Visualize")
-        return fig
+        return _apply_chart_theme(fig)
 
     labels: list[str] = []
     idx_by_label: dict[str, int] = {}
@@ -486,7 +520,7 @@ def create_reassignment_sankey_chart(sankey_links: list[dict[str, Any]]) -> go.F
         height=460,
         margin={"l": 20, "r": 20, "t": 50, "b": 20},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_depot_balance_chart(depot_rows: list[dict[str, Any]]) -> go.Figure:
@@ -494,7 +528,7 @@ def create_depot_balance_chart(depot_rows: list[dict[str, Any]]) -> go.Figure:
     if not depot_rows:
         fig = go.Figure()
         fig.update_layout(title="No Depot Balance Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     depots = [str(r["Depot"]) for r in depot_rows]
     starts = [int(r["Shift Starts (Outflow)"]) for r in depot_rows]
@@ -514,7 +548,7 @@ def create_depot_balance_chart(depot_rows: list[dict[str, Any]]) -> go.Figure:
         height=380,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_cost_and_offset_charts(cost_analytics: dict[str, Any]) -> dict[str, go.Figure]:
@@ -568,7 +602,10 @@ def create_cost_and_offset_charts(cost_analytics: dict[str, Any]) -> dict[str, g
         fig_off = go.Figure()
         fig_off.update_layout(title="No Start-Time Offset Data Available")
 
-    return {"cost_by_source": fig_cost, "offsets": fig_off}
+    return {
+        "cost_by_source": _apply_chart_theme(fig_cost),
+        "offsets": _apply_chart_theme(fig_off),
+    }
 
 
 def create_skill_supply_chart(supply_rows: list[dict[str, Any]]) -> go.Figure:
@@ -576,7 +613,7 @@ def create_skill_supply_chart(supply_rows: list[dict[str, Any]]) -> go.Figure:
     if not supply_rows:
         fig = go.Figure()
         fig.update_layout(title="No Eligibility Supply Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     heads = [str(r["Activity Head"]) for r in supply_rows]
     elig = [int(r["Eligible Crew"]) for r in supply_rows]
@@ -596,7 +633,7 @@ def create_skill_supply_chart(supply_rows: list[dict[str, Any]]) -> go.Figure:
         height=400,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_depot_head_eligibility_heatmap(matrix_rows: list[dict[str, Any]]) -> go.Figure:
@@ -604,7 +641,7 @@ def create_depot_head_eligibility_heatmap(matrix_rows: list[dict[str, Any]]) -> 
     if not matrix_rows:
         fig = go.Figure()
         fig.update_layout(title="No Depot x Activity Head Eligibility Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     depots = sorted({str(r["Depot"]) for r in matrix_rows})
     heads = sorted({str(r["Activity Head"]) for r in matrix_rows})
@@ -629,7 +666,7 @@ def create_depot_head_eligibility_heatmap(matrix_rows: list[dict[str, Any]]) -> 
         height=380,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_rest_margin_histogram(rest_buckets: list[dict[str, Any]]) -> go.Figure:
@@ -637,7 +674,7 @@ def create_rest_margin_histogram(rest_buckets: list[dict[str, Any]]) -> go.Figur
     if not rest_buckets:
         fig = go.Figure()
         fig.update_layout(title="No Rest Margin Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     cats = [str(r["Category"]) for r in rest_buckets]
     vals = [int(r["Transitions"]) for r in rest_buckets]
@@ -661,7 +698,7 @@ def create_rest_margin_histogram(rest_buckets: list[dict[str, Any]]) -> go.Figur
         height=360,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_daily_pool_area_chart(daily_pool_rows: list[dict[str, Any]]) -> go.Figure:
@@ -669,7 +706,7 @@ def create_daily_pool_area_chart(daily_pool_rows: list[dict[str, Any]]) -> go.Fi
     if not daily_pool_rows:
         fig = go.Figure()
         fig.update_layout(title="No Daily Crew Pool Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     dates = [str(r["Date"]) for r in daily_pool_rows]
     series = [
@@ -699,7 +736,7 @@ def create_daily_pool_area_chart(daily_pool_rows: list[dict[str, Any]]) -> go.Fi
         height=400,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_lifecycle_waterfall_chart(lifecycle: dict[str, Any]) -> go.Figure:
@@ -744,7 +781,7 @@ def create_rejection_pareto_chart(rejection_summary: list[dict[str, Any]]) -> go
     if not rejection_summary:
         fig = go.Figure()
         fig.update_layout(title="No Layer-1 Rejection Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     sorted_rows = sorted(rejection_summary, key=lambda r: -int(r.get("Count", 0)))
     reasons = [str(r.get("Reason", r.get("Rejection Reason", "Unknown"))) for r in sorted_rows]
@@ -785,7 +822,7 @@ def create_unfilled_treemap_chart(unfilled_records: list[dict[str, Any]]) -> go.
     if not unfilled_records:
         fig = go.Figure()
         fig.update_layout(title="No Unfilled Demand Slots")
-        return fig
+        return _apply_chart_theme(fig)
 
     fig = px.treemap(
         unfilled_records,
@@ -795,16 +832,16 @@ def create_unfilled_treemap_chart(unfilled_records: list[dict[str, Any]]) -> go.
         color_continuous_scale="Reds",
         title="Unfilled Demand Treemap (Activity Head -> Priority -> Shift)",
     )
-    fig.update_layout(height=420, margin={"l": 10, "r": 10, "t": 50, "b": 10})
-    return fig
+    fig.update_layout(height=400, margin={"l": 10, "r": 10, "t": 54, "b": 12})
+    return _apply_chart_theme(fig)
 
 
 def create_option_density_scatter_chart(seat_density_rows: list[dict[str, Any]]) -> go.Figure:
     """Scatter plot of Layer-1 legal option count vs fill outcome per open seat."""
     if not seat_density_rows:
         fig = go.Figure()
-        fig.update_layout(title="No Seat Option Density Data Available")
-        return fig
+        fig.update_layout(title="No Seat Option Density Data Available", height=400)
+        return _apply_chart_theme(fig)
 
     fig = px.strip(
         seat_density_rows,
@@ -814,8 +851,8 @@ def create_option_density_scatter_chart(seat_density_rows: list[dict[str, Any]])
         hover_data=["Seat Key", "Date", "Shift", "Priority"],
         title="Option Density vs Fill Outcome (0 Options = Layer-1 Bottleneck, >0 Unfilled = Layer-2 Conflict)",
     )
-    fig.update_layout(height=390, margin={"l": 20, "r": 20, "t": 50, "b": 40})
-    return fig
+    fig.update_layout(height=400, margin={"l": 16, "r": 16, "t": 54, "b": 44})
+    return _apply_chart_theme(fig)
 
 
 def create_individual_crew_calendar_chart(schedule_rows: list[dict[str, Any]], user_id: str) -> go.Figure:
@@ -873,7 +910,7 @@ def create_competency_bottleneck_chart(comp_rows: list[dict[str, Any]]) -> go.Fi
     if not comp_rows:
         fig = go.Figure()
         fig.update_layout(title="No Competency Compliance Matrix Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     heads = [str(r["Activity Head"]) for r in comp_rows]
     fig = go.Figure()
@@ -886,7 +923,7 @@ def create_competency_bottleneck_chart(comp_rows: list[dict[str, Any]]) -> go.Fi
         height=400,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_daily_supply_vs_demand_chart(daily_supply_rows: list[dict[str, Any]]) -> go.Figure:
@@ -894,7 +931,7 @@ def create_daily_supply_vs_demand_chart(daily_supply_rows: list[dict[str, Any]])
     if not daily_supply_rows:
         fig = go.Figure()
         fig.update_layout(title="No Daily Supply vs Demand Data Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     dates = [str(r["Date"]) for r in daily_supply_rows]
     fig = go.Figure()
@@ -909,7 +946,7 @@ def create_daily_supply_vs_demand_chart(daily_supply_rows: list[dict[str, Any]])
         height=380,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_slot_diff_heatmap(diff_rows: list[dict[str, Any]]) -> go.Figure:
@@ -917,7 +954,7 @@ def create_slot_diff_heatmap(diff_rows: list[dict[str, Any]]) -> go.Figure:
     if not diff_rows:
         fig = go.Figure()
         fig.update_layout(title="No Slot Differences Available")
-        return fig
+        return _apply_chart_theme(fig)
 
     agg: dict[tuple[str, str], int] = {}
     dates: set[str] = set()
@@ -950,7 +987,7 @@ def create_slot_diff_heatmap(diff_rows: list[dict[str, Any]]) -> go.Figure:
         height=420,
         margin={"l": 20, "r": 20, "t": 50, "b": 40},
     )
-    return fig
+    return _apply_chart_theme(fig)
 
 
 def create_solver_log_timeline_chart(parsed_log: dict[str, Any]) -> go.Figure:
@@ -959,7 +996,7 @@ def create_solver_log_timeline_chart(parsed_log: dict[str, Any]) -> go.Figure:
     if not stages:
         fig = go.Figure()
         fig.update_layout(title="No Stage Headers Found in Solver Log")
-        return fig
+        return _apply_chart_theme(fig)
 
     names = [str(s["Stage"]) for s in stages]
     durations = [float(s.get("Duration (s)", 0.0)) for s in stages]
@@ -990,11 +1027,11 @@ def create_fill_rate_gauge_chart(coverage_pct: float, gap_fill_pct: float) -> go
         go.Indicator(
             mode="gauge+number",
             value=round(coverage_pct, 2),
-            number={"suffix": "%"},
-            title={"text": "Overall Demand Coverage %"},
+            number={"suffix": "%", "font": {"color": "#0f172a"}},
+            title={"text": "Overall Demand Coverage %", "font": {"size": 14, "color": "#0f172a"}},
             domain={"x": [0.0, 0.46], "y": [0.0, 1.0]},
             gauge={
-                "axis": {"range": [0, 100]},
+                "axis": {"range": [0, 100], "tickfont": {"color": "#334155"}},
                 "bar": {"color": "#10B981" if coverage_pct >= 95 else "#F59E0B"},
                 "steps": [
                     {"range": [0, 85], "color": "rgba(239, 68, 68, 0.14)"},
@@ -1008,11 +1045,11 @@ def create_fill_rate_gauge_chart(coverage_pct: float, gap_fill_pct: float) -> go
         go.Indicator(
             mode="gauge+number",
             value=round(gap_fill_pct, 2),
-            number={"suffix": "%"},
-            title={"text": "Open Leave Gap Recovery %"},
+            number={"suffix": "%", "font": {"color": "#0f172a"}},
+            title={"text": "Open Leave Gap Recovery %", "font": {"size": 14, "color": "#0f172a"}},
             domain={"x": [0.54, 1.0], "y": [0.0, 1.0]},
             gauge={
-                "axis": {"range": [0, 100]},
+                "axis": {"range": [0, 100], "tickfont": {"color": "#334155"}},
                 "bar": {"color": "#2563EB" if gap_fill_pct >= 85 else "#F59E0B"},
                 "steps": [
                     {"range": [0, 70], "color": "rgba(239, 68, 68, 0.14)"},
@@ -1022,7 +1059,7 @@ def create_fill_rate_gauge_chart(coverage_pct: float, gap_fill_pct: float) -> go
             },
         )
     )
-    fig.update_layout(height=270, margin={"l": 20, "r": 20, "t": 45, "b": 15})
+    fig.update_layout(height=330, margin={"l": 18, "r": 18, "t": 52, "b": 18})
     return _apply_chart_theme(fig)
 
 
@@ -1036,16 +1073,18 @@ def create_assignment_type_donut_charts(extended_kpis: dict[str, Any]) -> dict[s
             go.Pie(
                 labels=["Demand", "Relief (Standby)", "Excess"],
                 values=[d_cnt, r_cnt, e_cnt],
-                hole=0.52,
+                hole=0.55,
                 marker={"colors": ["#2563EB", "#F59E0B", "#8B5CF6"]},
-                textinfo="label+percent",
+                textinfo="percent",
+                hovertemplate="<b>%{label}</b><br>Shifts: %{value:,}<br>Share: %{percent}<extra></extra>",
             )
         ]
     )
     fig_type.update_layout(
-        title="Selected Work Shifts by Assignment Type",
-        height=320,
-        margin={"l": 20, "r": 20, "t": 50, "b": 20},
+        title="Selected Shifts by Assignment Type",
+        height=330,
+        margin={"l": 16, "r": 16, "t": 52, "b": 42},
+        legend={"orientation": "h", "yanchor": "top", "y": -0.05, "xanchor": "center", "x": 0.5},
     )
 
     res_cnt = int(extended_kpis.get("resident_work_assignments", 0))
@@ -1055,16 +1094,18 @@ def create_assignment_type_donut_charts(extended_kpis: dict[str, Any]) -> dict[s
             go.Pie(
                 labels=["Residential", "FIFO"],
                 values=[res_cnt, fifo_cnt],
-                hole=0.52,
+                hole=0.55,
                 marker={"colors": ["#10B981", "#0D9488"]},
-                textinfo="label+percent",
+                textinfo="percent",
+                hovertemplate="<b>%{label}</b><br>Shifts: %{value:,}<br>Share: %{percent}<extra></extra>",
             )
         ]
     )
     fig_cls.update_layout(
-        title="Selected Work Shifts by Crew Classification",
-        height=320,
-        margin={"l": 20, "r": 20, "t": 50, "b": 20},
+        title="Selected Shifts by Crew Classification",
+        height=330,
+        margin={"l": 16, "r": 16, "t": 52, "b": 42},
+        legend={"orientation": "h", "yanchor": "top", "y": -0.05, "xanchor": "center", "x": 0.5},
     )
     return {
         "assignment_type": _apply_chart_theme(fig_type),
@@ -1088,10 +1129,10 @@ def create_depot_coverage_chart(depot_rows: list[dict[str, Any]]) -> go.Figure:
         title="Crew Allocation & Demand Fulfillment by Depot",
         xaxis_title="Start Location (Depot)",
         yaxis_title="Crew-Shifts",
-        height=340,
-        margin={"l": 20, "r": 20, "t": 50, "b": 40},
+        height=380,
+        margin={"l": 16, "r": 16, "t": 68, "b": 48},
     )
-    return _apply_chart_theme(fig)
+    return _apply_chart_theme(fig, horizontal_legend=True)
 
 
 def create_head_depot_coverage_heatmap(head_depot_rows: list[dict[str, Any]]) -> go.Figure:
@@ -1099,7 +1140,7 @@ def create_head_depot_coverage_heatmap(head_depot_rows: list[dict[str, Any]]) ->
     if not head_depot_rows:
         fig = go.Figure()
         fig.update_layout(title="No Activity Head x Depot Records")
-        return fig
+        return _apply_chart_theme(fig)
 
     heads = list(dict.fromkeys(str(r["Activity Head"]) for r in head_depot_rows))
     depots = sorted({str(r["Depot"]) for r in head_depot_rows})

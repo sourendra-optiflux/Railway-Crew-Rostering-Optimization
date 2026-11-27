@@ -74,7 +74,7 @@ def render_priority_and_telemetry(
     prio_rows = aggregate_by_priority_tier(all_slots)
     st.plotly_chart(
         create_priority_adherence_waterfall_chart(prio_rows),
-        use_container_width=True,
+        use_container_width=True, theme=None,
         key="prio_waterfall_chart",
     )
     st.markdown("#### Priority Tier Coverage & Cumulative Adherence Table")
@@ -152,7 +152,7 @@ def render_constraint_diagnostics(
 
     st.markdown("#### 2. Per-Activity-Head Max Resident / FIFO Shifts vs Observed Utilization")
     fig_limits = create_shift_limit_utilization_chart(diag["head_limits_table"])
-    st.plotly_chart(fig_limits, use_container_width=True)
+    st.plotly_chart(fig_limits, use_container_width=True, theme=None)
     st.dataframe(diag["head_limits_table"], use_container_width=True, hide_index=True)
 
     c1, c2 = st.columns(2)
@@ -165,7 +165,7 @@ def render_constraint_diagnostics(
     with c2:
         st.markdown("#### 4. Layer-1 Option Rejection Counts (`rejections.csv`)")
         if diag["rejection_summary"]:
-            st.plotly_chart(create_rejection_pareto_chart(diag["rejection_summary"]), use_container_width=True)
+            st.plotly_chart(create_rejection_pareto_chart(diag["rejection_summary"]), use_container_width=True, theme=None)
             st.dataframe(diag["rejection_summary"], use_container_width=True, hide_index=True)
         else:
             st.caption("`rejections.csv` not available in the selected options directory.")
@@ -223,9 +223,9 @@ def render_strategy_comparison(base_root: Path = ROOT) -> None:
         comp_charts = create_strategy_comparison_charts(comp)
         c1, c2 = st.columns(2)
         with c1:
-            st.plotly_chart(comp_charts["by_head"], use_container_width=True)
+            st.plotly_chart(comp_charts["by_head"], use_container_width=True, theme=None)
         with c2:
-            st.plotly_chart(comp_charts["by_priority"], use_container_width=True)
+            st.plotly_chart(comp_charts["by_priority"], use_container_width=True, theme=None)
 
         st.markdown("#### Priority-wise Coverage Breakdown")
         st.dataframe(comp["by_priority"], use_container_width=True, hide_index=True)
@@ -247,7 +247,7 @@ def render_strategy_comparison(base_root: Path = ROOT) -> None:
                 )
             if run_a != run_b:
                 slot_diffs = compute_slot_diff_matrix(discovered[run_a], discovered[run_b])
-                st.plotly_chart(create_slot_diff_heatmap(slot_diffs), use_container_width=True)
+                st.plotly_chart(create_slot_diff_heatmap(slot_diffs), use_container_width=True, theme=None)
                 diffs = compute_run_diff(discovered[run_a], discovered[run_b])
                 st.info(f"Found **{len(diffs)}** assignment difference(s) between **{run_a}** and **{run_b}**.")
                 if diffs:
@@ -284,7 +284,7 @@ def render_workload_chains_depots(
         w5.metric("Crew at Swing Cap", ws["fatigue_alerts"])
 
         top_n = st.slider("Top Crew Displayed in Chart", min_value=10, max_value=100, value=30, step=5)
-        st.plotly_chart(create_workload_distribution_chart(workload["crew_rows"], top_n=top_n), use_container_width=True)
+        st.plotly_chart(create_workload_distribution_chart(workload["crew_rows"], top_n=top_n), use_container_width=True, theme=None)
 
         only_fatigue = st.checkbox("Show Only Crew Reaching Swing Shift Cap", value=False)
         w_rows = workload["crew_rows"]
@@ -301,7 +301,7 @@ def render_workload_chains_depots(
         c3.metric("Multi-Hop Chain Moves", cs["chain_moves"], delta=f"Max Level {cs['max_chain_level']}")
         c4.metric("Total Move Cost", cs["total_cost"])
 
-        st.plotly_chart(create_reassignment_sankey_chart(chains_data["sankey_links"]), use_container_width=True)
+        st.plotly_chart(create_reassignment_sankey_chart(chains_data["sankey_links"]), use_container_width=True, theme=None)
         st.markdown("#### Reconstructed Gap-Fill Chains")
         st.dataframe(chains_data["chains"], use_container_width=True, hide_index=True)
         with st.expander("All Individual Reassignment Moves", expanded=False):
@@ -316,7 +316,7 @@ def render_workload_chains_depots(
         d3.metric("Travel Out Legs", ds_sum["travel_out_legs"])
         d4.metric("Total Travel Hours", f"{ds_sum['total_travel_hours']} h")
 
-        st.plotly_chart(create_depot_balance_chart(depot_data["depot_rows"]), use_container_width=True)
+        st.plotly_chart(create_depot_balance_chart(depot_data["depot_rows"]), use_container_width=True, theme=None)
         st.markdown("#### Depot Inflow vs Outflow Table")
         st.dataframe(depot_data["depot_rows"], use_container_width=True, hide_index=True)
         st.markdown("#### Per-Crew FIFO Travel / Deadheading Summary")
@@ -325,8 +325,8 @@ def render_workload_chains_depots(
     with tab_resilience:
         res_data = resilience_fn(dataset)
         st.metric("Tight Rest Transitions (11h - 12.5h)", res_data["tight_rest_count"])
-        st.plotly_chart(create_rest_margin_histogram(res_data["rest_buckets"]), use_container_width=True)
-        st.plotly_chart(create_daily_pool_area_chart(res_data["daily_pool_rows"]), use_container_width=True)
+        st.plotly_chart(create_rest_margin_histogram(res_data["rest_buckets"]), use_container_width=True, theme=None)
+        st.plotly_chart(create_daily_pool_area_chart(res_data["daily_pool_rows"]), use_container_width=True, theme=None)
         with st.expander("Tightest Intra-Swing Rest Transitions Table", expanded=False):
             st.dataframe(res_data["rest_margins"][:200], use_container_width=True, hide_index=True)
 
@@ -338,9 +338,9 @@ def render_workload_chains_depots(
         cost_figs = create_cost_and_offset_charts(cost_data)
         cc1, cc2 = st.columns(2)
         with cc1:
-            st.plotly_chart(cost_figs["cost_by_source"], use_container_width=True)
+            st.plotly_chart(cost_figs["cost_by_source"], use_container_width=True, theme=None)
         with cc2:
-            st.plotly_chart(cost_figs["offsets"], use_container_width=True)
+            st.plotly_chart(cost_figs["offsets"], use_container_width=True, theme=None)
         st.markdown("#### Cost Breakdown by Source Type")
         st.dataframe(cost_data["source_rows"], use_container_width=True, hide_index=True)
         stages = parsed_meta.get("stages", [])
@@ -358,11 +358,11 @@ def render_skill_currency_radar(
     st.subheader("Certification Supply, Depot Readiness & Currency Expiry Radar")
     radar = radar_fn(dataset)
 
-    st.plotly_chart(create_skill_supply_chart(radar["supply_rows"]), use_container_width=True)
+    st.plotly_chart(create_skill_supply_chart(radar["supply_rows"]), use_container_width=True, theme=None)
     st.markdown("#### Activity Head Skill Supply vs Daily Demand")
     st.dataframe(radar["supply_rows"], use_container_width=True, hide_index=True)
 
-    st.plotly_chart(create_depot_head_eligibility_heatmap(radar["matrix_rows"]), use_container_width=True)
+    st.plotly_chart(create_depot_head_eligibility_heatmap(radar["matrix_rows"]), use_container_width=True, theme=None)
 
     st.markdown("#### Currency Expiry Watchlist (Within Planning Horizon)")
     if radar["currency_watchlist"]:

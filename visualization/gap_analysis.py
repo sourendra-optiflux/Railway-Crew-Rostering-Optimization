@@ -119,11 +119,35 @@ def build_unfilled_gap_records(
     )
 
     # Index candidate options and rejections by Seat Key from Layer 1 if available
-    cand_count_by_seat: Counter[str] = Counter()
+    options_by_seat: dict[str, list[dict[str, str]]] = defaultdict(list)
     for c in dataset.gap_options:
         sk = c.get("Seat Key", "").strip()
         if sk:
-            cand_count_by_seat[sk] += 1
+            options_by_seat[sk].append(c)
+
+    # Factual indexes for explaining what happened to Layer-1 candidates
+    roster_by_id = {
+        r.get("Assignment ID", "").strip(): r
+        for r in dataset.roster_rows
+        if r.get("Assignment ID", "").strip()
+    }
+    reass_by_from_row = {
+        r.get("From Row", "").strip(): r
+        for r in dataset.reassignments
+        if r.get("From Row", "").strip()
+    }
+    swing_head_counts: Counter[tuple[str, str, str]] = Counter()
+    for r in dataset.roster_rows:
+        if r.get("In Horizon", "Yes").strip() not in ("Yes", ""):
+            continue
+        atype = r.get("Assignment Type", "").strip()
+        if atype not in WORK_ASSIGNMENT_TYPES or atype == "Relief":
+            continue
+        uid = r.get("Optimised User Id", "").strip()
+        sw = r.get("Swing", "").strip()
+        hd = r.get("Activity Head", "").strip()
+        if uid and sw and hd:
+            swing_head_counts[(uid, sw, hd)] += 1
 
     rejections_by_seat: dict[str, list[tuple[str, int]]] = defaultdict(list)
     for rej in dataset.rejections:
@@ -156,24 +180,32 @@ def build_unfilled_gap_records(
 
         seat_key = str(s["Seat Key"])
         locked = int(s["Locked Gaps"])
-        cand_count = cand_count_by_seat.get(seat_key, 0)
-        seat_rejs = rejections_by_seat.get(seat_key, [])
+        seat_opts = options_by_seat.get(seat_key, [])
+        cand_count = len(seat_opts)
+        seat_rejs = sorted(rejections_by_seat.get(seat_key, []), key=lambda x: -x[1])
         rej_summary = "; ".join(f"{r} ({n})" for r, n in seat_rejs) if seat_rejs else ""
+        head_name = str(s["Activity Head"])
 
-        # Determine evidence-based diagnostic status without guessing
+        # Determine evidence-based diagnostic status & plain-English explanation without guessing
         if locked > 0 and locked >= rem_gap:
             diag_status = "Locked Gap (Before Solver Start)"
             diag_evidence = (
                 f"Explicitly marked Is_locked_gap=True in roster_full.csv "
                 f"(date {s['Date']} is before Solver Start Date {solver_start}; rule G1)."
             )
+            why_not_filled = (
+                f"Locked before Solver Start Date ({solver_start}) — excluded from optimization (Rule G1)."
+            )
         elif has_layer1_diagnostics:
             if cand_count == 0:
                 diag_status = "No Legal Layer-1 Candidate Options"
                 if rej_summary:
                     diag_evidence = f"0 candidate options in gap_options.csv. Layer-1 rejections: {rej_summary}"
+                    top_blockers = ", ".join(f"{r} ({n})" for r, n in seat_rejs[:2])
+                    why_not_filled = f"No eligible crew passed Layer-1 rules — top blockers: {top_blockers}."
                 else:
                     diag_evidence = "0 candidate options in gap_options.csv (no eligible/available crew row matched)."
+                    why_not_filled = "No eligible/available crew passed Layer-1 option generation (0 candidates)."
             else:
                 diag_status = "Candidates Existed; Unselected in CP-SAT Global Solve"
                 diag_evidence = (
@@ -181,9 +213,43 @@ def build_unfilled_gap_records(
                     "(e.g., candidates assigned elsewhere or constrained globally). "
                     "Exact solver conflict reason is not exported by CP-SAT."
                 )
+                moved_cnt = 0
+                kept_demand_cnt = 0
+                kept_other_cnt = 0
+                at_limit_cnt = 0
+                res_lim, fifo_lim = dataset.limits_by_head.get(head_name, (None, None))
+                for opt in seat_opts:
+                    cand_row_id = opt.get("Candidate Row", "").strip()
+                    uid = opt.get("Candidate User Id", "").strip()
+                    src_row = roster_by_id.get(cand_row_id, {})
+                    if cand_row_id in reass_by_from_row:
+                        moved_cnt += 1
+                    elif src_row and src_row.get("Optimised User Id", "").strip() == uid:
+                        if src_row.get("Assignment Type", "").strip() == "Demand":
+                            kept_demand_cnt += 1
+                        else:
+                            kept_other_cnt += 1
+                    sw = src_row.get("Swing", "").strip()
+                    cls = classify_user(dataset, src_row, uid)
+                    lim = res_lim if cls == "Residential" else (fifo_lim if cls == "FIFO" else None)
+                    if lim is not None and sw and swing_head_counts.get((uid, sw, head_name), 0) >= lim:
+                        at_limit_cnt += 1
+
+                parts: list[str] = []
+                if moved_cnt:
+                    parts.append(f"{moved_cnt} reassigned to fill other gaps")
+                if kept_demand_cnt:
+                    parts.append(f"{kept_demand_cnt} kept on original Demand shifts")
+                if kept_other_cnt:
+                    parts.append(f"{kept_other_cnt} kept on original Relief/Excess shifts")
+                if at_limit_cnt:
+                    parts.append(f"{at_limit_cnt} already at Max Shifts/Swing cap")
+                detail = "; ".join(parts) if parts else "candidates constrained globally in CP-SAT"
+                why_not_filled = f"{cand_count} legal candidate(s) existed, but CP-SAT did not pick them ({detail})."
         else:
             diag_status = "Reason Not Available"
             diag_evidence = "Diagnostic reason not available (Layer-1 option/rejection files not loaded or not exported)."
+            why_not_filled = "Layer-1 option/rejection files not loaded — cannot determine root cause."
 
         kinds = sorted(unfilled_kind_by_seat.get(seat_key, set()))
         leaves = sorted(leave_types_by_seat.get(seat_key, set()))
@@ -207,6 +273,7 @@ def build_unfilled_gap_records(
                 "Gap Kind": ", ".join(kinds) if kinds else ("locked gap" if locked else "gap"),
                 "Leave Type": ", ".join(leaves),
                 "Layer-1 Candidates": cand_count if has_layer1_diagnostics else None,
+                "Why Not Filled": why_not_filled,
                 "Diagnostic Category": diag_status,
                 "Diagnostic Evidence": diag_evidence,
             }

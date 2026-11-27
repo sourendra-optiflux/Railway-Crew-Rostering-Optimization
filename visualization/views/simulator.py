@@ -334,7 +334,7 @@ def render_simulator(
                 with diff_t1:
                     st.plotly_chart(
                         create_slot_diff_heatmap(compute_slot_diff_matrix(dataset, sc_ds)),
-                        use_container_width=True,
+                        use_container_width=True, theme=None,
                         key="wi_slot_diff_heatmap",
                     )
                 with diff_t2:
@@ -495,7 +495,7 @@ def render_simulator(
                     title="Coverage % Trend Across Recorded Runs",
                     labels={"id": "Run ID", "coverage_pct": "Coverage %", "run_type": "Run Type"},
                 )
-                st.plotly_chart(fig_trend, use_container_width=True)
+                st.plotly_chart(fig_trend, use_container_width=True, theme=None)
 
                 base_run = ordered[0]
                 sensitivity_rows = [
