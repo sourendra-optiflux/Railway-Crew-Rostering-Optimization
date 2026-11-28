@@ -796,6 +796,17 @@ def test_solver_prefers_relief_over_excess_and_demand_regardless_of_raw_cost():
     assert res_default.places_filled == 1
     assert res_default.chosen["U_REL|1"] == [relief_opt]
     assert res_default.cost == 22
+    assert res_default.cost_bound is None  # dropped while tier penalty rescales objective
+
+    # When tier priority is disabled, cost_bound is reported on the unpenalised raw-cost scale
+    rules_disabled = replace(_test_rules(), assignment_type_priority_enabled=False)
+    res_no_tier = solve(
+        rules_disabled, seats, [sw_rel, sw_exc, sw_dem], Costs(), 5, 1, 0,
+        assignment_type_priority={"Relief": 1, "Excess": 2, "Demand": 3},
+    )
+    assert res_no_tier.places_filled == 1
+    assert res_no_tier.cost == 0
+    assert res_no_tier.cost_bound is not None
 
     # When only Excess (priority 2) and Demand (priority 3) are available, Excess is chosen over Demand
     res_exc_vs_dem = solve(

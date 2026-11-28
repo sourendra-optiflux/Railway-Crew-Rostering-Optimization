@@ -6,6 +6,7 @@ import csv
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 
 from .co_pairs import reverse_co_pairs
 from .min_crew import load_min_crew
@@ -67,7 +68,7 @@ def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) 
             raise SystemExit(f"error: {table} has rows, but this run does not model them yet")
     if not roster_full.exists():
         raise SystemExit(f"error: {roster_full} not found; run gap_generation/make_gaps.py first")
-    roster = read_csv(roster_full)
+    roster: list[dict[str, Any]] = [dict(r) for r in read_csv(roster_full)]
     for row in roster:
         row["_s"] = parse_dt(row["Start Date"], row["Shift Start Time"])
         row["_e"] = parse_dt(row["End Date"], row["Shift End Time"])

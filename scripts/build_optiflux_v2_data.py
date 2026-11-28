@@ -287,7 +287,7 @@ def summarise(activities, demand) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     p.add_argument("--data-dir", type=Path, default=DEFAULT_DIR, help="folder holding source/ (default: %(default)s)")
     args = p.parse_args(argv)
     out = args.data_dir

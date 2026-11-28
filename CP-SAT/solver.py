@@ -23,17 +23,25 @@ time. For each pair of CO seats that start together, `mismatch = |filled(a) - fi
 `rules.co_pairing_penalty` in the final stage. Violations are allowed, but they cost, so the solver keeps them
 as few as it can once coverage is fixed. A CO seat with no reverse-lane seat at its start time has nothing to
 pair with and is not penalised.
+
+Assignment-type fill priority (soft): when `rules.assignment_type_priority_enabled` is True, the final cost
+stage adds `rules.assignment_type_tier_penalty * (priority[source] - 1)` **only to `fill` options**
+(default order: Relief=1, Excess=2, Demand=3). `keep` options intentionally carry no tier penalty so the
+solver preserves undisturbed baseline assignments while preferring Relief > Excess > Demand whenever a gap is
+filled. Because the penalised objective is on a different scale from raw assignment cost, `Result.cost_bound`
+is set to `None` whenever the tier penalty is active (while `Result.cost` continues to report raw spend).
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
 from ortools.sat.python import cp_model
-from utils.load_options import ModelSwing, SeatInfo
 
-from option_generation.options import Costs, Option, can_close, can_open, skippable
+from option_generation.options import Option, can_close, can_open, skippable
 from option_generation.priority import (
     DEFAULT_ASSIGNMENT_TYPE_PRIORITIES,
     ActivityHeadLimits,
@@ -49,7 +57,7 @@ class Result:
     places_filled: int  # in-model places taken, keeps included
     bound: float
     cost: int | None
-    cost_bound: float | None  # CP-SAT bound of the cost stage objective: assignment cost + CO pairing penalty
+    cost_bound: float | None  # CP-SAT bound of the raw cost stage; None when tier penalty rescales the objective
     seconds: float
     chosen: dict[str, list[Option | None]] = field(default_factory=dict)  # swing key -> option per row (None = dropped)
     stage_statuses: dict[str, str] = field(default_factory=dict)
@@ -58,14 +66,14 @@ class Result:
     co_violations: int | None = None  # unmatched CO seats over all reverse-lane pairs; None = pairing not modelled
 
 
-def _validate_head_limits(activity_head_limits: dict[str, ActivityHeadLimits]) -> None:
+def _validate_head_limits(activity_head_limits: Mapping[str, Any]) -> None:
     if not isinstance(activity_head_limits, dict) or any(
         not isinstance(limit, ActivityHeadLimits) for limit in activity_head_limits.values()
     ):
         raise TypeError("activity_head_limits must be a dict[str, ActivityHeadLimits]")
 
 
-def _option_activity_head(o: Option, seats: dict[str, SeatInfo], head_by_activity: dict[str, str]) -> str:
+def _option_activity_head(o: Option, seats: Mapping[str, Any], head_by_activity: dict[str, str]) -> str:
     if o.activity_head:
         return o.activity_head
     if o.seat and o.seat in seats and getattr(seats[o.seat], "activity_head", ""):
@@ -77,9 +85,9 @@ def _option_activity_head(o: Option, seats: dict[str, SeatInfo], head_by_activit
     return o.activity_id
 
 
-def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], costs: Costs, time_limit: float,
+def solve(rules: Rules, seats: Mapping[str, Any], swings: Sequence[Any], costs: Any, time_limit: float,
           workers: int, seed: int, log: bool = False, priority_strategy: str | None = None,
-          activity_head_limits: dict[str, ActivityHeadLimits] | None = None,
+          activity_head_limits: Mapping[str, Any] | None = None,
           co_pairs: list[tuple[str, str]] | None = None,
           assignment_type_priority: dict[str, int] | None = None) -> Result:  # fmt: skip
     if rules.max_changes not in (0, 1):
@@ -92,7 +100,7 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
     type_priority = (
         assignment_type_priority
         if assignment_type_priority is not None
-        else getattr(rules, "assignment_type_priority", None) or DEFAULT_ASSIGNMENT_TYPE_PRIORITIES
+        else DEFAULT_ASSIGNMENT_TYPE_PRIORITIES
     )
     head_by_activity = {
         s.activity_id: s.activity_head
@@ -101,11 +109,11 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
     }
     model = cp_model.CpModel()
     tracked: list = []
-    picks: list[tuple[ModelSwing, list[tuple[Option, object]], list[object | None]]] = []
-    at_seat: dict[str, list] = defaultdict(list)
-    excess_on: list[tuple[str, object]] = []
-    spend: list[tuple[int, object]] = []
-    raw_spend: list[tuple[int, object]] = []
+    picks: list[tuple[Any, list[tuple[Option, Any]], list[Any]]] = []
+    at_seat: dict[str, list[Any]] = defaultdict(list)
+    excess_on: list[tuple[str, Any]] = []
+    spend: list[tuple[int, Any]] = []
+    raw_spend: list[tuple[int, Any]] = []
 
     def new_bool(name: str):
         var = model.new_bool_var(name)
@@ -113,9 +121,9 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
         return var
 
     for n, sw in enumerate(swings):
-        nodes: list[tuple[Option, object]] = []
-        arcs: list[tuple[int, int, object]] = []
-        dropped: list[object | None] = []
+        nodes: list[tuple[Option, Any]] = []
+        arcs: list[tuple[int, int, Any]] = []
+        dropped: list[Any] = []
         for i, opts in enumerate(sw.options):
             lits = []
             for o in opts:
@@ -243,7 +251,7 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
         priority_weights[seats[key].priority] * sum(lits)
         for key, lits in at_seat.items()
     )
-    stages: list[tuple[str, object, bool, str]] = [
+    stages: list[tuple[str, Any, bool, str]] = [
         ("coverage", sum(coverage), True, "total demand fulfilment"),
     ]
     if priority_strategy == "weighted":
@@ -320,12 +328,19 @@ def solve(rules: Rules, seats: dict[str, SeatInfo], swings: list[ModelSwing], co
             stage_bounds=stage_bounds,
         )
 
+    assert final is not None
     best = sum(first_solver.value(lit) for lit in coverage)
     best_bound = first_solver.best_objective_bound
     cost_solver = stage_solvers.get("cost")
     # The reported cost is the raw assignment cost alone (excluding tier and CO pairing penalties).
+    # Drop cost_bound when the tier penalty is active so cost and cost_bound are never on mismatched scales.
+    tier_penalty_active = (
+        rules.assignment_type_priority_enabled and rules.assignment_type_tier_penalty > 0
+    )
     cost_value = round(sum(c * cost_solver.value(v) for c, v in raw_spend)) if cost_solver else None
-    cost_bound = cost_solver.best_objective_bound if cost_solver else None
+    cost_bound = (
+        None if tier_penalty_active else (cost_solver.best_objective_bound if cost_solver else None)
+    )
     co_violations = sum(final.value(m) for m in co_mismatch) if co_mismatch else None
 
     chosen = {}

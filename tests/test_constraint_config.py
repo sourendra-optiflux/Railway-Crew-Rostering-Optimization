@@ -3,6 +3,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -73,7 +74,7 @@ def test_option_generation_blocks_new_but_preserves_unchanged_residential_night_
         residential_start_restriction=True,
     )
     start = datetime(2026, 11, 7, 23)
-    data = SimpleNamespace(
+    data: Any = SimpleNamespace(
         rules=rules,
         activities={
             "target": {
@@ -87,8 +88,8 @@ def test_option_generation_blocks_new_but_preserves_unchanged_residential_night_
         eligible={"target": {"U1"}},
         last_done={},
     )
-    swing = SimpleNamespace(user="U1", status="movable", reason="", classification="Residential")
-    seat = SimpleNamespace(
+    swing: Any = SimpleNamespace(user="U1", status="movable", reason="", classification="Residential")
+    seat: Any = SimpleNamespace(
         start=start,
         activity_id="target",
         key="target@2026-11-07T23:00",
@@ -163,7 +164,9 @@ def test_cp_sat_blocks_new_residential_night_start_but_keeps_existing(
 
     result = solve(rules, {candidate.seat: seat}, [swing], SimpleNamespace(), 2, 1, 0)
 
-    assert result.chosen[swing.key][1].kind == expected
+    chosen = result.chosen[swing.key][1]
+    assert chosen is not None
+    assert chosen.kind == expected
 
 
 @pytest.mark.parametrize(
@@ -220,7 +223,9 @@ def test_cp_sat_enforces_relief_only_day_night_transition(
 
     result = solve(rules, {candidate.seat: SimpleNamespace(capacity=1, priority=1)}, [swing], SimpleNamespace(), 2, 1, 0)
 
-    assert result.chosen[swing.key][1].kind == expected
+    chosen = result.chosen[swing.key][1]
+    assert chosen is not None
+    assert chosen.kind == expected
 
 
 @pytest.mark.parametrize(("status", "expected_enabled", "expected_filled"), [("Active", True, 1), ("Inactive", False, 2)])
