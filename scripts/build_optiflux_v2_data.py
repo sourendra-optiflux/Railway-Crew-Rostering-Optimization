@@ -148,6 +148,8 @@ CONSTRAINTS = [
     ("Max Start Change Minutes", "60", "Active"),
     # Per-swing activity-head shift limits from activity_priority.csv (Max Resident Shifts / Max FIFO Shifts).
     ("Activity Head Max Shifts", "", "Active"),
+    # Assignment-type fill priority (Relief > Excess > Demand) and tier penalty multiplier.
+    ("Assignment Type Priority", "1000", "Active"),
     # gap_filling_rules.md R4: every row is unlocked; locking is a later application feature.
     ("Default Is Locked", "False", "Active"),
     ("Random Seed", "2026", "Active"),
@@ -232,6 +234,17 @@ def build_priority(old: Path, activities: list[dict[str, str]]) -> tuple[list[st
     ]
 
 
+def build_assignment_type_priority() -> tuple[list[str], list[dict[str, str]]]:
+    """Assignment-type fill priority order: Relief (1) > Excess (2) > Demand (3)."""
+    header = ["Priority", "Assignment Type"]
+    rows = [
+        {"Priority": "1", "Assignment Type": "Relief"},
+        {"Priority": "2", "Assignment Type": "Excess"},
+        {"Priority": "3", "Assignment Type": "Demand"},
+    ]
+    return header, rows
+
+
 def build_compliance(old: Path, activities: list[dict[str, str]]) -> tuple[list[str], list[dict[str, str]]]:
     """Old compliance matrix with the renames; old A17 (Route Learning) dropped; Work Train CO copies Work Train."""
     header, rows = read_csv(old / "compliance_matrix_df.csv")
@@ -274,7 +287,7 @@ def summarise(activities, demand) -> str:
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     p.add_argument("--data-dir", type=Path, default=DEFAULT_DIR, help="folder holding source/ (default: %(default)s)")
     args = p.parse_args(argv)
     out = args.data_dir
@@ -286,6 +299,7 @@ def main(argv: list[str] | None = None) -> None:
     write_csv(out / "activities_df.csv", act_header, activities)
     write_csv(out / "activity_demand_df.csv", dem_header, demand)
     write_csv(out / "activity_priority.csv", *build_priority(old, activities))
+    write_csv(out / "assignment_type_priority.csv", *build_assignment_type_priority())
     write_csv(out / "compliance_matrix_df.csv", *build_compliance(old, activities))
     write_csv(out / "excluded_activities.csv", ["Activity ID", "Activity Name"], [])
     write_csv(

@@ -6,10 +6,16 @@ import csv
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 
 from .co_pairs import reverse_co_pairs
 from .min_crew import load_min_crew
-from .priority import load_activity_head_limits, load_activity_head_priorities
+from .priority import (
+    DEFAULT_ASSIGNMENT_TYPE_PRIORITIES,
+    load_activity_head_limits,
+    load_activity_head_priorities,
+    load_assignment_type_priorities,
+)
 from .rules import DEFAULT_CONFIG, Rules
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,6 +59,7 @@ class Data:
     demand_path: Path = Path("activity_demand_df.csv")
     min_crew: dict[str, int] = field(default_factory=dict)  # Activity Head -> minimum crew required
     co_pairs: list[tuple[str, str]] = field(default_factory=list)  # CO activities on reverse lanes
+    assignment_type_priority: dict[str, int] = field(default_factory=dict)  # Assignment Type -> priority, 1 = highest
 
 
 def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) -> Data:
@@ -61,7 +68,7 @@ def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) 
             raise SystemExit(f"error: {table} has rows, but this run does not model them yet")
     if not roster_full.exists():
         raise SystemExit(f"error: {roster_full} not found; run gap_generation/make_gaps.py first")
-    roster = read_csv(roster_full)
+    roster: list[dict[str, Any]] = [dict(r) for r in read_csv(roster_full)]
     for row in roster:
         row["_s"] = parse_dt(row["Start Date"], row["Shift Start Time"])
         row["_e"] = parse_dt(row["End Date"], row["Shift End Time"])
@@ -70,9 +77,14 @@ def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) 
         m["Activity ID"]: {u for u in m["Eligible User Ids"].split(";") if u}
         for m in read_csv(data_dir / "eligibility_matrix.csv")
     }
-
     demand_path = data_dir / "activity_demand_df.csv"
     priority_path = data_dir / "activity_priority.csv"
+    assign_prio_path = data_dir / "assignment_type_priority.csv"
+    assign_prio = (
+        load_assignment_type_priorities(assign_prio_path)
+        if assign_prio_path.exists()
+        else dict(DEFAULT_ASSIGNMENT_TYPE_PRIORITIES)
+    )
     activities = {a["Activity ID"]: a for a in read_csv(data_dir / "activities_df.csv")}
     return Data(
         rules=Rules.from_table(read_csv(data_dir / "constraints_df.csv"), config_path),
@@ -95,6 +107,7 @@ def load(data_dir: Path, roster_full: Path, config_path: Path = DEFAULT_CONFIG) 
         demand_path=demand_path,
         min_crew=load_min_crew(demand_path, priority_path),
         co_pairs=reverse_co_pairs(activities),
+        assignment_type_priority=assign_prio,
     )
 
 

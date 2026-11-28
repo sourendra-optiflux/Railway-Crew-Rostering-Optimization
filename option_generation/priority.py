@@ -12,6 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ACTIVITY_HEAD_PRIORITY = ROOT / "data" / "optiflux_v2" / "activity_priority.csv"
 MAX_RESIDENT_SHIFTS_COL = "Max Resident Shifts"
 MAX_FIFO_SHIFTS_COL = "Max FIFO Shifts"
+DEFAULT_ASSIGNMENT_TYPE_PRIORITY = ROOT / "data" / "optiflux_v2" / "assignment_type_priority.csv"
+VALID_ASSIGNMENT_TYPES = ("Relief", "Excess", "Demand")
+DEFAULT_ASSIGNMENT_TYPE_PRIORITIES = {"Relief": 1, "Excess": 2, "Demand": 3}
 
 
 @dataclass(frozen=True)
@@ -144,3 +147,44 @@ def load_activity_head_limits(
     if unknown:
         raise SystemExit(f"error: shift limits configured for non-demand activity heads: {', '.join(unknown)}")
     return limits
+
+
+def load_assignment_type_priorities(
+    priority_path: Path = DEFAULT_ASSIGNMENT_TYPE_PRIORITY,
+) -> dict[str, int]:
+    """Load and validate assignment-type priority order (default: Relief=1, Excess=2, Demand=3)."""
+    _, rows = _read_rows(priority_path, ("Priority", "Assignment Type"))
+
+    types_seen = [(row.get("Assignment Type") or "").strip() for row in rows]
+    duplicates = sorted(t for t, count in Counter(types_seen).items() if t and count > 1)
+    if duplicates:
+        raise SystemExit(f"error: duplicate assignment-type priority entries: {', '.join(duplicates)}")
+
+    priorities: dict[str, int] = {}
+    invalid: list[str] = []
+    for row in rows:
+        atype = (row.get("Assignment Type") or "").strip()
+        raw_prio = (row.get("Priority") or "").strip()
+        prio = _parse_non_negative_int(raw_prio)
+        if not atype or prio is None or prio < 1 or prio > len(VALID_ASSIGNMENT_TYPES):
+            invalid.append(f"{atype or '<empty>'}={raw_prio or '<empty>'}")
+            continue
+        priorities[atype] = prio
+
+    if invalid:
+        raise SystemExit(
+            f"error: assignment-type priorities in {priority_path} must be integers 1..{len(VALID_ASSIGNMENT_TYPES)}: "
+            f"{', '.join(invalid)}"
+        )
+
+    expected = set(VALID_ASSIGNMENT_TYPES)
+    missing = sorted(expected - priorities.keys())
+    if missing:
+        raise SystemExit(f"error: missing assignment-type priorities in {priority_path}: {', '.join(missing)}")
+    unknown = sorted(priorities.keys() - expected)
+    if unknown:
+        raise SystemExit(f"error: unknown assignment types in {priority_path}: {', '.join(unknown)}")
+    if len(set(priorities.values())) != len(priorities):
+        raise SystemExit(f"error: duplicate Priority values in {priority_path}")
+
+    return priorities

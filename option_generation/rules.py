@@ -29,6 +29,8 @@ class Rules:
     residential_start_restriction: bool = True
     relief_only_day_night_transition: bool = True
     activity_head_max_shifts: bool = True
+    assignment_type_priority_enabled: bool = True
+    assignment_type_tier_penalty: int = 1000
     priority_strategy: str = "none"
     co_pairing_penalty: int = DEFAULT_CO_PAIRING_PENALTY  # cost per unmatched CO on a reverse-lane pair; 0 = off
 
@@ -42,7 +44,31 @@ class Rules:
                 f"got {max_shifts_status!r}"
             )
         activity_head_max_shifts = max_shifts_status == "Active"
+
+        assign_prio_status = status_by_name.get("Assignment Type Priority", "Active")
+        if assign_prio_status not in ("Active", "Inactive"):
+            raise SystemExit(
+                f"error: Assignment Type Priority Status in constraints_df.csv must be Active or Inactive, "
+                f"got {assign_prio_status!r}"
+            )
+        assignment_type_priority_enabled = assign_prio_status == "Active"
         value = {r["Constraint"]: r["Value"] for r in rows if r["Status"] == "Active"}
+        raw_tier_penalty = value.get("Assignment Type Priority", "").strip()
+        if raw_tier_penalty:
+            try:
+                assignment_type_tier_penalty = int(raw_tier_penalty)
+            except ValueError as exc:
+                raise SystemExit(
+                    f"error: Assignment Type Priority Value in constraints_df.csv must be a non-negative integer, "
+                    f"got {raw_tier_penalty!r}"
+                ) from exc
+            if assignment_type_tier_penalty < 0:
+                raise SystemExit(
+                    f"error: Assignment Type Priority Value in constraints_df.csv must be a non-negative integer, "
+                    f"got {raw_tier_penalty!r}"
+                )
+        else:
+            assignment_type_tier_penalty = 1000
         day_from, day_to = (int(t[:2]) * 60 + int(t[3:]) for t in value["Day Shift Window"].split("-"))
         if value["Relief Allowed Start Offsets"] != "ANY":
             raise SystemExit("error: only 'ANY' is supported for Relief Allowed Start Offsets")
@@ -113,6 +139,8 @@ class Rules:
             max_change_minutes=int(value["Max Start Change Minutes"]),
             **defaults,
             activity_head_max_shifts=activity_head_max_shifts,
+            assignment_type_priority_enabled=assignment_type_priority_enabled,
+            assignment_type_tier_penalty=assignment_type_tier_penalty,
             priority_strategy=priority_strategy,
             co_pairing_penalty=co_pairing_penalty,
         )
