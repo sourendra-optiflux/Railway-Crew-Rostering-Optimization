@@ -6,6 +6,8 @@ PyYAML>=6.0
 openpyxl>=3.1
 # Tests
 pytest>=7
-# Notebooks only (optional)
+# Notebooks / Dashboard (optional)
 pandas>=2.0
 matplotlib>=3.7
+plotly>=5.20
+streamlit>=1.35

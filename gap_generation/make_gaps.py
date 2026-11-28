@@ -112,10 +112,10 @@ def make_leave(data_dir: Path, seed: int) -> dict:
             rows = swings[key]
             if leave_type == FULL:
                 chosen = rows
-            elif leave_type == DAY:
-                chosen = split_6day(rows)[0]
-            elif leave_type == NIGHT:
-                chosen = split_6day(rows)[1]
+            elif leave_type in (DAY, NIGHT):
+                halves = split_6day(rows)
+                assert halves is not None
+                chosen = halves[0] if leave_type == DAY else halves[1]
             else:
                 length = rng.randint(1, len(rows))
                 first = rng.randint(0, len(rows) - length)
@@ -171,7 +171,7 @@ def make_leave(data_dir: Path, seed: int) -> dict:
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     p.add_argument("--data-dir", type=Path, default=DEFAULT_DATA, help="optiflux_v2 tables (default: %(default)s)")
     p.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT, help="where to write (default: %(default)s)")
     p.add_argument("--seed", type=int, default=2026, help="random seed (default: %(default)s)")
